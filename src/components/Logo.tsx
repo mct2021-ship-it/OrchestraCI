@@ -1,0 +1,57 @@
+import React from 'react';
+
+interface LogoProps {
+  className?: string;
+}
+
+export function Logo({ className = "h-8" }: LogoProps) {
+  return (
+    <div className={`bg-[#050B14] rounded-xl flex items-center justify-center px-3 py-1 ${className}`}>
+      <svg viewBox="0 0 240 60" className="h-full w-auto" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#00E5FF" />
+            <stop offset="100%" stopColor="#007BFF" />
+          </linearGradient>
+        </defs>
+        
+        <g transform="translate(5, 0)">
+          {/* Outer arc */}
+          <path 
+            d="M 49 19 A 22 22 0 1 0 41 49" 
+            fill="none" 
+            stroke="url(#logo-gradient)" 
+            strokeWidth="4" 
+            strokeLinecap="round" 
+          />
+          
+          {/* Inner arc */}
+          <path 
+            d="M 38.5 21.5 A 12 12 0 1 0 30 42" 
+            fill="none" 
+            stroke="url(#logo-gradient)" 
+            strokeWidth="4" 
+            strokeLinecap="round" 
+          />
+          
+          {/* Dot */}
+          <circle cx="30" cy="42" r="3.5" fill="url(#logo-gradient)" />
+          
+          {/* Arrow head */}
+          <path 
+            d="M 32 15 L 40 21.5 L 32 28" 
+            fill="none" 
+            stroke="url(#logo-gradient)" 
+            strokeWidth="4" 
+            strokeLinecap="round" 
+            strokeLinejoin="round" 
+          />
+        </g>
+        
+        {/* Text */}
+        <text x="65" y="32" fontFamily="sans-serif" fontWeight="800" fontSize="22" fill="#e4e4e7" letterSpacing="1.5">RCHESTRA</text>
+        <text x="65" y="52" fontFamily="sans-serif" fontWeight="800" fontSize="20" fill="#a1a1aa" letterSpacing="1.5">CI</text>
+      </svg>
+    </div>
+  );
+}

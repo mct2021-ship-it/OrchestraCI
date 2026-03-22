@@ -1,0 +1,355 @@
+import React, { useState, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { User, Camera, LogOut, Save, Shield, Upload, Zap, CreditCard, Building2 } from 'lucide-react';
+import { motion } from 'motion/react';
+import { cn } from '../lib/utils';
+import { PRESET_AVATARS } from '../constants';
+
+interface AccountSettingsProps {
+  isDarkMode?: boolean;
+  onNavigate?: (tab: string) => void;
+}
+
+import { usePlan } from '../context/PlanContext';
+
+export function AccountSettings({ isDarkMode, onNavigate }: AccountSettingsProps) {
+  const { user, token, login, logout } = useAuth();
+  const { plan, details } = usePlan();
+  const [name, setName] = useState(user?.name || '');
+  const [photoUrl, setPhotoUrl] = useState(user?.photoUrl || '');
+  const [isSaving, setIsSaving] = useState(false);
+  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
+        setMessage({ type: 'error', text: 'Image must be less than 5MB' });
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!user || !token) return;
+    setIsSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch('/api/auth/me', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, photoUrl })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update profile');
+      }
+
+      const data = await response.json();
+      login(token, data.user);
+      setMessage({ type: 'success', text: 'Profile updated successfully' });
+    } catch (error: any) {
+      setMessage({ type: 'error', text: error.message || 'An error occurred' });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex-1 flex flex-col h-screen overflow-hidden">
+      <header className={cn(
+        "flex-none h-16 border-b flex items-center px-6",
+        isDarkMode ? "bg-zinc-950 border-zinc-800" : "bg-white border-zinc-200"
+      )}>
+        <h1 className={cn(
+          "text-xl font-bold",
+          isDarkMode ? "text-white" : "text-zinc-900"
+        )}>Account Settings</h1>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-6 lg:p-10">
+        <div className="max-w-3xl mx-auto space-y-8">
+          
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={cn(
+              "p-6 rounded-2xl border",
+              isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200 shadow-sm"
+            )}
+          >
+            <h2 className={cn(
+              "text-lg font-bold mb-6",
+              isDarkMode ? "text-white" : "text-zinc-900"
+            )}>Profile Information</h2>
+
+            <div className="flex flex-col sm:flex-row gap-8">
+              <div className="flex flex-col items-center gap-4">
+                <div className="relative group">
+                  <div className={cn(
+                    "w-32 h-32 rounded-full overflow-hidden border-4",
+                    isDarkMode ? "border-zinc-800" : "border-zinc-100"
+                  )}>
+                    {photoUrl ? (
+                      <img src={photoUrl} alt={name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className={cn(
+                        "w-full h-full flex items-center justify-center",
+                        isDarkMode ? "bg-zinc-800" : "bg-zinc-100"
+                      )}>
+                        <User className="w-12 h-12 text-zinc-400" />
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 p-2 bg-indigo-600 text-white rounded-full shadow-lg hover:bg-indigo-700 transition-colors"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <input 
+                    type="file" 
+                    ref={fileInputRef} 
+                    onChange={handlePhotoUpload} 
+                    accept="image/*" 
+                    className="hidden" 
+                  />
+                </div>
+                
+                <div className="w-full max-w-[200px]">
+                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 text-center">Or choose an avatar</p>
+                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar justify-center">
+                    {PRESET_AVATARS.map((url, i) => (
+                      <button 
+                        key={i}
+                        type="button"
+                        onClick={() => setPhotoUrl(url)}
+                        className={cn(
+                          "w-8 h-8 rounded-full overflow-hidden border-2 transition-all shrink-0",
+                          photoUrl === url ? "border-indigo-600 scale-110 shadow-sm" : "border-transparent hover:border-zinc-300 dark:hover:border-zinc-600"
+                        )}
+                      >
+                        <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="text-center">
+                  <span className={cn(
+                    "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
+                    user?.role === 'Admin' 
+                      ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-500/20 dark:text-indigo-300"
+                      : "bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300"
+                  )}>
+                    <Shield className="w-3.5 h-3.5" />
+                    {user?.role || 'User'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex-1 space-y-5">
+                <div>
+                  <label className={cn(
+                    "block text-sm font-medium mb-1.5",
+                    isDarkMode ? "text-zinc-300" : "text-zinc-700"
+                  )}>
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className={cn(
+                      "w-full px-4 py-2.5 rounded-xl border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all",
+                      isDarkMode 
+                        ? "bg-zinc-950 border-zinc-800 text-white placeholder-zinc-500" 
+                        : "bg-zinc-50 border-zinc-200 text-zinc-900 placeholder-zinc-400"
+                    )}
+                    placeholder="Your name"
+                  />
+                </div>
+
+                <div>
+                  <label className={cn(
+                    "block text-sm font-medium mb-1.5",
+                    isDarkMode ? "text-zinc-300" : "text-zinc-700"
+                  )}>
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    value={user?.email || ''}
+                    disabled
+                    className={cn(
+                      "w-full px-4 py-2.5 rounded-xl border opacity-60 cursor-not-allowed",
+                      isDarkMode 
+                        ? "bg-zinc-950 border-zinc-800 text-white" 
+                        : "bg-zinc-50 border-zinc-200 text-zinc-900"
+                    )}
+                  />
+                  <p className="mt-1.5 text-xs text-zinc-500">Email address cannot be changed.</p>
+                </div>
+
+                {message && (
+                  <div className={cn(
+                    "p-3 rounded-lg text-sm font-medium",
+                    message.type === 'success' 
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400" 
+                      : "bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400"
+                  )}>
+                    {message.text}
+                  </div>
+                )}
+
+                <div className="pt-4 flex items-center gap-3">
+                  <button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {isSaving ? 'Saving...' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className={cn(
+              "p-6 rounded-2xl border",
+              isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200 shadow-sm"
+            )}
+          >
+            <h2 className={cn(
+              "text-lg font-bold mb-2",
+              isDarkMode ? "text-white" : "text-zinc-900"
+            )}>Account Actions</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6">
+              Sign out of your account on this device.
+            </p>
+            
+            <button
+              onClick={logout}
+              className={cn(
+                "flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors border",
+                isDarkMode 
+                  ? "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700" 
+                  : "bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+              )}
+            >
+              <LogOut className="w-4 h-4" />
+              Sign Out
+            </button>
+          </motion.div>
+
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className={cn(
+              "p-6 rounded-2xl border",
+              isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200 shadow-sm"
+            )}
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className={cn(
+                  "text-lg font-bold",
+                  isDarkMode ? "text-white" : "text-zinc-900"
+                )}>Subscription & Usage</h2>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  Manage your plan and monitor AI usage.
+                </p>
+              </div>
+              <div className={cn(
+                "px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider",
+                isDarkMode ? "bg-indigo-500/20 text-indigo-400" : "bg-indigo-100 text-indigo-700"
+              )}>
+                {details.name} Plan
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 font-medium text-zinc-700 dark:text-zinc-300">
+                    <Zap className="w-4 h-4 text-indigo-500" />
+                    AI Credits
+                  </div>
+                  <span className="text-zinc-500 dark:text-zinc-400">12,450 / {details.aiCreditsPerMonth.toLocaleString()} used</span>
+                </div>
+                <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(12450 / details.aiCreditsPerMonth) * 100}%` }}
+                    className="h-full bg-indigo-600 rounded-full"
+                  />
+                </div>
+                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 italic">
+                  Credits reset on April 1st, 2026.
+                </p>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center gap-2 font-medium text-zinc-700 dark:text-zinc-300">
+                    <Building2 className="w-4 h-4 text-emerald-500" />
+                    Active Project Slots
+                  </div>
+                  <span className="text-zinc-500 dark:text-zinc-400">8 / {details.maxActiveProjects} slots</span>
+                </div>
+                <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                  <motion.div 
+                    initial={{ width: 0 }}
+                    animate={{ width: `${(8 / details.maxActiveProjects) * 100}%` }}
+                    className="h-full bg-emerald-500 rounded-full"
+                  />
+                </div>
+                <div className="flex justify-between items-center text-[11px] text-zinc-500 dark:text-zinc-400">
+                  <p className="italic">12 archived projects (not counting towards slots)</p>
+                  <p className="font-bold text-zinc-700 dark:text-zinc-300">18 / {details.maxProjectCreationsPerYear} total creations this year</p>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800 flex flex-col sm:flex-row gap-3">
+                <button
+                  className={cn(
+                    "flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-colors border",
+                    isDarkMode 
+                      ? "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700" 
+                      : "bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                  )}
+                >
+                  <CreditCard className="w-4 h-4" />
+                  Manage Billing
+                </button>
+                <button
+                  onClick={() => onNavigate?.('pricing')}
+                  className="flex items-center justify-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-medium transition-colors"
+                >
+                  Upgrade Plan
+                </button>
+              </div>
+            </div>
+          </motion.div>
+
+        </div>
+      </div>
+    </div>
+  );
+}
