@@ -6,6 +6,7 @@ import { Project, RAIDItem, User } from '../types';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 
 interface RaidLogProps {
@@ -20,7 +21,74 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
   const [editingRisk, setEditingRisk] = useState<RAIDItem | null>(null);
   const [activeTab, setActiveTab] = useState<RaidTab>('Risk');
   const [isGeneratingMitigation, setIsGeneratingMitigation] = useState(false);
+  const [isSuggestingItems, setIsSuggestingItems] = useState(false);
+  const [suggestedItems, setSuggestedItems] = useState<Partial<RAIDItem>[] | null>(null);
   const { addToast } = useToast();
+
+  const handleSuggestItems = async () => {
+    if (isSuggestingItems) return;
+    
+    setIsSuggestingItems(true);
+    addToast(`Suggesting ${activeTab}s...`, 'info');
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Suggest 3-5 potential ${activeTab}s for the following project:
+        Project Name: ${stripPIData(project.name)}
+        Description: ${stripPIData(project.description)}
+        Purpose: ${stripPIData(project.purpose)}
+        Goals: ${project.goals.join(', ')}
+        
+        Return the response as a JSON array of objects with the following structure:
+        [
+          {
+            "description": "Brief description of the ${activeTab}",
+            "impact": "High" | "Medium" | "Low",
+            ${activeTab === 'Risk' ? '"probability": "High" | "Medium" | "Low",' : ''}
+            ${activeTab === 'Risk' ? '"mitigation": "Suggested mitigation strategy",' : ''}
+            ${activeTab === 'Issue' ? '"resolution": "Suggested resolution steps",' : ''}
+          }
+        ]`,
+        config: {
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
+        }
+      });
+
+      const suggestions = JSON.parse(response.text);
+      setSuggestedItems(suggestions);
+      addToast(`Suggested ${activeTab}s generated`, 'success');
+    } catch (error) {
+      console.error('Error generating suggestions:', error);
+      addToast('Failed to generate suggestions', 'error');
+    } finally {
+      setIsSuggestingItems(false);
+    }
+  };
+
+  const handleAddSuggestedItem = (item: Partial<RAIDItem>) => {
+    const newRisk: RAIDItem = {
+      id: uuidv4(),
+      type: activeTab,
+      description: item.description || `New ${activeTab}`,
+      impact: item.impact as any || 'Medium',
+      probability: activeTab === 'Risk' ? (item.probability as any || 'Medium') : undefined,
+      status: 'Open',
+      mitigation: activeTab === 'Risk' ? (item.mitigation || '') : undefined,
+      resolution: activeTab === 'Issue' ? (item.resolution || '') : undefined,
+      owner: activeTab === 'Dependency' ? '' : undefined,
+    };
+    setProjects(prev => prev.map(p => 
+      p.id === project.id ? { ...p, risks: [...(p.risks || []), newRisk] } : p
+    ));
+    setSuggestedItems(prev => prev ? prev.filter(i => i !== item) : null);
+    if (suggestedItems?.length === 1) {
+      setSuggestedItems(null);
+    }
+    addToast(`${activeTab} added`, 'success');
+  };
 
   const handleAddRisk = () => {
     const newRisk: RAIDItem = {
@@ -69,8 +137,8 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Suggest a concise mitigation strategy for the following project ${editingRisk.type}:
-        Project: ${project.name}
-        Description: ${editingRisk.description}
+        Project: ${stripPIData(project.name)}
+        Description: ${stripPIData(editingRisk.description)}
         Impact: ${editingRisk.impact}
         ${editingRisk.probability ? `Probability: ${editingRisk.probability}` : ''}
         
@@ -112,19 +180,34 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
       </div>
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
-            <Shield className="w-8 h-8 text-rose-500" />
-            RAID Log
-          </h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
+              <Shield className="w-8 h-8 text-rose-500" />
+              RAID Log
+            </h2>
+            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
+              {project.name}
+            </span>
+          </div>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">Manage Risks, Assumptions, Issues, and Dependencies.</p>
         </div>
-        <button 
-          onClick={handleAddRisk}
-          className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Add {activeTab}
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleSuggestItems}
+            disabled={isSuggestingItems}
+            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-600 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 dark:text-indigo-400 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm border border-indigo-200 dark:border-indigo-500/30 disabled:opacity-50"
+          >
+            <Sparkles className={cn("w-4 h-4", isSuggestingItems && "animate-pulse")} />
+            {isSuggestingItems ? 'Suggesting...' : `Suggest ${activeTab}s`}
+          </button>
+          <button 
+            onClick={handleAddRisk}
+            className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add {activeTab}
+          </button>
+        </div>
       </div>
 
       <div className="flex gap-2 border-b border-zinc-200 dark:border-zinc-800 pb-px">
@@ -255,6 +338,86 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
           </table>
         </div>
       </div>
+
+      <AnimatePresence>
+        {suggestedItems && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[80vh]"
+            >
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Suggested {activeTab}s</h3>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400">Select the items you want to add to your RAID log.</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setSuggestedItems(null)}
+                  className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-xl transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                {suggestedItems.map((item, idx) => (
+                  <div key={idx} className="p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900/50 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <p className="font-medium text-zinc-900 dark:text-white text-sm">{item.description}</p>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className={cn(
+                            "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider",
+                            item.impact === 'High' ? 'bg-rose-50 text-rose-700' :
+                            item.impact === 'Medium' ? 'bg-amber-50 text-amber-700' :
+                            'bg-emerald-50 text-emerald-700'
+                          )}>
+                            Impact: {item.impact}
+                          </span>
+                          {item.probability && (
+                            <span className={cn(
+                              "px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider",
+                              item.probability === 'High' ? 'bg-rose-50 text-rose-700' :
+                              item.probability === 'Medium' ? 'bg-amber-50 text-amber-700' :
+                              'bg-emerald-50 text-emerald-700'
+                            )}>
+                              Prob: {item.probability}
+                            </span>
+                          )}
+                        </div>
+                        {item.mitigation && (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 italic mt-2">
+                            <span className="font-bold not-italic">Mitigation:</span> {item.mitigation}
+                          </p>
+                        )}
+                        {item.resolution && (
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 italic mt-2">
+                            <span className="font-bold not-italic">Resolution:</span> {item.resolution}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleAddSuggestedItem(item)}
+                        className="p-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors shrink-0"
+                        title="Add to RAID Log"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {editingRisk && (

@@ -3,6 +3,7 @@ import { X, Sparkles, Loader2, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { SprintSnapshot, Project } from '../types';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 import Markdown from 'react-markdown';
 
@@ -28,14 +29,14 @@ export function SprintReportModal({ sprint, project, onClose }: SprintReportModa
       const ai = new GoogleGenAI({ apiKey });
 
       const prompt = `
-Generate a professional, nicely formatted sprint report for "${project.name}" - ${sprint.name}.
+Generate a professional, nicely formatted sprint report for "${stripPIData(project.name)}" - ${stripPIData(sprint.name)}.
 
-Sprint Description/Goals: ${sprint.description || 'No specific goals provided.'}
+Sprint Description/Goals: ${stripPIData(sprint.description || 'No specific goals provided.')}
 Completed At: ${new Date(sprint.completedAt).toLocaleDateString()}
 
 Here are the tasks that were part of this sprint:
-${sprint.tasks.map(t => `- [${t.kanbanStatus}] ${t.title} (${t.impact} Impact, ${t.effort} Effort)
-  Description: ${t.description || 'N/A'}`).join('\n')}
+${sprint.tasks.map(t => `- [${t.kanbanStatus}] ${stripPIData(t.title)} (${t.impact} Impact, ${t.effort} Effort)
+  Description: ${stripPIData(t.description || 'N/A')}`).join('\n')}
 
 Please provide a summary of the work completed, highlighting key achievements, high impact items, and overall progress. Use markdown formatting.
 `;

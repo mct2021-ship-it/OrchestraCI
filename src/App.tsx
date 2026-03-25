@@ -48,6 +48,7 @@ export default function App() {
 
 function AppContent() {
   const { user, token, isLoading } = useAuth();
+  console.log('AppContent: Rendering...', { user: user?.email, isLoading, hasToken: !!token });
   const [betaUser, setBetaUser] = useState<{name: string, email: string, plan: PlanType} | null>(null);
   
   // Determine plan
@@ -57,6 +58,8 @@ function AppContent() {
   const [currentTab, setCurrentTab] = useState('welcome');
   const [history, setHistory] = useState<string[]>(['welcome']);
   const [activeJourneyId, setActiveJourneyId] = useState<string | null>(null);
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
+  const [activeProcessMapId, setActiveProcessMapId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [isTourActive, setIsTourActive] = useState(false);
@@ -95,63 +98,74 @@ function AppContent() {
   const [selectedAssignee, setSelectedAssignee] = useState<string | null>(null);
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ item: any, type: RecycleBinItem['type'], originalProjectId?: string } | null>(null);
+  const [resetTrigger, setResetTrigger] = useState(0);
 
   // Initialize WebSocket connection
   useEffect(() => {
     if (!user) return;
 
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const socket = new WebSocket(`${protocol}//${window.location.host}`);
+    console.log('App: Initializing WebSocket...');
+    try {
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const socket = new WebSocket(`${protocol}//${window.location.host}`);
 
-    socket.onopen = () => {
-      console.log('Connected to real-time server');
-    };
+      socket.onopen = () => {
+        console.log('App: WebSocket connected');
+      };
 
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'INITIAL_STATE') {
-          const state = data.payload;
-          if (state.personas?.length) setPersonas(state.personas);
-          if (state.projects?.length) setProjects(state.projects);
-          if (state.journeys?.length) setJourneys(state.journeys);
-          if (state.tasks?.length) setTasks(state.tasks);
-          if (state.processMaps?.length) setProcessMaps(state.processMaps);
-          if (state.products?.length) setProducts(state.products);
-          if (state.services?.length) setServices(state.services);
-          if (state.stakeholders?.length) setStakeholders(state.stakeholders);
-          if (state.projectStakeholders?.length) setProjectStakeholders(state.projectStakeholders);
-          // Users are handled separately via /api/users but can be synced for UI updates
-          if (state.users?.length) setUsers(state.users);
-        } else if (data.type === 'COLLECTION_UPDATED') {
-          const { collection, items } = data.payload;
-          switch (collection) {
-            case 'personas': setPersonas(items); break;
-            case 'projects': setProjects(items); break;
-            case 'journeys': setJourneys(items); break;
-            case 'tasks': setTasks(items); break;
-            case 'processMaps': setProcessMaps(items); break;
-            case 'products': setProducts(items); break;
-            case 'services': setServices(items); break;
-            case 'stakeholders': setStakeholders(items); break;
-            case 'projectStakeholders': setProjectStakeholders(items); break;
-            case 'users': setUsers(items); break;
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          console.log('App: WebSocket message received:', data.type);
+          if (data.type === 'INITIAL_STATE') {
+            const state = data.payload;
+            if (state.personas?.length) setPersonas(state.personas);
+            if (state.projects?.length) setProjects(state.projects);
+            if (state.journeys?.length) setJourneys(state.journeys);
+            if (state.tasks?.length) setTasks(state.tasks);
+            if (state.processMaps?.length) setProcessMaps(state.processMaps);
+            if (state.products?.length) setProducts(state.products);
+            if (state.services?.length) setServices(state.services);
+            if (state.stakeholders?.length) setStakeholders(state.stakeholders);
+            if (state.projectStakeholders?.length) setProjectStakeholders(state.projectStakeholders);
+            // Users are handled separately via /api/users but can be synced for UI updates
+            if (state.users?.length) setUsers(state.users);
+          } else if (data.type === 'COLLECTION_UPDATED') {
+            const { collection, items } = data.payload;
+            switch (collection) {
+              case 'personas': setPersonas(items); break;
+              case 'projects': setProjects(items); break;
+              case 'journeys': setJourneys(items); break;
+              case 'tasks': setTasks(items); break;
+              case 'processMaps': setProcessMaps(items); break;
+              case 'products': setProducts(items); break;
+              case 'services': setServices(items); break;
+              case 'stakeholders': setStakeholders(items); break;
+              case 'projectStakeholders': setProjectStakeholders(items); break;
+              case 'users': setUsers(items); break;
+            }
           }
+        } catch (err) {
+          console.error('App: Failed to parse WebSocket message', err);
         }
-      } catch (err) {
-        console.error('Failed to parse WebSocket message', err);
-      }
-    };
+      };
 
-    socket.onclose = () => {
-      console.log('Disconnected from real-time server');
-    };
+      socket.onerror = (error) => {
+        console.error('App: WebSocket error:', error);
+      };
 
-    setWs(socket);
+      socket.onclose = () => {
+        console.log('App: WebSocket disconnected');
+      };
 
-    return () => {
-      socket.close();
-    };
+      setWs(socket);
+
+      return () => {
+        socket.close();
+      };
+    } catch (error) {
+      console.error('App: Failed to initialize WebSocket:', error);
+    }
   }, [user]);
 
   // Fetch users on load
@@ -200,8 +214,16 @@ function AppContent() {
   const handleSetTasks = useCallback((items: Task[] | ((prev: Task[]) => Task[])) => {
     setTasks(prev => {
       const newItems = typeof items === 'function' ? items(prev) : items;
-      syncCollection('tasks', newItems);
-      return newItems;
+      const now = new Date().toISOString();
+      const updatedItems = newItems.map(newItem => {
+        const oldItem = prev.find(p => p.id === newItem.id);
+        if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
+          return { ...newItem, updatedAt: now };
+        }
+        return newItem;
+      });
+      syncCollection('tasks', updatedItems);
+      return updatedItems;
     });
   }, [syncCollection]);
 
@@ -370,7 +392,12 @@ function AppContent() {
     : [], [projectStakeholders, activeProjectId]);
 
   const handleTabChange = useCallback((tab: string, subTab?: string) => {
-    if (tab === currentTab && !subTab) return;
+    if (tab === currentTab && !subTab) {
+      if (tab === 'journeys') setActiveJourneyId(null);
+      if (tab === 'tasks') setSelectedAssignee('all');
+      setResetTrigger(prev => prev + 1);
+      return;
+    }
     if (tab === 'journeys') {
       setActiveJourneyId(null);
       if (subTab === 'new') {
@@ -408,6 +435,20 @@ function AppContent() {
     setCurrentTab(previousTab);
   }, [history]);
 
+  const handleMentionClick = useCallback((type: 'task' | 'journey' | 'process', sourceId: string, projectId: string) => {
+    setActiveProjectId(projectId);
+    if (type === 'task') {
+      setActiveTaskId(sourceId);
+      handleTabChange('tasks');
+    } else if (type === 'journey') {
+      setActiveJourneyId(sourceId);
+      handleTabChange('journeys');
+    } else if (type === 'process') {
+      setActiveProcessMapId(sourceId);
+      handleTabChange('process_maps');
+    }
+  }, [handleTabChange]);
+
   const handleOpenJourney = useCallback((journeyId: string) => {
     setActiveJourneyId(journeyId);
     handleTabChange('journeys');
@@ -440,11 +481,22 @@ function AppContent() {
         return (
           <Dashboard 
             personas={personas} 
-            journeys={filteredJourneys} 
-            tasks={filteredTasks} 
-            processMaps={filteredProcessMaps} 
+            journeys={journeys} 
+            tasks={tasks} 
+            processMaps={processMaps} 
             projects={projects}
             onNavigate={handleTabChange}
+            onSelectProject={handleSelectProject}
+            onMentionClick={(type, sourceId, projectId) => {
+              handleSelectProject(projectId);
+              if (type === 'task') {
+                handleTabChange('backlog');
+              } else if (type === 'journey') {
+                handleTabChange('journeys');
+              } else if (type === 'process') {
+                handleTabChange('processes');
+              }
+            }}
             currentUser={currentUser}
             users={users}
           />
@@ -489,13 +541,16 @@ function AppContent() {
             openNewProjectModal={openNewProjectModal}
             setOpenNewProjectModal={setOpenNewProjectModal}
             onProjectCreated={(id) => setNewlyCreatedProjectId(id)}
+            journeys={journeys}
+            processMaps={processMaps}
+            tasks={tasks}
           />
         );
       case 'project_team':
-        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} />;
+        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
         return <ProjectTeam project={activeProject} setProjects={handleSetProjects} tasks={tasks} onNavigate={handleTabChange} users={users} setUsers={setUsers} currentUser={currentUser} />;
       case 'stakeholder_mapping':
-        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} />;
+        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
         return (
           <StakeholderMapping 
             project={activeProject}
@@ -522,6 +577,9 @@ function AppContent() {
             openNewProjectModal={openNewProjectModal}
             setOpenNewProjectModal={setOpenNewProjectModal}
             onProjectCreated={(id) => setNewlyCreatedProjectId(id)}
+            journeys={journeys}
+            processMaps={processMaps}
+            tasks={tasks}
           />
         );
       case 'intelligence':
@@ -574,9 +632,9 @@ function AppContent() {
         if (currentUser && !processUsers.some(u => u.email === currentUser.email)) {
           processUsers.push(currentUser);
         }
-        return <ProcessMaps processMaps={filteredProcessMaps} setProcessMaps={handleSetProcessMaps} activeProjectId={activeProjectId} journeys={journeys} currentUser={currentUser} projects={projects} onDeleteItem={handleDeleteItem} users={processUsers} />;
+        return <ProcessMaps processMaps={filteredProcessMaps} setProcessMaps={handleSetProcessMaps} activeProjectId={activeProjectId} journeys={journeys} currentUser={currentUser} projects={projects} onDeleteItem={handleDeleteItem} users={processUsers} initialProcessMapId={activeProcessMapId} />;
       case 'kanban':
-        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} />;
+        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
         
         return (
           <KanbanBoard 
@@ -589,14 +647,16 @@ function AppContent() {
             onDeleteItem={handleDeleteItem}
             onAddTeamMember={handleAddTeamMember}
             users={users}
+            activeTaskId={activeTaskId}
           />
         );
       case 'backlog':
-        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} />;
+        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
         
         return (
           <Backlog 
             project={activeProject} 
+            setProjects={handleSetProjects}
             tasks={tasks} 
             setTasks={handleSetTasks} 
             onNavigate={handleTabChange} 
@@ -607,7 +667,7 @@ function AppContent() {
           />
         );
       case 'raid':
-        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} />;
+        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
         
         const allUsers = [...mockUsers];
         if (currentUser && !allUsers.some(u => u.email === currentUser.email)) {
@@ -681,6 +741,17 @@ function AppContent() {
             processMaps={processMaps} 
             projects={projects}
             onNavigate={handleTabChange}
+            onSelectProject={handleSelectProject}
+            onMentionClick={(type, sourceId, projectId) => {
+              handleSelectProject(projectId);
+              if (type === 'task') {
+                handleTabChange('backlog');
+              } else if (type === 'journey') {
+                handleTabChange('journeys');
+              } else if (type === 'process') {
+                handleTabChange('processes');
+              }
+            }}
             currentUser={currentUser}
             users={users}
           />
@@ -749,7 +820,9 @@ function AppContent() {
                 </button>
               </div>
             )}
-            {renderContent()}
+            <React.Fragment key={`${currentTab}-${resetTrigger}`}>
+              {renderContent()}
+            </React.Fragment>
           </main>
           <OnboardingTour 
             isActive={isTourActive} 

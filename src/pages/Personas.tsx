@@ -5,6 +5,7 @@ import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders,
 import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { AiPersonaGenerator } from '../components/AiPersonaGenerator';
+import { PersonaLibraryModal } from '../components/PersonaLibraryModal';
 import { EditableText } from '../components/EditableText';
 import { VersionHistory } from '../components/VersionHistory';
 import { Persona, DemographicSlider } from '../types';
@@ -17,6 +18,7 @@ import { useToast } from '../context/ToastContext';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { usePermissions } from '../hooks/usePermissions';
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { stripPIData } from '../lib/piStripper';
 
 interface PersonasProps {
   personas: Persona[];
@@ -36,6 +38,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [templates, setTemplates] = useState<Persona[]>(personaTemplates);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -242,10 +245,10 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Generate 5-7 user stories for the following customer persona:
-        Name: ${selectedPersona.name}
-        Role: ${selectedPersona.role}
-        Goals: ${selectedPersona.goals.join(', ')}
-        Frustrations: ${selectedPersona.frustrations.join(', ')}
+        Name: ${stripPIData(selectedPersona.name)}
+        Role: ${stripPIData(selectedPersona.role)}
+        Goals: ${selectedPersona.goals.map(stripPIData).join(', ')}
+        Frustrations: ${selectedPersona.frustrations.map(stripPIData).join(', ')}
         
         Format the output as a JSON array of objects with the following structure:
         [
@@ -483,6 +486,15 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
               <span className="hidden sm:inline">AI Generator</span>
             </button>
           )}
+          {canAddPersona && (
+            <button 
+              onClick={() => setIsLibraryOpen(true)}
+              className="bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
+            >
+              <Users className="w-5 h-5" />
+              <span className="hidden sm:inline">Browse Library</span>
+            </button>
+          )}
           {canAddPersona ? (
             <button 
               onClick={handleOpenNewPersona}
@@ -710,9 +722,11 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Persona</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Person Name</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Persona Name</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Role</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Age</th>
+                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Gender</th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -729,8 +743,10 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                       <span className="font-bold text-zinc-900 dark:text-white">{persona.name}</span>
                     </div>
                   </td>
+                  <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300 font-medium">{persona.type || 'Standard'}</td>
                   <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300 font-medium">{persona.role}</td>
                   <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">{persona.age}</td>
+                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">{persona.gender || 'Not specified'}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end gap-2">
                       {canEdit && (
@@ -796,20 +812,45 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
             />
             
             <EditableText 
+              value={selectedPersona!.type || 'Standard Persona'} 
+              onChange={(val) => updatePersonaField(selectedPersona!.id, 'type', val)}
+              className="text-indigo-600 dark:text-indigo-400 font-bold text-sm text-center mt-2 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full inline-block"
+              disabled={!canEdit}
+            />
+
+            <EditableText 
               value={selectedPersona!.role} 
               onChange={(val) => updatePersonaField(selectedPersona!.id, 'role', val)}
-              className="text-zinc-600 dark:text-zinc-300 font-semibold text-lg text-center mt-1"
+              className="text-zinc-600 dark:text-zinc-300 font-semibold text-lg text-center mt-3"
               disabled={!canEdit}
             />
             
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-zinc-500 dark:text-zinc-400">Age:</span>
-              <EditableText 
-                value={selectedPersona!.age.toString()} 
-                onChange={(val) => updatePersonaField(selectedPersona!.id, 'age', parseInt(val) || selectedPersona!.age)}
-                className="text-zinc-500 dark:text-zinc-400"
-                disabled={!canEdit}
-              />
+            <div className="flex items-center justify-center gap-4 mt-1">
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500 dark:text-zinc-400">Age:</span>
+                <EditableText 
+                  value={selectedPersona!.age.toString()} 
+                  onChange={(val) => updatePersonaField(selectedPersona!.id, 'age', parseInt(val) || selectedPersona!.age)}
+                  className="text-zinc-500 dark:text-zinc-400"
+                  disabled={!canEdit}
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-zinc-500 dark:text-zinc-400">Gender:</span>
+                {canEdit ? (
+                  <select
+                    value={selectedPersona!.gender || 'Female'}
+                    onChange={(e) => updatePersonaField(selectedPersona!.id, 'gender', e.target.value)}
+                    className="bg-transparent text-zinc-500 dark:text-zinc-400 outline-none cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300"
+                  >
+                    <option value="Female">Female</option>
+                    <option value="Male">Male</option>
+                    <option value="Non-binary">Non-binary</option>
+                  </select>
+                ) : (
+                  <span className="text-zinc-500 dark:text-zinc-400">{selectedPersona!.gender || 'Not specified'}</span>
+                )}
+              </div>
             </div>
             
             <div className="mt-8 text-left w-full bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
@@ -1251,6 +1292,12 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         isOpen={isAiGeneratorOpen}
         onClose={() => setIsAiGeneratorOpen(false)}
         onSave={(newPersonas) => setPersonas([...newPersonas, ...personas])}
+      />
+
+      <PersonaLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        onImport={handleSavePersona}
       />
 
       <AvatarGalleryModal

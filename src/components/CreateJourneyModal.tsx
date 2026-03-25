@@ -6,6 +6,7 @@ import { defaultSwimlanes } from '../data/mockData';
 import { v4 as uuidv4 } from 'uuid';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import { stripPIData } from '../lib/piStripper';
 
 // Set worker source for pdfjs-dist
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -104,11 +105,11 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
       let contentPrompt = `You are an expert Customer Experience (CX) designer. Create a customer journey map based on the following input.`;
       
       if (prompt.trim()) {
-        contentPrompt += `\n\nUser Description: "${prompt}"`;
+        contentPrompt += `\n\nUser Description: "${stripPIData(prompt)}"`;
       }
 
       if (fileContent) {
-        contentPrompt += `\n\nSOP/Document Content:\n${fileContent.substring(0, 20000)}`; // Limit content length to avoid token limits if necessary, though Gemini handles large context well.
+        contentPrompt += `\n\nSOP/Document Content:\n${stripPIData(fileContent).substring(0, 20000)}`; // Limit content length to avoid token limits if necessary, though Gemini handles large context well.
       }
 
       contentPrompt += `\n\nThe journey map should have 5 stages: Awareness, Consideration, Purchase/Decision, Retention, and Advocacy.
@@ -265,6 +266,9 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
                     {uploadedFile ? 'Change File' : 'Upload SOP (PDF/Word)'}
                   </button>
                 </div>
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  Please do not upload files containing Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
+                </p>
                 
                 {uploadedFile && (
                   <div className="flex items-center gap-2 px-3 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs">

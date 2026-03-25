@@ -181,6 +181,15 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
                 placeholder="jane@example.com"
               />
             </div>
+            <div className="space-y-2 md:col-span-2">
+              <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">About / Context</label>
+              <textarea
+                value={formData.about || ''}
+                onChange={(e) => setFormData({ ...formData, about: e.target.value })}
+                className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:ring-2 focus:ring-indigo-500 outline-none min-h-[100px]"
+                placeholder="Add background information to help contextualize AI engagement plans..."
+              />
+            </div>
             <div className="md:col-span-2 pt-4">
               <button
                 type="submit"

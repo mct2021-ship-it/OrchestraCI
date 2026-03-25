@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle } from 'lucide-react';
+import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Persona, JourneyMap, Task, ProcessMap, Project, User } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';
+import { cn } from '../lib/utils';
 
 interface DashboardProps {
   personas: Persona[];
@@ -11,38 +12,58 @@ interface DashboardProps {
   processMaps: ProcessMap[];
   projects: Project[];
   onNavigate: (tab: string) => void;
+  onSelectProject: (projectId: string) => void;
+  onMentionClick: (type: 'task' | 'journey' | 'process', sourceId: string, projectId: string) => void;
   currentUser?: User;
   users: User[];
 }
 
-export function Dashboard({ personas, journeys, tasks, processMaps, projects, onNavigate, currentUser, users }: DashboardProps) {
+export function Dashboard({ personas, journeys, tasks, processMaps, projects, onNavigate, onSelectProject, onMentionClick, currentUser, users }: DashboardProps) {
   const [showIntro, setShowIntro] = React.useState(true);
   const [expandedStatId, setExpandedStatId] = React.useState<string | null>(null);
+  const [acknowledgedMentions, setAcknowledgedMentions] = React.useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('acknowledgedMentions') || '[]');
+    } catch {
+      return [];
+    }
+  });
+  const [myWorkFilter, setMyWorkFilter] = React.useState<string>('Not Done');
+
+  const handleAcknowledgeMention = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const newAck = [...acknowledgedMentions, id];
+    setAcknowledgedMentions(newAck);
+    localStorage.setItem('acknowledgedMentions', JSON.stringify(newAck));
+  };
 
   const activeProjects = useMemo(() => (projects || []).filter(p => !p.archived), [projects]);
 
   const mentions = useMemo(() => {
     if (!currentUser) return [];
     
-    const allMentions: { id: string, text: string, source: string, type: 'task' | 'journey' | 'process', sourceId: string }[] = [];
+    const allMentions: { id: string, text: string, source: string, type: 'task' | 'journey' | 'process', sourceId: string, projectId: string, createdAt: string }[] = [];
     const userHandle = `@${currentUser.name.split(' ')[0]}`.toLowerCase();
     const userEmail = `@${currentUser.email}`.toLowerCase();
 
-    const checkMentions = (comments: any[] | undefined, source: string, type: any, sourceId: string) => {
+    const checkMentions = (comments: any[] | undefined, source: string, type: any, sourceId: string, projectId: string) => {
       comments?.forEach(c => {
         const text = c.text.toLowerCase();
         if (text.includes(userHandle) || text.includes(userEmail)) {
-          allMentions.push({ id: c.id, text: c.text, source, type, sourceId });
+          allMentions.push({ id: c.id, text: c.text, source, type, sourceId, projectId, createdAt: c.createdAt || new Date(0).toISOString() });
         }
       });
     };
 
-    tasks.forEach(t => checkMentions(t.comments, t.title, 'task', t.id));
-    journeys.forEach(j => checkMentions(j.comments, j.title, 'journey', j.id));
-    processMaps.forEach(pm => checkMentions(pm.comments, pm.title, 'process', pm.id));
+    tasks.forEach(t => checkMentions(t.comments, t.title, 'task', t.id, t.projectId));
+    journeys.forEach(j => checkMentions(j.comments, j.title, 'journey', j.id, j.projectId));
+    processMaps.forEach(pm => checkMentions(pm.comments, pm.title, 'process', pm.id, pm.projectId));
 
-    return allMentions.sort((a, b) => b.id.localeCompare(a.id)).slice(0, 5);
-  }, [tasks, journeys, processMaps, currentUser]);
+    return allMentions
+      .filter(m => !acknowledgedMentions.includes(m.id))
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5);
+  }, [tasks, journeys, processMaps, currentUser, acknowledgedMentions]);
 
   const getProjectName = (projectId: string) => {
     return projects.find(p => p.id === projectId)?.name || 'Unknown Project';
@@ -59,6 +80,22 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
     dueDate.setHours(0, 0, 0, 0);
     
     return dueDate < today;
+  };
+
+  const getTaskLastActivity = (task: Task) => {
+    let lastActivity = new Date(task.updatedAt || task.createdAt || 0).getTime();
+    
+    if (task.comments && task.comments.length > 0) {
+      const lastCommentTime = new Date(task.comments[task.comments.length - 1].createdAt).getTime();
+      if (lastCommentTime > lastActivity) lastActivity = lastCommentTime;
+    }
+    
+    if (task.stageHistory && task.stageHistory.length > 0) {
+      const lastStageTime = new Date(task.stageHistory[task.stageHistory.length - 1].enteredAt).getTime();
+      if (lastStageTime > lastActivity) lastActivity = lastStageTime;
+    }
+    
+    return lastActivity;
   };
 
   const stats = useMemo(() => [
@@ -165,18 +202,48 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                 <div className="mt-2 bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-200 dark:border-zinc-800 p-4 animate-in slide-in-from-top-2 fade-in duration-200 w-full z-10 shadow-lg">
                   {Object.entries(itemsByProject).length > 0 ? (
                     <div className="space-y-4 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                      {Object.entries(itemsByProject).map(([projectName, items]) => (
-                        <div key={projectName}>
-                          <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 sticky top-0 bg-zinc-50 dark:bg-zinc-900/90 py-1">{projectName}</h4>
-                          <ul className="space-y-1">
-                            {items.map(item => (
-                              <li key={item.id} className="text-sm text-zinc-700 dark:text-zinc-300 pl-2 border-l-2 border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 transition-colors py-0.5">
+                      {stat.id === 'projects' ? (
+                        <ul className="space-y-1">
+                          {stat.items.map(item => (
+                            <li key={item.id} className="text-sm text-zinc-700 dark:text-zinc-300 pl-2 border-l-2 border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 transition-colors py-0.5">
+                              <button 
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSelectProject(item.projectId);
+                                  onNavigate('project_detail');
+                                }}
+                                className="text-left w-full hover:text-indigo-600 dark:hover:text-indigo-400"
+                              >
                                 {item.name}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      ))}
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        Object.entries(itemsByProject).map(([projectName, items]) => (
+                          <div key={projectName}>
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 dark:text-zinc-400 mb-2 sticky top-0 bg-zinc-50 dark:bg-zinc-900/90 py-1">{projectName}</h4>
+                            <ul className="space-y-1">
+                              {items.map(item => (
+                                <li key={item.id} className="text-sm text-zinc-700 dark:text-zinc-300 pl-2 border-l-2 border-zinc-200 dark:border-zinc-700 hover:border-indigo-500 transition-colors py-0.5">
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onSelectProject(item.projectId);
+                                      if (stat.id === 'journeys') onNavigate('journeys');
+                                      else if (stat.id === 'process_maps') onNavigate('process_maps');
+                                      else if (stat.id === 'tasks') onNavigate('tasks');
+                                    }}
+                                    className="text-left w-full hover:text-indigo-600 dark:hover:text-indigo-400"
+                                  >
+                                    {item.name}
+                                  </button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))
+                      )}
                     </div>
                   ) : (
                     <p className="text-sm text-zinc-400 italic">No items found.</p>
@@ -191,18 +258,41 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
           <div className="flex items-center justify-between mb-4">
-            <button 
-              onClick={() => onNavigate('tasks')}
-              className="text-lg font-semibold text-zinc-900 dark:text-white hover:text-indigo-600 transition-colors text-left"
-            >
-              My Work
-            </button>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => onNavigate('tasks')}
+                className="text-lg font-semibold text-zinc-900 dark:text-white hover:text-indigo-600 transition-colors text-left"
+              >
+                My Work
+              </button>
+              <select
+                value={myWorkFilter}
+                onChange={(e) => setMyWorkFilter(e.target.value)}
+                className="text-xs bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-md px-2 py-1 text-zinc-700 dark:text-zinc-300 outline-none focus:ring-1 focus:ring-indigo-500"
+              >
+                <option value="All">All Statuses</option>
+                <option value="Not Done">Not Done</option>
+                <option value="Done">Done</option>
+              </select>
+            </div>
             <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold rounded-full uppercase tracking-wider">
               Assigned to you
             </span>
           </div>
           <div className="space-y-4">
-            {(tasks || []).filter(t => !t.archived && t.owner === currentUser?.id).slice(0, 4).map(task => {
+            {(tasks || [])
+              .filter(t => !t.archived && (t.owner === currentUser?.id || t.owner === currentUser?.name))
+              .filter(t => {
+                if (myWorkFilter === 'All') return true;
+                const doneStatuses = ['Done', 'Completed', 'Finished', 'Archived'];
+                const isDone = doneStatuses.includes(t.kanbanStatus) || doneStatuses.includes(t.status);
+                if (myWorkFilter === 'Not Done') return !isDone;
+                if (myWorkFilter === 'Done') return isDone;
+                return true;
+              })
+              .sort((a, b) => getTaskLastActivity(b) - getTaskLastActivity(a))
+              .slice(0, 4)
+              .map(task => {
               const project = (projects || []).find(p => p.id === task.projectId);
               return (
                 <button 
@@ -220,8 +310,20 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                         </div>
                       )}
                     </div>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">
-                      {project ? project.name : 'Unknown Project'} • {task.kanbanStatus}
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate flex items-center gap-2">
+                      <span>{project ? project.name : 'Unknown Project'} • {task.kanbanStatus}</span>
+                      {task.expectedCompletionDate && (
+                        <>
+                          <span className="text-zinc-300 dark:text-zinc-700">•</span>
+                          <span className={cn(
+                            "flex items-center gap-1",
+                            isTaskOverdue(task) ? "text-rose-600 dark:text-rose-400 font-medium" : "text-zinc-500 dark:text-zinc-400"
+                          )}>
+                            <Clock className="w-3 h-3" />
+                            {new Date(task.expectedCompletionDate).toLocaleDateString()}
+                          </span>
+                        </>
+                      )}
                     </p>
                   </div>
                   <span className={`px-2.5 py-1 text-xs font-medium rounded-full whitespace-nowrap shrink-0 ${
@@ -234,7 +336,7 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                 </button>
               );
             })}
-            {(tasks || []).filter(t => !t.archived && t.owner === currentUser?.id).length === 0 && (
+            {(tasks || []).filter(t => !t.archived && (t.owner === currentUser?.id || t.owner === currentUser?.name)).length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
                 <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mb-4">
                   <CheckSquare className="w-8 h-8" />
@@ -264,7 +366,8 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
             {mentions.map(mention => (
               <div 
                 key={mention.id}
-                className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-amber-100 dark:border-amber-900/30 hover:border-amber-300 transition-all w-full text-left group relative"
+                onClick={() => onMentionClick(mention.type, mention.sourceId, mention.projectId)}
+                className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 border border-amber-100 dark:border-amber-900/30 hover:border-amber-300 transition-all w-full text-left group relative cursor-pointer"
               >
                 <div className="flex items-start gap-3">
                   <div className="mt-1 p-1.5 bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 rounded-lg">
@@ -274,10 +377,18 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                     <p className="text-sm text-zinc-900 dark:text-white font-medium line-clamp-2 mb-1 italic">
                       "{mention.text}"
                     </p>
-                    <div className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
-                      <span className="font-bold uppercase tracking-wider">{mention.type}</span>
-                      <span>•</span>
-                      <span className="truncate">{mention.source}</span>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-[10px] text-zinc-500 dark:text-zinc-400">
+                        <span className="font-bold uppercase tracking-wider">{mention.type}</span>
+                        <span>•</span>
+                        <span className="truncate">{mention.source}</span>
+                      </div>
+                      <button
+                        onClick={(e) => handleAcknowledgeMention(e, mention.id)}
+                        className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                      >
+                        Acknowledge
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -344,7 +455,11 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
             Recent Tasks
           </button>
           <div className="space-y-4">
-            {(tasks || []).filter(t => !t.archived).slice(0, 4).map(task => {
+            {(tasks || [])
+              .filter(t => !t.archived)
+              .sort((a, b) => getTaskLastActivity(b) - getTaskLastActivity(a))
+              .slice(0, 4)
+              .map(task => {
               const project = (projects || []).find(p => p.id === task.projectId);
               return (
                 <button 
@@ -392,6 +507,28 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                 </button>
               </div>
             )}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
+          <button 
+            onClick={() => onNavigate('stakeholders')}
+            className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 hover:text-indigo-600 transition-colors text-left block w-full"
+          >
+            Stakeholder Mapping
+          </button>
+          <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+            <div className="w-16 h-16 bg-purple-50 dark:bg-purple-900/30 text-purple-500 rounded-full flex items-center justify-center mb-4">
+              <Users className="w-8 h-8" />
+            </div>
+            <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-1">Manage Stakeholders</h4>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-xs">Map and analyze your key stakeholders to ensure project success.</p>
+            <button 
+              onClick={() => onNavigate('stakeholders')}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all shadow-sm text-sm"
+            >
+              <ArrowRight className="w-4 h-4" />
+              View Stakeholders
+            </button>
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Slider
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { v4 as uuidv4 } from 'uuid';
+import { stripPIData } from '../lib/piStripper';
 import { Persona, DemographicSlider } from '../types';
 import { personaTemplates } from '../data/mockData';
 import { AvatarGalleryModal } from './AvatarGalleryModal';
@@ -36,6 +37,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
 
   const [formData, setFormData] = useState<Partial<Persona>>({
     name: '',
+    type: '',
     role: '',
     age: 30,
     quote: '',
@@ -51,8 +53,10 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
     const newPersona: Persona = {
       id: uuidv4(),
       name: formData.name || '',
+      type: formData.type || '',
       role: formData.role || '',
       age: formData.age || 30,
+      gender: formData.gender || 'Female',
       quote: formData.quote || '',
       goals: (formData.goals || []).filter(g => g.trim() !== ''),
       frustrations: (formData.frustrations || []).filter(f => f.trim() !== ''),
@@ -74,8 +78,8 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
-        contents: `Create a detailed customer persona based on this description: "${prompt}". 
-        ${uploadData ? `Use this demographic data as context: ${uploadData}` : ''}
+        contents: `Create a detailed customer persona based on this description: "${stripPIData(prompt)}". 
+        ${uploadData ? `Use this demographic data as context: ${stripPIData(uploadData)}` : ''}
         Provide the persona in JSON format.`,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -84,8 +88,10 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
             type: Type.OBJECT,
             properties: {
               name: { type: Type.STRING },
+              type: { type: Type.STRING, description: "The type or category of the persona, e.g., 'Library User Persona' or 'Housing Association Tenant'" },
               role: { type: Type.STRING },
               age: { type: Type.INTEGER },
+              gender: { type: Type.STRING, description: "Gender of the persona, e.g., 'Male', 'Female', or 'Non-binary'" },
               quote: { type: Type.STRING },
               goals: { type: Type.ARRAY, items: { type: Type.STRING } },
               frustrations: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -103,7 +109,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                 }
               }
             },
-            required: ["name", "role", "age", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics"]
+            required: ["name", "role", "age", "gender", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics"]
           }
         }
       });
@@ -238,6 +244,16 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                         />
                       </div>
                       <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Persona Name</label>
+                        <input 
+                          type="text"
+                          value={formData.type}
+                          onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                          className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
+                          placeholder="e.g. Library User Persona"
+                        />
+                      </div>
+                      <div className="space-y-2">
                         <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Role / Title</label>
                         <input 
                           type="text"
@@ -251,7 +267,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Age</label>
                     <input 
@@ -260,6 +276,18 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                       onChange={(e) => setFormData({ ...formData, age: parseInt(e.target.value) })}
                       className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Gender</label>
+                    <select
+                      value={formData.gender || 'Female'}
+                      onChange={(e) => setFormData({ ...formData, gender: e.target.value as any })}
+                      className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
+                    >
+                      <option value="Female">Female</option>
+                      <option value="Male">Male</option>
+                      <option value="Non-binary">Non-binary</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Key Quote</label>
@@ -468,6 +496,9 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                     placeholder="e.g. A tech-savvy millennial marketing manager who values automation and efficiency..."
                     className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900 min-h-[120px] resize-none"
                   />
+                  <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                    Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
+                  </p>
                   
                   <button 
                     onClick={handleAiGenerate}

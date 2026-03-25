@@ -272,6 +272,11 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
               }
               setEditingTask(null);
             }}
+            onUpdate={(updatedTask) => {
+              if (onUpdateTask) {
+                onUpdateTask(updatedTask);
+              }
+            }}
             onClose={() => setEditingTask(null)}
             onAddTeamMember={onAddTeamMember}
             onDelete={(taskId) => {

@@ -7,6 +7,7 @@ import { jsPDF } from "jspdf";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { v4 as uuidv4 } from 'uuid';
+import { stripPIData } from '../lib/piStripper';
 
 export interface CompetitorAnalysisReport {
   id: string;
@@ -93,8 +94,37 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     if (file) {
       const reader = new FileReader();
       reader.onloadend = () => {
-        setLogoPreview(reader.result as string);
-        setTempProfile(prev => ({ ...prev, logoUrl: reader.result as string }));
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 512;
+          const MAX_HEIGHT = 512;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64String = canvas.toDataURL('image/png'); // Use PNG for logos to preserve transparency
+            setLogoPreview(base64String);
+            setTempProfile(prev => ({ ...prev, logoUrl: base64String }));
+          }
+        };
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
     }
@@ -167,7 +197,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     setIsAnalyzing(true);
     setAiError(null);
     try {
-      const prompt = `Analyze the company at this URL: ${tempProfile.websiteUrl}. 
+      const prompt = `Analyze the company at this URL: ${stripPIData(tempProfile.websiteUrl)}. 
       Provide a JSON object with the following fields:
       - description: A concise description of what the company does (max 3 sentences).
       - customerBenefits: Key benefits customers get from this company (max 3 sentences).
@@ -244,8 +274,8 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     setIsCompetitorAnalyzing(true);
     setAiError(null);
     try {
-      const prompt = `Perform a competitor analysis for ${profile.name} (${profile.websiteUrl}) against the following competitors:
-      ${profile.competitors.map(c => `- ${c.name} (${c.url})`).join('\n')}
+      const prompt = `Perform a competitor analysis for ${stripPIData(profile.name)} (${stripPIData(profile.websiteUrl || '')}) against the following competitors:
+      ${profile.competitors.map(c => `- ${stripPIData(c.name)} (${stripPIData(c.url)})`).join('\n')}
       
       Provide a detailed analysis including:
       1. Market Positioning Comparison
@@ -672,6 +702,26 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                 </div>
               </div>
             </div>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-800">
+            <button
+              onClick={() => {
+                setTempProfile(profile);
+                setLogoPreview(profile.logoUrl || null);
+                setIsEditing(false);
+                setAiError(null);
+              }}
+              className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-500 transition-all"
+            >
+              Save Changes
+            </button>
           </div>
         </div>
       </div>

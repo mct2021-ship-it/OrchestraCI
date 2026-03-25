@@ -3,6 +3,7 @@ import { X, Wand2, Upload, Loader2, AlertCircle, Sparkles, FileText, MessageSqua
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 import { JourneyMap } from '../types';
 import Markdown from 'react-markdown';
+import { stripPIData } from '../lib/piStripper';
 
 interface JourneyAiAssistantProps {
   isOpen: boolean;
@@ -96,7 +97,7 @@ export function JourneyAiAssistant({ isOpen, onClose, journey }: JourneyAiAssist
         ${journeyData}
         
         VOC Data:
-        ${vocText}
+        ${stripPIData(vocText)}
         
         Provide your analysis in Markdown format. Be concise and actionable.`,
         config: {
@@ -220,6 +221,9 @@ export function JourneyAiAssistant({ isOpen, onClose, journey }: JourneyAiAssist
                   placeholder="Paste customer feedback here..."
                   className="w-full h-32 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none text-sm"
                 />
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
+                </p>
               </div>
 
               <button

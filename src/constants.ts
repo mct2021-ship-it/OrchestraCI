@@ -14,4 +14,11 @@ export const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1607746882042-944635dfe10e?w=400&h=400&fit=crop',
   'https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=400&h=400&fit=crop',
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&h=400&fit=crop',
+  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=400&fit=crop', // Older woman
+  'https://images.unsplash.com/photo-1566616213894-2d4e1baee5d8?w=400&h=400&fit=crop', // Older man
+  'https://images.unsplash.com/photo-1581579186913-46ac3a6efea3?w=400&h=400&fit=crop', // Older woman 2
+  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop', // Middle-aged man
+  'https://images.unsplash.com/photo-1533227260879-1090f1168eb2?w=400&h=400&fit=crop', // Older man 2
+  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400&h=400&fit=crop', // Middle-aged woman
+  'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop', // Middle-aged man 2
 ];

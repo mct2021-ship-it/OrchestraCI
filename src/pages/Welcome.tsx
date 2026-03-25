@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { ArrowRight, Sparkles, Map, GitMerge, Target, Users, LayoutDashboard, KanbanSquare, BrainCircuit, Info, Plus, ChevronLeft, Zap, Clock, Tags, ShieldAlert, Image, Briefcase, Building2, Check, UsersRound } from 'lucide-react';
 import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { cn } from '../lib/utils';
+import { Logo } from '../components/Logo';
 import { CompanyProfile } from '../components/YourCompany';
 import { Persona, Project } from '../types';
 import { mockPersonas, mockProjects } from '../data/mockData';
@@ -58,6 +59,14 @@ export function Welcome({ onNavigate, onSelectProject, userName, companyProfile,
 
   const projectFeatures = [
     { 
+      id: 'stakeholder_mapping', 
+      label: 'Stakeholder Mapping', 
+      icon: Users, 
+      description: 'Identify and analyze key stakeholders for your projects.',
+      details: 'Map influence and interest to develop effective engagement strategies.',
+      color: 'bg-cyan-500'
+    },
+    { 
       id: 'team', 
       label: 'Project Teams', 
       icon: UsersRound, 
@@ -100,7 +109,7 @@ export function Welcome({ onNavigate, onSelectProject, userName, companyProfile,
   ];
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-16 pb-24 transition-colors duration-300">
+    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-16 pb-24 transition-colors duration-300">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -235,9 +244,9 @@ export function Welcome({ onNavigate, onSelectProject, userName, companyProfile,
           </div>
           <div className="hidden lg:block relative">
             <div className="w-64 h-64 bg-indigo-600/20 rounded-full animate-pulse blur-2xl absolute inset-0" />
-            <div className="relative bg-zinc-800 p-8 rounded-3xl border border-white/10 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500">
-              <LayoutDashboard className="w-32 h-32 text-indigo-400 opacity-50" />
-              <div className="absolute -top-4 -right-4 bg-emerald-500 p-4 rounded-2xl shadow-lg -rotate-12">
+            <div className="relative w-64 h-64 bg-zinc-800 rounded-3xl border border-white/10 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 flex items-center justify-center overflow-hidden">
+              <Logo className="w-full h-full opacity-80 rounded-3xl" svgClassName="w-full h-auto px-4" />
+              <div className="absolute -top-4 -right-4 bg-indigo-500 p-4 rounded-2xl shadow-lg -rotate-12 z-10">
                 <Sparkles className="w-8 h-8 text-white" />
               </div>
             </div>

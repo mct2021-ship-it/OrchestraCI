@@ -63,7 +63,12 @@ export function ProjectTeam({ project, setProjects, tasks, onNavigate, users, se
       />
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Project Team</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Project Team</h1>
+            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
+              {project.name}
+            </span>
+          </div>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">Manage the team members and roles for <span className="text-indigo-600 font-semibold">{project.name}</span>.</p>
         </div>
         {canEdit && (
@@ -291,7 +296,35 @@ export function ProjectTeam({ project, setProjects, tasks, onNavigate, users, se
                             if (file) {
                               const reader = new FileReader();
                               reader.onload = (event) => {
-                                setEditPhotoUrl(event.target?.result as string);
+                                const img = new Image();
+                                img.onload = () => {
+                                  const canvas = document.createElement('canvas');
+                                  const MAX_WIDTH = 400;
+                                  const MAX_HEIGHT = 400;
+                                  let width = img.width;
+                                  let height = img.height;
+
+                                  if (width > height) {
+                                    if (width > MAX_WIDTH) {
+                                      height *= MAX_WIDTH / width;
+                                      width = MAX_WIDTH;
+                                    }
+                                  } else {
+                                    if (height > MAX_HEIGHT) {
+                                      width *= MAX_HEIGHT / height;
+                                      height = MAX_HEIGHT;
+                                    }
+                                  }
+
+                                  canvas.width = width;
+                                  canvas.height = height;
+                                  const ctx = canvas.getContext('2d');
+                                  if (ctx) {
+                                    ctx.drawImage(img, 0, 0, width, height);
+                                    setEditPhotoUrl(canvas.toDataURL('image/jpeg', 0.8));
+                                  }
+                                };
+                                img.src = event.target?.result as string;
                               };
                               reader.readAsDataURL(file);
                             }

@@ -149,7 +149,35 @@ export function AddTeamMemberModal({ isOpen, onClose, project, users, setUsers, 
                         if (file) {
                           const reader = new FileReader();
                           reader.onload = (event) => {
-                            setNewUser({...newUser, photoUrl: event.target?.result as string});
+                            const img = new Image();
+                            img.onload = () => {
+                              const canvas = document.createElement('canvas');
+                              const MAX_WIDTH = 400;
+                              const MAX_HEIGHT = 400;
+                              let width = img.width;
+                              let height = img.height;
+
+                              if (width > height) {
+                                if (width > MAX_WIDTH) {
+                                  height *= MAX_WIDTH / width;
+                                  width = MAX_WIDTH;
+                                }
+                              } else {
+                                if (height > MAX_HEIGHT) {
+                                  width *= MAX_HEIGHT / height;
+                                  height = MAX_HEIGHT;
+                                }
+                              }
+
+                              canvas.width = width;
+                              canvas.height = height;
+                              const ctx = canvas.getContext('2d');
+                              if (ctx) {
+                                ctx.drawImage(img, 0, 0, width, height);
+                                setNewUser({...newUser, photoUrl: canvas.toDataURL('image/jpeg', 0.8)});
+                              }
+                            };
+                            img.src = event.target?.result as string;
                           };
                           reader.readAsDataURL(file);
                         }
@@ -198,20 +226,6 @@ export function AddTeamMemberModal({ isOpen, onClose, project, users, setUsers, 
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Option to add a generic member */}
-              <button
-                onClick={() => handleAddTeamMember()}
-                className="p-4 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-all flex flex-col items-center justify-center gap-3 group"
-              >
-                <div className="p-3 bg-zinc-100 dark:bg-zinc-800 rounded-full text-zinc-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-colors">
-                  <Plus className="w-6 h-6" />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm font-bold text-zinc-900 dark:text-white">Custom Member</p>
-                  <p className="text-xs text-zinc-500">Add someone not in the system</p>
-                </div>
-              </button>
-
               {/* Option to create a new user (Admins only) */}
               {isAdmin && (
                 <button

@@ -28,8 +28,10 @@ export interface CustomSection {
 export interface Persona {
   id: string;
   name: string;
+  type?: string;
   role: string;
   age: number;
+  gender?: 'Male' | 'Female' | 'Non-binary';
   quote: string;
   goals: string[];
   frustrations: string[];
@@ -46,9 +48,10 @@ export interface Persona {
 export interface Swimlane {
   id: string;
   name: string;
-  type: 'text-list' | 'emotion';
+  type: 'text-list' | 'emotion' | 'pictures';
   colorTheme: 'blue' | 'rose' | 'amber' | 'emerald' | 'zinc' | 'indigo' | 'purple';
   icon?: string;
+  isHidden?: boolean;
 }
 
 export interface JourneyStage {
@@ -145,7 +148,8 @@ export interface Sprint {
   goal?: string;
   startDate: string;
   endDate: string;
-  status: 'Planned' | 'Active' | 'Completed';
+  status: 'In Progress' | 'Done' | 'Not Started';
+  stage?: 'Discover' | 'Define' | 'Develop' | 'Deliver' | 'Done' | 'Archived';
   tasks?: string[]; // IDs of tasks in this sprint
   report?: string; // Generated report content
 }
@@ -204,6 +208,7 @@ export interface Project {
   currentSprint?: number;
   currentSprintDescription?: string;
   sprintSnapshots?: SprintSnapshot[];
+  sprints?: Sprint[];
 }
 
 export interface TaskStageHistory {
@@ -232,6 +237,7 @@ export interface Task {
   };
   owner?: string;
   createdAt?: string;
+  updatedAt?: string;
   expectedCompletionDate?: string;
   actualCompletionDate?: string;
   acceptanceCriteria?: string;
@@ -280,6 +286,7 @@ export interface Stakeholder {
   category: string;
   organization?: string;
   email?: string;
+  about?: string;
   isGlobal: boolean;
 }
 

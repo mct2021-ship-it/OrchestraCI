@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { defaultSwimlanes } from '../data/mockData';
 import { ContextualHelp } from '../components/ContextualHelp';
-import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, GitMerge, Package, Layers, Printer, Map, Eye, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal } from 'lucide-react';
+import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, GitMerge, Package, Layers, Printer, Map, Eye, EyeOff, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal } from 'lucide-react';
 
 const STAGE_ICONS = [
   { name: 'Target', icon: Target },
@@ -99,6 +99,7 @@ import { CarbonLibraryModal } from '../components/CarbonLibraryModal';
 import { carbonLibrary } from '../data/carbonLibrary';
 import { BookOpen } from 'lucide-react';
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { stripPIData } from '../lib/piStripper';
 import { CommentsPanel } from '../components/CommentsPanel';
 import { VersionHistory } from '../components/VersionHistory';
 import { v4 as uuidv4 } from 'uuid';
@@ -176,17 +177,28 @@ export function JourneyMaps({
   const [editingStageIconId, setEditingStageIconId] = useState<string | null>(null);
   const [editingSwimlaneIconId, setEditingSwimlaneIconId] = useState<string | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
+  const [isAddSwimlaneMenuOpen, setIsAddSwimlaneMenuOpen] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [showCarbon, setShowCarbon] = useState(false);
   const [isCalculatingCarbon, setIsCalculatingCarbon] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [activeCarbonTarget, setActiveCarbonTarget] = useState<{ stageId: string; laneId: string; itemIndex: number } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
+  const addSwimlaneMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
         setIsExportMenuOpen(false);
+      }
+      if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
+        setIsViewMenuOpen(false);
+      }
+      if (addSwimlaneMenuRef.current && !addSwimlaneMenuRef.current.contains(event.target as Node)) {
+        setIsAddSwimlaneMenuOpen(false);
       }
     };
 
@@ -386,22 +398,22 @@ export function JourneyMaps({
       const proposedMap = activeJourney.state === 'Proposed' ? activeJourney : otherMap;
 
       const prompt = `
-        As a CX and Sustainability Strategist, assess the benefits of moving from the "Current" journey to the "Proposed" journey for the project: "${activeProject.name}".
+        As a CX and Sustainability Strategist, assess the benefits of moving from the "Current" journey to the "Proposed" journey for the project: "${stripPIData(activeProject.name)}".
         
-        Project Goals: ${activeProject.goals.join(', ')}
+        Project Goals: ${activeProject.goals.map(stripPIData).join(', ')}
         
         Current Journey: ${JSON.stringify(currentMap.stages.map(s => ({ 
-          name: s.name, 
+          name: stripPIData(s.name), 
           emotion: s.emotion, 
-          friction: s.laneData['lane_friction'],
+          friction: stripPIData(s.laneData['lane_friction']?.join(', ') || ''),
           carbon: s.carbonData?.['lane_touchpoints']?.reduce((a, b) => a + b, 0) || 0
         })))}
         Total Current Carbon: ${currentMap.carbonFootprint || 0} kg CO2e
         
         Proposed Journey: ${JSON.stringify(proposedMap.stages.map(s => ({ 
-          name: s.name, 
+          name: stripPIData(s.name), 
           emotion: s.emotion, 
-          friction: s.laneData['lane_friction'],
+          friction: stripPIData(s.laneData['lane_friction']?.join(', ') || ''),
           carbon: s.carbonData?.['lane_touchpoints']?.reduce((a, b) => a + b, 0) || 0
         })))}
         Total Proposed Carbon: ${proposedMap.carbonFootprint || 0} kg CO2e
@@ -482,6 +494,15 @@ export function JourneyMaps({
   };
 
   const [showArchived, setShowArchived] = useState(false);
+  const [draggedLaneIndex, setDraggedLaneIndex] = useState<number | null>(null);
+
+  const reorderSwimlanes = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || !activeJourney) return;
+    const newSwimlanes = [...activeJourney.swimlanes];
+    const [movedItem] = newSwimlanes.splice(fromIndex, 1);
+    newSwimlanes.splice(toIndex, 0, movedItem);
+    setJourneys(journeys.map(j => j.id === activeJourneyId ? { ...j, swimlanes: newSwimlanes } : j));
+  };
   const visibleJourneys = journeys.filter(j => showArchived ? j.archived : !j.archived);
 
   if (!activeJourneyId) {
@@ -520,7 +541,14 @@ export function JourneyMaps({
         </AnimatePresence>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Journey Orchestration</h2>
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Journey Orchestration</h2>
+              {activeProject && (
+                <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
+                  {activeProject.name}
+                </span>
+              )}
+            </div>
             <p className="text-zinc-500 dark:text-zinc-400 mt-1">Design, analyze, and optimize customer pathways.</p>
           </div>
           <div className="flex items-center gap-3">
@@ -809,12 +837,12 @@ export function JourneyMaps({
     ));
   };
 
-  const handleAddSwimlane = () => {
+  const handleAddSwimlane = (type: 'text-list' | 'pictures') => {
     const newLaneId = `lane_${Date.now()}`;
     const newLane: Swimlane = {
       id: newLaneId,
-      name: 'New Swimlane',
-      type: 'text-list',
+      name: type === 'pictures' ? 'Pictures' : 'New Swimlane',
+      type,
       colorTheme: 'zinc'
     };
 
@@ -831,6 +859,78 @@ export function JourneyMaps({
       }
       return j;
     }));
+    setIsAddSwimlaneMenuOpen(false);
+  };
+
+  const toggleSwimlaneVisibility = (laneId: string) => {
+    setJourneys(journeys.map(j => 
+      j.id === activeJourneyId ? {
+        ...j,
+        swimlanes: j.swimlanes.map(l => l.id === laneId ? { ...l, isHidden: !l.isHidden } : l)
+      } : j
+    ));
+  };
+
+  const handleImageUpload = (stageId: string, laneId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 800;
+          const MAX_HEIGHT = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const base64String = canvas.toDataURL('image/jpeg', 0.7);
+            
+            setJourneys(journeys.map(j => {
+              if (j.id === activeJourneyId) {
+                return {
+                  ...j,
+                  stages: j.stages.map(s => {
+                    if (s.id === stageId) {
+                      return {
+                        ...s,
+                        laneData: {
+                          ...s.laneData,
+                          [laneId]: [...(s.laneData[laneId] || []), base64String]
+                        }
+                      };
+                    }
+                    return s;
+                  })
+                };
+              }
+              return j;
+            }));
+          }
+        };
+        img.src = reader.result as string;
+      };
+      reader.readAsDataURL(file);
+      // Reset the input value so the same file can be uploaded again
+      e.target.value = '';
+    }
   };
 
   const moveSwimlane = (index: number, direction: 'up' | 'down') => {
@@ -965,7 +1065,7 @@ export function JourneyMaps({
         ${libraryContext}
         
         Touchpoints:
-        ${touchpoints.map(t => `- ${t.item}`).join('\n')}
+        ${touchpoints.map(t => `- ${stripPIData(t.item)}`).join('\n')}
         
         Return ONLY the JSON array of numbers. Example: [0.5, 1.2, 0.05, ...]
       `;
@@ -1494,16 +1594,89 @@ export function JourneyMaps({
               )}
             </div>
             <div className="flex items-center gap-1">
-              <button 
-                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
-                title="Export"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-              <button className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors">
-                <Settings2 className="w-4 h-4" />
-              </button>
+              <div className="relative" ref={exportMenuRef}>
+                <button 
+                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                  className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
+                  title="Export"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
+                <AnimatePresence>
+                  {isExportMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 py-2 z-50"
+                    >
+                      <button 
+                        onClick={() => { handlePrint(); setIsExportMenuOpen(false); }}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                      >
+                        <Printer className="w-4 h-4 text-zinc-400" /> Print
+                      </button>
+                      <button 
+                        onClick={() => { handleDownloadPdf(); setIsExportMenuOpen(false); }}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                      >
+                        <FileText className="w-4 h-4 text-zinc-400" /> Save as PDF
+                      </button>
+                      <button 
+                        onClick={() => { handleDownloadImage(); setIsExportMenuOpen(false); }}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                      >
+                        <ImageIcon className="w-4 h-4 text-zinc-400" /> Save as Image
+                      </button>
+                      <button 
+                        onClick={() => { handleExportWord(); setIsExportMenuOpen(false); }}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                      >
+                        <FileText className="w-4 h-4 text-zinc-400" /> Export to Word
+                      </button>
+                      <button 
+                        onClick={() => { handleExport(); setIsExportMenuOpen(false); }}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4 text-zinc-400" /> Export to JSON
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+              <div className="relative" ref={viewMenuRef}>
+                <button 
+                  onClick={() => setIsViewMenuOpen(!isViewMenuOpen)}
+                  className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
+                  title="View Options"
+                >
+                  <Settings2 className="w-4 h-4" />
+                </button>
+                <AnimatePresence>
+                  {isViewMenuOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-56 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 py-2 z-50"
+                    >
+                      <div className="px-4 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Visible Swimlanes</div>
+                      {activeJourney.swimlanes.map(lane => (
+                        <button
+                          key={lane.id}
+                          onClick={() => toggleSwimlaneVisibility(lane.id)}
+                          className="w-full px-4 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center justify-between"
+                        >
+                          <span className="truncate">{lane.name}</span>
+                          {!lane.isHidden && <CheckCircle2 className="w-4 h-4 text-emerald-500" />}
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
@@ -1615,8 +1788,31 @@ export function JourneyMaps({
                 )}
 
                 {/* Render the actual swimlane */}
-                <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300">
-                  <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-center group relative print:bg-white dark:bg-zinc-900">
+                {!lane.isHidden && (
+                  <div 
+                    className={cn(
+                      "flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300 transition-all",
+                      draggedLaneIndex === index ? "opacity-50 bg-zinc-100 dark:bg-zinc-800" : ""
+                    )}
+                    draggable={canEdit}
+                    onDragStart={(e) => {
+                      setDraggedLaneIndex(index);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      if (draggedLaneIndex !== null) {
+                        reorderSwimlanes(draggedLaneIndex, index);
+                        setDraggedLaneIndex(null);
+                      }
+                    }}
+                    onDragEnd={() => setDraggedLaneIndex(null)}
+                  >
+                    <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-center group relative print:bg-white dark:bg-zinc-900 cursor-grab active:cursor-grabbing">
                     <div className="flex items-center justify-between w-full">
                       <div className="flex items-center gap-2">
                         <div className="relative">
@@ -1655,11 +1851,20 @@ export function JourneyMaps({
                         </div>
                         <EditableText value={lane.name} onChange={(val) => updateLaneName(lane.id, val)} className="text-sm font-bold" disabled={!canEdit} />
                       </div>
-                      {canEdit && (
-                        <button onClick={() => removeLane(lane.id)} className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-rose-500 transition-opacity print:hidden no-export">
-                          <Trash2 className="w-3.5 h-3.5" />
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden no-export">
+                        <button 
+                          onClick={() => toggleSwimlaneVisibility(lane.id)} 
+                          className="text-zinc-300 hover:text-indigo-500 transition-colors"
+                          title="Hide Swimlane"
+                        >
+                          <EyeOff className="w-3.5 h-3.5" />
                         </button>
-                      )}
+                        {canEdit && (
+                          <button onClick={() => removeLane(lane.id)} className="text-zinc-300 hover:text-rose-500 transition-colors">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     
                     {/* Reorder controls */}
@@ -1695,14 +1900,24 @@ export function JourneyMaps({
                               <div className="flex items-start gap-2">
                                 <div className={`w-1.5 h-1.5 rounded-full bg-${lane.colorTheme}-400 mt-1.5 shrink-0`} />
                                 <div className="flex-1 flex flex-col gap-1">
-                                  <EditableText 
-                                    value={item} 
-                                    onChange={(val) => updateLaneItem(stage.id, lane.id, i, val)} 
-                                    multiline 
-                                    className="text-sm text-zinc-700 dark:text-zinc-200"
-                                    disabled={!canEdit}
-                                    showConfirmTick={true}
-                                  />
+                                  {lane.type === 'pictures' ? (
+                                    <img 
+                                      src={item} 
+                                      alt="Journey step" 
+                                      className="w-full h-auto rounded object-cover cursor-pointer hover:opacity-90 transition-opacity" 
+                                      referrerPolicy="no-referrer" 
+                                      onClick={() => setSelectedImage(item)}
+                                    />
+                                  ) : (
+                                    <EditableText 
+                                      value={item} 
+                                      onChange={(val) => updateLaneItem(stage.id, lane.id, i, val)} 
+                                      multiline 
+                                      className="text-sm text-zinc-700 dark:text-zinc-200"
+                                      disabled={!canEdit}
+                                      showConfirmTick={true}
+                                    />
+                                  )}
                                   {showCarbon && (
                                     <div className="flex items-center gap-1.5 mt-1">
                                       <div className={cn(
@@ -1794,12 +2009,26 @@ export function JourneyMaps({
                             );
                           })}
                           {canEdit && (
-                            <button 
-                              onClick={() => addLaneItem(stage.id, lane.id)}
-                              className={`text-xs text-${lane.colorTheme}-500 hover:text-${lane.colorTheme}-700 text-left mt-1 font-medium print:hidden no-export`}
-                            >
-                              + Add item
-                            </button>
+                            <div className="mt-1">
+                              {lane.type === 'pictures' ? (
+                                <label className={`text-xs text-${lane.colorTheme}-500 hover:text-${lane.colorTheme}-700 text-left font-medium print:hidden no-export cursor-pointer flex items-center gap-1`}>
+                                  <ImageIcon className="w-3 h-3" /> Add picture
+                                  <input 
+                                    type="file" 
+                                    accept="image/*" 
+                                    className="hidden" 
+                                    onChange={(e) => handleImageUpload(stage.id, lane.id, e)}
+                                  />
+                                </label>
+                              ) : (
+                                <button 
+                                  onClick={() => addLaneItem(stage.id, lane.id)}
+                                  className={`text-xs text-${lane.colorTheme}-500 hover:text-${lane.colorTheme}-700 text-left font-medium print:hidden no-export`}
+                                >
+                                  + Add item
+                                </button>
+                              )}
+                            </div>
                           )}
                         </div>
                       </div>
@@ -1807,6 +2036,7 @@ export function JourneyMaps({
                   })}
                   <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
                 </div>
+                )}
               </React.Fragment>
             ))}
 
@@ -1850,10 +2080,37 @@ export function JourneyMaps({
             {/* Add Swimlane Row */}
             {canEdit && (
               <div className="flex print:hidden no-export">
-                <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center">
-                  <button onClick={handleAddSwimlane} className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:text-white flex items-center gap-1 text-sm font-medium transition-colors">
+                <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center relative" ref={addSwimlaneMenuRef}>
+                  <button 
+                    onClick={() => setIsAddSwimlaneMenuOpen(!isAddSwimlaneMenuOpen)} 
+                    className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:text-white flex items-center gap-1 text-sm font-medium transition-colors"
+                  >
                     <Plus className="w-4 h-4" /> Add Swimlane
                   </button>
+                  <AnimatePresence>
+                    {isAddSwimlaneMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 py-2 z-50"
+                      >
+                        <button 
+                          onClick={() => handleAddSwimlane('text-list')}
+                          className="w-full px-4 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                        >
+                          <FileText className="w-4 h-4 text-zinc-400" /> Text List
+                        </button>
+                        <button 
+                          onClick={() => handleAddSwimlane('pictures')}
+                          className="w-full px-4 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
+                        >
+                          <ImageIcon className="w-4 h-4 text-zinc-400" /> Pictures
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
                 {activeJourney.stages.map(stage => (
                   <div key={stage.id} className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 flex-1 min-w-[200px]"></div>
@@ -2024,6 +2281,41 @@ export function JourneyMaps({
           }
         }}
       />
+
+      {/* Image Preview Modal */}
+      <AnimatePresence>
+        {selectedImage && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-8">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-zinc-900/90 backdrop-blur-sm"
+              onClick={() => setSelectedImage(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative max-w-5xl w-full max-h-[90vh] bg-transparent flex items-center justify-center z-10"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelectedImage(null)}
+                className="absolute -top-12 right-0 p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+              <img 
+                src={selectedImage} 
+                alt="Preview" 
+                className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" 
+                referrerPolicy="no-referrer"
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

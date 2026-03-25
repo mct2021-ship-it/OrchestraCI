@@ -273,6 +273,7 @@ export const personaTemplates: Persona[] = [
   {
     id: 't1',
     name: 'The Tech Enthusiast',
+    type: 'Tech Enthusiast',
     role: 'Early Adopter',
     age: 28,
     quote: "If it's new and shiny, I want it.",
@@ -290,6 +291,7 @@ export const personaTemplates: Persona[] = [
   {
     id: 't2',
     name: 'The Pragmatic Buyer',
+    type: 'Pragmatic Buyer',
     role: 'Decision Maker',
     age: 42,
     quote: "Show me the ROI.",
@@ -300,6 +302,74 @@ export const personaTemplates: Persona[] = [
     demographics: [
       { id: 'd1', label: 'Technical Savvy', value: 50 },
       { id: 'd2', label: 'Price Sensitivity', value: 85 }
+    ],
+    isTemplate: true
+  },
+  {
+    id: 't3',
+    name: 'Leanne',
+    type: 'Single parent balancing work and home',
+    role: 'Tenant',
+    age: 32,
+    quote: "I just need things to work so I can focus on my child.",
+    goals: ['Stable, affordable home', 'Timely repairs', 'Clear, flexible communication about rent and services'],
+    frustrations: ['Long repair wait times', 'Rigid appointment windows', 'Difficulty attending meetings due to childcare and shifts'],
+    motivations: ['Predictability', 'Practical support (e.g., payment plans, local childcare signposting)'],
+    imageUrl: 'https://images.unsplash.com/photo-1531123897727-8f129e1b4492?w=400&h=400&fit=crop',
+    demographics: [
+      { id: 'd1', label: 'Time Pressure', value: 90 },
+      { id: 'd2', label: 'Digital Savvy', value: 60 }
+    ],
+    isTemplate: true
+  },
+  {
+    id: 't4',
+    name: 'Dylan',
+    type: 'Young adult transitioning to independent living',
+    role: 'Tenant',
+    age: 24,
+    quote: "I want to do this right, but there's so much to learn.",
+    goals: ['Understand tenancy responsibilities', 'Build credit and stability', 'Access digital services'],
+    frustrations: ['Confusing tenancy paperwork', 'Fear of penalties for honest mistakes', 'Limited tailored onboarding'],
+    motivations: ['Independence', 'Confidence', 'Clear digital guidance', 'Non-judgemental coaching'],
+    imageUrl: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=400&fit=crop',
+    demographics: [
+      { id: 'd1', label: 'Digital Savvy', value: 95 },
+      { id: 'd2', label: 'Tenancy Knowledge', value: 20 }
+    ],
+    isTemplate: true
+  },
+  {
+    id: 't5',
+    name: 'Marion',
+    type: 'Older tenant with mobility needs',
+    role: 'Tenant',
+    age: 78,
+    quote: "I just want to feel safe and comfortable in my own home.",
+    goals: ['Accessible home adaptations', 'Quick safety fixes', 'Reassurance and face-to-face contact'],
+    frustrations: ['Complex referral processes for adaptations', 'Inconsistent communication', 'Transport barriers to appointments'],
+    motivations: ['Dignity', 'Independence', 'Trusted relationships with staff', 'Predictable service delivery'],
+    imageUrl: 'https://images.unsplash.com/photo-1581579186913-45ac3e6ef911?w=400&h=400&fit=crop',
+    demographics: [
+      { id: 'd1', label: 'Mobility Needs', value: 90 },
+      { id: 'd2', label: 'Digital Savvy', value: 30 }
+    ],
+    isTemplate: true
+  },
+  {
+    id: 't6',
+    name: 'Amina',
+    type: 'Community-minded tenant seeking voice',
+    role: 'Tenant',
+    age: 45,
+    quote: "We can make this neighborhood better if we work together.",
+    goals: ['Meaningful participation in landlord decisions', 'Transparent local investment', 'Safer neighbourhoods'],
+    frustrations: ['Tokenistic consultations', 'Slow planning responses', 'Lack of feedback on outcomes'],
+    motivations: ['Community improvement', 'Fairness', 'Visible change from participation'],
+    imageUrl: 'https://images.unsplash.com/photo-1589156280159-27698a70f29e?w=400&h=400&fit=crop',
+    demographics: [
+      { id: 'd1', label: 'Community Engagement', value: 95 },
+      { id: 'd2', label: 'Digital Savvy', value: 70 }
     ],
     isTemplate: true
   }

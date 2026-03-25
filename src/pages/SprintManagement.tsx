@@ -20,6 +20,7 @@ import {
 import { Project, Sprint, Task, User } from '../types';
 import { cn } from '../lib/utils';
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { stripPIData } from '../lib/piStripper';
 
 interface SprintManagementProps {
   projects: Project[];
@@ -37,15 +38,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
-  // Auto-select the first active sprint for the active project if available
-  React.useEffect(() => {
-    if (activeProjectId && !selectedSprint) {
-      const activeProjectSprint = sprints.find(s => s.projectId === activeProjectId && s.status === 'Active');
-      if (activeProjectSprint) {
-        setSelectedSprint(activeProjectSprint);
-      }
-    }
-  }, [activeProjectId, sprints]);
+  const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
 
   const filteredSprints = useMemo(() => {
     return sprints.filter(sprint => {
@@ -104,14 +97,14 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
         5. Recommendations for next sprint`;
       }
 
-      const prompt = `Generate a comprehensive ${reportType} for Sprint "${sprint.name}" of project "${project?.name}".
+      const prompt = `Generate a comprehensive ${reportType} for Sprint "${stripPIData(sprint.name)}" of project "${stripPIData(project?.name || '')}".
       
       Sprint Status: ${sprint.status}
-      Sprint Goal: ${sprint.goal || 'N/A'}
+      Sprint Goal: ${stripPIData(sprint.goal || 'N/A')}
       Duration: ${sprint.startDate} to ${sprint.endDate}
       
       Tasks:
-      ${sprintTasks.map(t => `- ${t.title} (${t.kanbanStatus}): ${t.description}`).join('\n')}
+      ${sprintTasks.map(t => `- ${stripPIData(t.title)} (${t.kanbanStatus}): ${stripPIData(t.description || '')}`).join('\n')}
       
       Please include:
       ${focusPoints}
@@ -149,9 +142,16 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
               </div>
               <span className="text-xs font-bold uppercase tracking-widest">Delivery Management</span>
             </div>
-            <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
-              Sprint Management
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">
+                Sprint Management
+              </h1>
+              {activeProject && (
+                <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
+                  {activeProject.name}
+                </span>
+              )}
+            </div>
             <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl">
               Track delivery progress across all active and completed sprints. Generate AI-powered reports for planning, progress, and retrospectives.
             </p>
@@ -211,13 +211,20 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                 onClick={() => setSelectedSprint(sprint)}
               >
                 <div className="flex items-start justify-between mb-4">
-                  <div className={cn(
-                    "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
-                    sprint.status === 'Active' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
-                    sprint.status === 'Completed' ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" :
-                    "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
-                  )}>
-                    {sprint.status}
+                  <div className="flex items-center gap-2">
+                    <div className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
+                      sprint.status === 'Active' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                      sprint.status === 'Completed' ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" :
+                      "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                    )}>
+                      {sprint.status}
+                    </div>
+                    {sprint.stage && (
+                      <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                        {sprint.stage}
+                      </div>
+                    )}
                   </div>
                   <button className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-lg transition-colors">
                     <MoreVertical className="w-4 h-4" />
@@ -291,9 +298,27 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                     <Calendar className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
-                      {getProjectName(selectedSprint.projectId)}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+                        {getProjectName(selectedSprint.projectId)}
+                      </p>
+                      <select
+                        value={selectedSprint.stage || ''}
+                        onChange={(e) => {
+                          const newStage = e.target.value as Sprint['stage'];
+                          const updatedSprint = { ...selectedSprint, stage: newStage };
+                          setSelectedSprint(updatedSprint);
+                          setSprints(prev => prev.map(s => s.id === selectedSprint.id ? updatedSprint : s));
+                        }}
+                        className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 border-none outline-none cursor-pointer appearance-none"
+                      >
+                        <option value="">No Stage</option>
+                        <option value="Discover">Discover</option>
+                        <option value="Define">Define</option>
+                        <option value="Develop">Develop</option>
+                        <option value="Deliver">Deliver</option>
+                      </select>
+                    </div>
                     <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
                       {selectedSprint.name}
                     </h2>

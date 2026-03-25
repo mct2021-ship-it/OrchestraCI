@@ -4,6 +4,7 @@ import { MessageSquare, X, Send, Sparkles, Bot, User as UserIcon, HelpCircle } f
 import { GoogleGenAI, ThinkingLevel } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
+import { stripPIData } from '../lib/piStripper';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -136,7 +137,7 @@ export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
         })),
       });
 
-      const result = await chat.sendMessage({ message: userMessage });
+      const result = await chat.sendMessage({ message: stripPIData(userMessage) });
       const text = result.text;
 
       setMessages(prev => [...prev, { role: 'assistant', content: text }]);
@@ -269,6 +270,9 @@ export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
                   <Send className="w-5 h-5" />
                 </button>
               </div>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-2 text-center">
+                Please do not enter Personally Identifiable Information (PII).
+              </p>
             </div>
           </motion.div>
         )}

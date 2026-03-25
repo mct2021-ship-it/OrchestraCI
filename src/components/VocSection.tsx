@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, MessageSquare, Loader2, AlertCircle, Sparkles, TrendingUp, RefreshCw } from 'lucide-react';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import { stripPIData } from '../lib/piStripper';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Markdown from 'react-markdown';
 
@@ -135,7 +136,7 @@ export function VocSection() {
         2. Provide 2-3 concise bullet points of suggestions or key insights.
         
         VOC Data:
-        ${inputText}`,
+        ${stripPIData(inputText)}`,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: "application/json",
@@ -287,6 +288,9 @@ export function VocSection() {
               placeholder="Paste customer feedback, survey responses, etc..."
               className="w-full h-32 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm"
             />
+            <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+              Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
+            </p>
           </div>
 
           {error && (

@@ -18,6 +18,7 @@ interface ProcessMapsProps {
   projects: Project[];
   onDeleteItem?: (item: any, type: RecycleBinItem['type'], originalProjectId?: string) => void;
   users?: User[];
+  initialProcessMapId?: string | null;
 }
 
 export function ProcessMaps({ 
@@ -35,11 +36,12 @@ export function ProcessMaps({
     photoUrl: 'https://ui-avatars.com/api/?name=Jane+Doe&background=random' 
   },
   onDeleteItem,
-  users = []
+  users = [],
+  initialProcessMapId
 }: ProcessMapsProps) {
   const [showIntro, setShowIntro] = React.useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
-  const [activeCommentsMapId, setActiveCommentsMapId] = useState<string | null>(null);
+  const [activeCommentsMapId, setActiveCommentsMapId] = useState<string | null>(initialProcessMapId || null);
   const [activeVersionHistoryId, setActiveVersionHistoryId] = useState<string | null>(null);
   
   const { canEditProjectFeature } = usePermissions();
@@ -84,7 +86,14 @@ export function ProcessMaps({
       />
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Process Maps</h2>
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Process Maps</h2>
+            {activeProject && (
+              <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
+                {activeProject.name}
+              </span>
+            )}
+          </div>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">Map and optimize internal back-office processes.</p>
         </div>
         <div className="flex items-center gap-3">

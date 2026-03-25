@@ -4,6 +4,7 @@ import { Stakeholder, ProjectStakeholder, Project, StakeholderSentiment } from '
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { stripPIData } from '../lib/piStripper';
 
 interface StakeholderMappingProps {
   project: Project;
@@ -149,17 +150,19 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   };
 
   const generateStrategy = async (stakeholder: ProjectStakeholder) => {
-    setIsGeneratingStrategy(stakeholder.id);
+    const targetId = stakeholder.id || 'new';
+    setIsGeneratingStrategy(targetId);
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Generate a concise engagement strategy for a stakeholder in a project.
         
-        Project: ${project.name}
-        Project Description: ${project.description}
-        Stakeholder Name: ${stakeholder.name}
-        Category: ${stakeholder.category}
+        Project: ${stripPIData(project.name)}
+        Project Description: ${stripPIData(project.description)}
+        Stakeholder Name: ${stripPIData(stakeholder.name)}
+        Category: ${stripPIData(stakeholder.category)}
+        About/Context: ${stripPIData(stakeholder.about || 'No additional context provided.')}
         Power: ${stakeholder.power}/100
         Interest: ${stakeholder.interest}/100
         Current Sentiment: ${stakeholder.sentiment}
@@ -172,7 +175,11 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
 
       const strategy = response.text;
       if (strategy) {
-        setProjectStakeholders(prev => prev.map(s => s.id === stakeholder.id ? { ...s, engagementStrategy: strategy } : s));
+        if (editingId === stakeholder.id || !stakeholder.id) {
+          setFormData(prev => ({ ...prev, engagementStrategy: strategy }));
+        } else {
+          setProjectStakeholders(prev => prev.map(s => s.id === stakeholder.id ? { ...s, engagementStrategy: strategy } : s));
+        }
       }
     } catch (err) {
       console.error('Failed to generate strategy', err);
@@ -194,10 +201,15 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold flex items-center gap-2">
-            <Target className="w-6 h-6 text-indigo-600" />
-            Stakeholder Mapping
-          </h2>
+          <div className="flex items-center gap-3 mb-2">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Target className="w-6 h-6 text-indigo-600" />
+              Stakeholder Mapping
+            </h2>
+            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
+              {project.name}
+            </span>
+          </div>
           <p className="text-sm text-zinc-500 dark:text-zinc-400">Map and manage stakeholders specific to {project.name}.</p>
         </div>
         <div className="flex gap-2">
@@ -248,7 +260,6 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
               {gridStakeholders.map(s => (
                 <motion.div
                   key={s.id}
-                  layoutId={s.id}
                   drag
                   dragConstraints={gridRef}
                   dragElastic={0}
@@ -439,6 +450,16 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                     </select>
                   </div>
                   
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">About / Context</label>
+                    <textarea
+                      value={formData.about || ''}
+                      onChange={(e) => setFormData({ ...formData, about: e.target.value })}
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px]"
+                      placeholder="Background information to help contextualize AI engagement plans..."
+                    />
+                  </div>
+                  
                   <div className="space-y-4">
                     <div className="space-y-2">
                       <div className="flex justify-between">
@@ -500,10 +521,10 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                     <button
                       type="button"
                       onClick={() => generateStrategy(formData as ProjectStakeholder)}
-                      disabled={!!isGeneratingStrategy}
-                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5"
+                      disabled={isGeneratingStrategy === (formData.id || 'new') || !formData.name}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 disabled:text-zinc-400 disabled:cursor-not-allowed flex items-center gap-1.5"
                     >
-                      {isGeneratingStrategy === formData.id ? (
+                      {isGeneratingStrategy === (formData.id || 'new') ? (
                         <><Loader2 className="w-3 h-3 animate-spin" /> Generating...</>
                       ) : (
                         <><Sparkles className="w-3 h-3" /> AI Suggestion</>
@@ -535,7 +556,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                   )}
                   <button
                     type="submit"
-                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20"
+                    disabled={!!isGeneratingStrategy}
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg shadow-indigo-500/20"
                   >
                     {editingId ? 'Update Stakeholder' : 'Add to Project'}
                   </button>

@@ -3,6 +3,7 @@ import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 import { X, Sparkles, Loader2, Check, UserPlus, Upload, FileText as FileIcon } from 'lucide-react';
 import { Persona } from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { stripPIData } from '../lib/piStripper';
 
 interface AiPersonaGeneratorProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
         For each persona, provide:
         - Name
         - Role/Archetype
+        - Type (e.g., Housing Association Tenant, Library User, Standard)
         - Age (approximate)
         - A representative quote
         - 3-5 Goals
@@ -46,7 +48,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
         - 3 Demographic sliders (label and value 0-100)
         
         Customer Data:
-        ${data}
+        ${stripPIData(data)}
       `;
 
       const response = await ai.models.generateContent({
@@ -62,6 +64,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
               properties: {
                 name: { type: Type.STRING },
                 role: { type: Type.STRING },
+                type: { type: Type.STRING, description: "The category or type of persona (e.g., Housing Association Tenant, Standard)" },
                 age: { type: Type.NUMBER },
                 quote: { type: Type.STRING },
                 goals: { type: Type.ARRAY, items: { type: Type.STRING } },
@@ -80,7 +83,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
                   }
                 }
               },
-              required: ["name", "role", "age", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics"]
+              required: ["name", "role", "type", "age", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics"]
             }
           }
         }
@@ -158,6 +161,9 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
                   placeholder="Paste interview transcripts, survey results, or market research here..."
                   className="w-full h-64 p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm leading-relaxed"
                 />
+                <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                  Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
+                </p>
               </div>
               <button 
                 onClick={handleGenerate}
@@ -200,7 +206,8 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
                       {selectedIndices.includes(i) && <Check className="w-4 h-4" />}
                     </div>
                     <h4 className="font-bold text-zinc-900 dark:text-white text-lg mb-1">{s.name}</h4>
-                    <p className="text-sm text-indigo-600 font-semibold mb-3">{s.role}</p>
+                    <p className="text-sm text-indigo-600 font-semibold mb-1">{s.role}</p>
+                    {s.type && <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mb-3">{s.type}</p>}
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 italic line-clamp-2">"{s.quote}"</p>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">Age: {s.age}</span>

@@ -28,7 +28,6 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
     { id: 'personas', label: 'Personas', icon: Users, color: 'text-rose-500' },
     { id: 'stakeholders', label: 'Stakeholders', icon: UsersRound, color: 'text-indigo-500' },
-    { id: 'projects', label: 'Projects', icon: Briefcase, color: 'text-amber-500' },
     { id: 'pricing', label: 'Pricing', icon: Target, color: 'text-blue-500' },
   ], [plan]);
 
@@ -44,7 +43,9 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
     ...(activeProject?.features?.raidLog !== false ? [{ id: 'raid', label: 'RAID Log', icon: Shield, color: 'text-rose-500' }] : []),
   ], [activeProject]);
 
-  const renderNavItem = (item: { id: string, label: string, icon: any, color?: string }) => {
+  const isProjectContext = currentTab === 'projects' || projectNav.some(nav => nav.id === currentTab);
+
+  const renderNavItem = (item: { id: string, label: string, icon: any, color?: string }, isNested = false) => {
     const Icon = item.icon;
     const isActive = currentTab === item.id;
     return (
@@ -55,13 +56,14 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
           onClose?.();
         }}
         className={cn(
-          "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+          "w-full flex items-center gap-3 py-2 rounded-lg font-medium transition-colors",
+          isNested ? "px-3 text-xs" : "px-3 text-sm",
           isActive 
             ? (isDarkMode ? "bg-zinc-800 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white")
             : (isDarkMode ? "text-zinc-400 dark:text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 hover:text-zinc-900 dark:text-white")
         )}
       >
-        <Icon className={cn("w-5 h-5", isActive ? (isDarkMode ? "text-white" : "text-zinc-900 dark:text-white") : (item.color || "text-zinc-500 dark:text-zinc-400"))} />
+        <Icon className={cn(isNested ? "w-4 h-4" : "w-5 h-5", isActive ? (isDarkMode ? "text-white" : "text-zinc-900 dark:text-white") : (item.color || "text-zinc-500 dark:text-zinc-400"))} />
         {item.label}
       </button>
     );
@@ -129,51 +131,25 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
         
         <div className="flex-1 px-4 space-y-6 overflow-y-auto">
           <nav className="space-y-1">
-            {mainNav.map(renderNavItem)}
+            {mainNav.map(item => renderNavItem(item))}
           </nav>
 
+          <hr className="my-4 border-zinc-200 dark:border-zinc-800" />
+
           <div className="space-y-2">
-            <div className="px-3 flex items-center justify-between">
-              <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest">Active Project</span>
-            </div>
-            {activeProject?.name ? (
-              <>
-                <div className={cn(
-                  "px-3 py-2.5 rounded-xl border mb-3 shadow-sm",
-                  isDarkMode 
-                    ? "bg-indigo-950/30 border-indigo-900/50" 
-                    : "bg-indigo-50 border-indigo-100"
-                )}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-                    <span className={cn(
-                      "text-sm font-bold truncate",
-                      isDarkMode ? "text-indigo-200" : "text-indigo-900"
-                    )}>{activeProject.name}</span>
-                  </div>
-                  <button 
-                    onClick={() => setCurrentTab('projects')}
-                    className={cn(
-                      "text-[10px] font-medium transition-colors",
-                      isDarkMode ? "text-indigo-400 hover:text-indigo-300" : "text-indigo-600 hover:text-indigo-700"
-                    )}
-                  >
-                    Switch Project
-                  </button>
-                </div>
+            <nav className="space-y-1">
+              {renderNavItem({ id: 'projects', label: 'Projects', icon: Briefcase, color: 'text-amber-500' })}
+            </nav>
+            {activeProject?.name && isProjectContext && (
+              <div className="ml-[22px] pl-3 mt-1 space-y-1 border-l border-zinc-200 dark:border-zinc-800">
                 <nav className="space-y-1">
-                  {projectNav.map(renderNavItem)}
+                  {projectNav.map(item => renderNavItem(item, true))}
                 </nav>
-              </>
-            ) : (
-              <button 
-                onClick={() => setCurrentTab('projects')}
-                className="w-full px-3 py-2 text-xs text-zinc-500 dark:text-zinc-400 hover:text-zinc-300 border border-dashed border-zinc-800 rounded-lg transition-all"
-              >
-                Select a project...
-              </button>
+              </div>
             )}
           </div>
+
+          <hr className="my-4 border-zinc-200 dark:border-zinc-800" />
 
           <nav className="space-y-1">
             {renderNavItem({ id: 'settings', label: 'Settings', icon: Settings })}

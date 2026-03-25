@@ -5,6 +5,7 @@ import { ProcessMap } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import * as pdfjsLib from 'pdfjs-dist';
 import mammoth from 'mammoth';
+import { stripPIData } from '../lib/piStripper';
 
 // Set worker source for pdfjs-dist
 pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -90,7 +91,7 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
         - 'edges': array of { sourceId: string, targetId: string, label?: string }
         
         Process Text:
-        ${textInput}`,
+        ${stripPIData(textInput)}`,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: "application/json",
@@ -223,6 +224,9 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
                 placeholder="Paste your standard operating procedure or process steps here..."
                 className="w-full h-48 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all resize-none text-sm"
               />
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+                Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
+              </p>
             </div>
           </div>
         </div>

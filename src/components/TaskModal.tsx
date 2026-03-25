@@ -13,13 +13,14 @@ interface TaskModalProps {
   currentUser?: User;
   users?: User[];
   onSave: (task: Task) => void;
+  onUpdate?: (task: Task) => void;
   onClose: () => void;
   onDelete?: (taskId: string) => void;
   onAddTeamMember?: (user: User) => void;
   isReadOnly?: boolean;
 }
 
-export function TaskModal({ task, project, currentUser, users = [], onSave, onClose, onDelete, onAddTeamMember, isReadOnly }: TaskModalProps) {
+export function TaskModal({ task, project, currentUser, users = [], onSave, onUpdate, onClose, onDelete, onAddTeamMember, isReadOnly }: TaskModalProps) {
   const [editingTask, setEditingTask] = useState<Task>(task);
   const [pendingTeamMember, setPendingTeamMember] = useState<User | null>(null);
   const [showBlockerDetails, setShowBlockerDetails] = useState(true);
@@ -456,10 +457,16 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onCl
                         text: newCommentText.trim(),
                         createdAt: new Date().toISOString(),
                       };
-                      setEditingTask({
+                      const updatedTask = {
                         ...editingTask,
                         comments: [...(editingTask.comments || []), newComment]
-                      });
+                      };
+                      setEditingTask(updatedTask);
+                      if (onUpdate) {
+                        onUpdate(updatedTask);
+                      } else {
+                        onSave(updatedTask);
+                      }
                       setNewCommentText('');
                     }
                   }}

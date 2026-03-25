@@ -94,6 +94,9 @@ export const CarbonLibraryModal: React.FC<CarbonLibraryModalProps> = ({ isOpen, 
                       </span>
                     </div>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{item.description}</p>
+                    {item.source && (
+                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 italic">Source: {item.source}</p>
+                    )}
                   </div>
                 </div>
                 <div className="text-right shrink-0">

@@ -14,7 +14,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('token');
+    } catch (e) {
+      console.error('LocalStorage access failed:', e);
+      return null;
+    }
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   const updateUser = (updates: Partial<User>) => {
@@ -24,39 +31,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    console.log('AuthContext: Checking token...', token ? 'Token exists' : 'No token');
     if (token) {
       fetch('/api/auth/me', {
         headers: {
           Authorization: `Bearer ${token}`
         }
       })
-      .then(res => {
+      .then(async res => {
         if (res.ok) return res.json();
-        throw new Error('Invalid token');
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Invalid token');
       })
       .then(data => {
         setUser(data.user);
         setIsLoading(false);
       })
-      .catch(() => {
-        localStorage.removeItem('token');
+      .catch((err) => {
+        console.warn('AuthContext: Session expired or invalid token:', err.message);
+        try {
+          localStorage.removeItem('token');
+        } catch (e) {}
         setToken(null);
         setUser(null);
         setIsLoading(false);
       });
     } else {
+      console.log('AuthContext: No token, setting isLoading to false');
       setIsLoading(false);
     }
   }, [token]);
 
   const login = (newToken: string, newUser: User) => {
-    localStorage.setItem('token', newToken);
+    try {
+      localStorage.setItem('token', newToken);
+    } catch (e) {
+      console.error('LocalStorage set failed:', e);
+    }
     setToken(newToken);
     setUser(newUser);
   };
 
   const logout = () => {
-    localStorage.removeItem('token');
+    try {
+      localStorage.removeItem('token');
+    } catch (e) {
+      console.error('LocalStorage remove failed:', e);
+    }
     setToken(null);
     setUser(null);
   };

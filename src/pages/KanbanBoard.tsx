@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Project, Task, KanbanColumn } from '../types';
+import { Project, Task, KanbanColumn, Sprint } from '../types';
 import { Target, Plus, Clock, TrendingUp, Zap, GripVertical, CheckCircle2, MoreVertical, Printer, LayoutList, LayoutGrid, Settings, Palette, Trash2, X, ChevronUp, ChevronDown, Download, FileText, Image as ImageIcon, ArrowRight, MessageSquare, AlertCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -26,6 +26,7 @@ interface KanbanBoardProps {
   onDeleteItem?: (item: any, type: any, originalProjectId?: string) => void;
   onAddTeamMember?: (user: any) => void;
   users?: any[];
+  activeTaskId?: string | null;
 }
 
 const COLUMN_COLORS = [
@@ -38,9 +39,16 @@ const COLUMN_COLORS = [
   { id: 'emerald', name: 'Emerald', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', text: 'text-emerald-700 dark:text-emerald-300', headerBg: 'bg-emerald-100 dark:bg-emerald-800' },
 ];
 
-export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [] }: KanbanBoardProps) {
+export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [], activeTaskId }: KanbanBoardProps) {
   const { addToast } = useToast();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  useEffect(() => {
+    if (activeTaskId) {
+      const task = tasks.find(t => t.id === activeTaskId);
+      if (task) setEditingTask(task);
+    }
+  }, [activeTaskId, tasks]);
   const [viewMode, setViewMode] = useState<'expanded' | 'condensed' | 'list'>('expanded');
   const isListView = viewMode === 'list';
   const isCondensedView = viewMode === 'condensed';
@@ -103,14 +111,43 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
     return COLUMN_COLORS.find(c => c.id === colorId) || COLUMN_COLORS[0];
   };
 
-  const handleAddColumn = () => {
-    const newColumn: KanbanColumn = {
-      id: uuidv4(),
-      title: 'New Column',
-      color: 'zinc',
-      order: columns.length
-    };
-    const updatedColumns = [...columns, newColumn];
+  const handleAddColumn = (position: 'before-in-progress' | 'after-in-progress' | 'end' = 'end') => {
+    let newOrder = columns.length;
+    let updatedColumns = [...columns];
+
+    if (position === 'before-in-progress' || position === 'after-in-progress') {
+      const inProgressIndex = columns.findIndex(c => c.id === 'In Progress' || c.title === 'In Progress');
+      if (inProgressIndex !== -1) {
+        const insertIndex = position === 'before-in-progress' ? inProgressIndex : inProgressIndex + 1;
+        const newColumn: KanbanColumn = {
+          id: uuidv4(),
+          title: 'New Column',
+          color: 'zinc',
+          order: 0 // Will be updated below
+        };
+        updatedColumns.splice(insertIndex, 0, newColumn);
+        // Re-calculate orders
+        updatedColumns = updatedColumns.map((c, i) => ({ ...c, order: i }));
+      } else {
+        // Fallback if In Progress is missing
+        const newColumn: KanbanColumn = {
+          id: uuidv4(),
+          title: 'New Column',
+          color: 'zinc',
+          order: columns.length
+        };
+        updatedColumns.push(newColumn);
+      }
+    } else {
+      const newColumn: KanbanColumn = {
+        id: uuidv4(),
+        title: 'New Column',
+        color: 'zinc',
+        order: columns.length
+      };
+      updatedColumns.push(newColumn);
+    }
+
     setProjects(prev => prev.map(p => p.id === project.id ? { ...p, kanbanColumns: updatedColumns } : p));
   };
 
@@ -120,7 +157,14 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   };
 
   const handleDeleteColumn = (id: string) => {
-    if (filteredTasks.some(t => t.kanbanStatus === id || t.kanbanStatus === columns.find(c => c.id === id)?.title)) {
+    const persistentColumns = ['Backlog', 'In Progress', 'Done', 'Blocked'];
+    const columnToDelete = columns.find(c => c.id === id);
+    if (columnToDelete && persistentColumns.includes(columnToDelete.id)) {
+      alert('This is a persistent column and cannot be deleted.');
+      return;
+    }
+
+    if (filteredTasks.some(t => t.kanbanStatus === id || t.kanbanStatus === columnToDelete?.title)) {
       alert('Cannot delete column with tasks. Please move tasks first.');
       return;
     }
@@ -146,6 +190,24 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   };
 
 
+  const ensureActiveSprint = () => {
+    if (!project.sprints || project.sprints.length === 0) {
+      const newSprint: Sprint = {
+        id: uuidv4(),
+        projectId: project.id,
+        number: 1,
+        name: 'Sprint 1',
+        startDate: new Date().toISOString(),
+        endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        status: 'In Progress'
+      };
+      setProjects(prev => prev.map(p => 
+        p.id === project.id ? { ...p, sprints: [newSprint], currentSprint: 1 } : p
+      ));
+      addToast('Sprint 1 created and started', 'success');
+    }
+  };
+
   const handleUpdateTask = (updatedTask: Task) => {
     const originalTask = tasks.find(t => t.id === updatedTask.id);
     if (originalTask && originalTask.kanbanStatus !== updatedTask.kanbanStatus) {
@@ -155,6 +217,12 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
         enteredAt: new Date().toISOString()
       });
       updatedTask.stageHistory = newHistory;
+      
+      // If moving from Backlog to a board column, ensure a sprint exists
+      if ((originalTask.kanbanStatus === 'Backlog' || originalTask.kanbanStatus === 'backlog') && 
+          updatedTask.kanbanStatus !== 'Backlog' && updatedTask.kanbanStatus !== 'backlog') {
+        ensureActiveSprint();
+      }
     }
 
     setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t));
@@ -166,6 +234,10 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
     // If columnId is a title (legacy), use it directly, otherwise use the ID
     const column = columns.find(c => c.id === columnId || c.title === columnId);
     const status = column ? (column.id === column.title ? column.title : column.id) : columnId;
+
+    if (status !== 'Backlog' && status !== 'backlog') {
+      ensureActiveSprint();
+    }
 
     const newTask: Task = {
       id: `t${Date.now()}`,
@@ -374,6 +446,9 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           </div>
           <div className="flex items-center gap-4">
             <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Kanban Board</h2>
+            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
+              {project.name}
+            </span>
             <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-bold border border-indigo-200 dark:border-indigo-800">
               Stage: {project.status}
             </span>
@@ -423,10 +498,10 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
             <button 
               onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
               className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm"
-              title="Print or Export"
+              title="Board Settings"
             >
-              <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Export</span>
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Settings</span>
               <ChevronDown className="w-3 h-3 ml-1" />
             </button>
             
@@ -436,26 +511,62 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 10 }}
-                  className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden z-50"
+                  className="absolute right-0 top-full mt-2 w-56 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden z-50"
                 >
-                  <button 
-                    onClick={handlePrint}
-                    className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                  >
-                    <Printer className="w-4 h-4" /> Print / PDF
-                  </button>
-                  <button 
-                    onClick={handleDownloadImage}
-                    className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                  >
-                    <ImageIcon className="w-4 h-4" /> Save as Image
-                  </button>
-                  <button 
-                    onClick={handleExportWord}
-                    className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                  >
-                    <FileText className="w-4 h-4" /> Export to Word
-                  </button>
+                  <div className="p-2 border-b border-zinc-100 dark:border-zinc-800">
+                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-2 py-1">View Mode</div>
+                    <div className="flex flex-col gap-1 mt-1">
+                      <button 
+                        onClick={() => { setViewMode('expanded'); setIsExportMenuOpen(false); }}
+                        className={cn("w-full px-2 py-2 text-left text-sm font-medium rounded-lg flex items-center gap-2", viewMode === 'expanded' ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400" : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800")}
+                      >
+                        <LayoutGrid className="w-4 h-4" /> Expanded
+                      </button>
+                      <button 
+                        onClick={() => { setViewMode('condensed'); setIsExportMenuOpen(false); }}
+                        className={cn("w-full px-2 py-2 text-left text-sm font-medium rounded-lg flex items-center gap-2", viewMode === 'condensed' ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400" : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800")}
+                      >
+                        <LayoutList className="w-4 h-4" /> Condensed
+                      </button>
+                      <button 
+                        onClick={() => { setViewMode('list'); setIsExportMenuOpen(false); }}
+                        className={cn("w-full px-2 py-2 text-left text-sm font-medium rounded-lg flex items-center gap-2", viewMode === 'list' ? "bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400" : "text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800")}
+                      >
+                        <LayoutList className="w-4 h-4" /> List
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-2 border-b border-zinc-100 dark:border-zinc-800">
+                    <button 
+                      onClick={() => { setIsManageColumnsOpen(true); setIsExportMenuOpen(false); }}
+                      className="w-full px-2 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg flex items-center gap-2"
+                    >
+                      <Settings className="w-4 h-4" /> Manage Columns
+                    </button>
+                  </div>
+
+                  <div className="p-2">
+                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-2 py-1">Export</div>
+                    <button 
+                      onClick={() => { handlePrint(); setIsExportMenuOpen(false); }}
+                      className="w-full px-2 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg flex items-center gap-2"
+                    >
+                      <Printer className="w-4 h-4" /> Print / PDF
+                    </button>
+                    <button 
+                      onClick={() => { handleDownloadImage(); setIsExportMenuOpen(false); }}
+                      className="w-full px-2 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg flex items-center gap-2"
+                    >
+                      <ImageIcon className="w-4 h-4" /> Save as Image
+                    </button>
+                    <button 
+                      onClick={() => { handleExportWord(); setIsExportMenuOpen(false); }}
+                      className="w-full px-2 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg flex items-center gap-2"
+                    >
+                      <FileText className="w-4 h-4" /> Export to Word
+                    </button>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -539,18 +650,6 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
             </button>
           )}
 
-          <div className="relative">
-            <select
-              value={viewMode}
-              onChange={(e) => setViewMode(e.target.value as 'expanded' | 'condensed' | 'list')}
-              className="appearance-none bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white pl-4 pr-10 py-2 rounded-xl font-bold transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="expanded">Expanded View</option>
-              <option value="condensed">Condensed View</option>
-              <option value="list">List View</option>
-            </select>
-            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-          </div>
           {!isReadOnly && (
             <button 
               onClick={() => handleAddTask('Backlog')}
@@ -778,6 +877,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
             users={users}
             isReadOnly={!canEdit}
             onSave={handleUpdateTask}
+            onUpdate={(updatedTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t))}
             onClose={() => setEditingTask(null)}
             onAddTeamMember={onAddTeamMember}
             onDelete={(taskId) => {
@@ -868,23 +968,43 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
                         </div>
                       </div>
 
-                      <button 
-                        onClick={() => handleDeleteColumn(col.id)}
-                        className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
-                        title="Delete Column"
-                      >
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      {['Backlog', 'In Progress', 'Done', 'Blocked'].includes(col.id) ? (
+                        <div className="w-9 h-9" /> // Placeholder to maintain layout
+                      ) : (
+                        <button 
+                          onClick={() => handleDeleteColumn(col.id)}
+                          className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
+                          title="Delete Column"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   ))}
 
-                  <button 
-                    onClick={handleAddColumn}
-                    className="w-full py-4 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all flex items-center justify-center gap-2 font-bold"
-                  >
-                    <Plus className="w-5 h-5" />
-                    Add New Column
-                  </button>
+                  <div className="flex flex-col gap-2">
+                    <button 
+                      onClick={() => handleAddColumn('before-in-progress')}
+                      className="w-full py-3 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all flex items-center justify-center gap-2 font-bold text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Column Before "In Progress"
+                    </button>
+                    <button 
+                      onClick={() => handleAddColumn('after-in-progress')}
+                      className="w-full py-3 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all flex items-center justify-center gap-2 font-bold text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Column After "In Progress"
+                    </button>
+                    <button 
+                      onClick={() => handleAddColumn('end')}
+                      className="w-full py-3 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl text-zinc-400 hover:text-indigo-600 hover:border-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all flex items-center justify-center gap-2 font-bold text-sm"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Column at End
+                    </button>
+                  </div>
                 </div>
 
                 <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end">

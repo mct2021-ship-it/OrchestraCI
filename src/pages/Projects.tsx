@@ -23,6 +23,9 @@ interface ProjectsProps {
   setServices?: React.Dispatch<React.SetStateAction<Service[]>>;
   openNewProjectModal?: boolean;
   setOpenNewProjectModal?: (open: boolean) => void;
+  journeys?: import('../types').JourneyMap[];
+  processMaps?: import('../types').ProcessMap[];
+  tasks?: import('../types').Task[];
 }
 
 export function Projects({ 
@@ -38,7 +41,10 @@ export function Projects({
   setServices,
   openNewProjectModal,
   setOpenNewProjectModal,
-  onProjectCreated
+  onProjectCreated,
+  journeys = [],
+  processMaps = [],
+  tasks = []
 }: ProjectsProps & { onProjectCreated?: (id: string) => void }) {
   const { plan } = usePlan();
   const { user } = useAuth();
@@ -226,13 +232,13 @@ export function Projects({
     <div className="p-4 sm:p-8 max-w-[1200px] mx-auto min-h-full flex flex-col">
       <div className="shrink-0">
         <ContextualHelp 
-          title="Improvement Projects" 
+          title="Projects" 
           description="Manage and track your CX improvement initiatives. Group related journey maps, process maps, and tasks into cohesive projects to drive meaningful change."
         />
       </div>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 shrink-0">
         <div>
-          <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Improvement Projects</h2>
+          <h2 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Projects</h2>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1 text-sm sm:text-base">Manage and track your CX improvement initiatives.</p>
         </div>
         <button 
@@ -272,45 +278,37 @@ export function Projects({
       </div>
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 shrink-0">
-        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
-          <div className="flex items-center gap-2">
-            {filters.map(f => (
-              <button
-                key={f}
-                onClick={() => { setFilter(f); setShowArchived(false); }}
-                className={`px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap ${
-                  filter === f && !showArchived
-                    ? 'bg-zinc-900 text-white shadow-md' 
-                    : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800'
-                }`}
-              >
-                {f}
-                {f !== 'All' && (
-                  <span className={`ml-2 px-1.5 py-0.5 rounded-md text-[10px] ${
-                    filter === f && !showArchived ? 'bg-white dark:bg-zinc-900/20 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400'
-                  }`}>
-                    {projects.filter(p => p.status === f && !p.archived).length}
-                  </span>
-                )}
-              </button>
-            ))}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <select
+              value={showArchived ? 'Archived' : filter}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'Archived') {
+                  setShowArchived(true);
+                  setFilter('All');
+                } else {
+                  setShowArchived(false);
+                  setFilter(val);
+                }
+              }}
+              className="appearance-none pl-4 pr-10 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm font-bold text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer"
+            >
+              <option value="All">All Stages</option>
+              {columns.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+              <option value="Archived">Archived</option>
+            </select>
+            <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
-          <div className="w-px h-6 bg-zinc-200 mx-2 shrink-0" />
-          <button
-            onClick={() => { setShowArchived(true); setFilter('All'); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold transition-all whitespace-nowrap shrink-0 ${
-              showArchived
-                ? 'bg-zinc-900 text-white shadow-md' 
-                : 'bg-white dark:bg-zinc-900 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-800'
-            }`}
-          >
-            <Archive className="w-4 h-4" />
-            Archived
-          </button>
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto px-1 pb-4">
+      <div className={cn(
+        "flex-1 overflow-y-auto p-2 pb-4",
+        filteredProjects.length === 0 ? "flex flex-col" : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 content-start"
+      )}>
         {filteredProjects.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-12 text-center min-h-[400px]">
             <div className="w-24 h-24 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 rounded-full flex items-center justify-center mb-6">
@@ -335,9 +333,9 @@ export function Projects({
           </div>
         ) : (
           filteredProjects.map(project => {
-            const projectJourneys = mockJourneyMaps.filter(j => j.projectId === project.id);
-            const projectProcessMaps = mockProcessMaps.filter(pm => pm.projectId === project.id);
-            const projectTasks = mockTasks.filter(t => t.projectId === project.id);
+            const projectJourneys = journeys.filter(j => j.projectId === project.id && !j.archived);
+            const projectProcessMaps = processMaps.filter(pm => pm.projectId === project.id && !pm.archived);
+            const projectTasks = tasks.filter(t => t.projectId === project.id && !t.archived);
             const isActive = activeProjectId === project.id;
             
             return (
@@ -345,18 +343,35 @@ export function Projects({
                 layout
                 key={project.id} 
                 onClick={() => onSelectProject(project.id)}
-                className={`bg-white dark:bg-zinc-900 rounded-2xl border transition-all cursor-pointer group flex flex-col md:flex-row md:items-start sm:items-center gap-4 sm:gap-6 p-4 sm:p-6 ${
+                className={`bg-white dark:bg-zinc-900 rounded-2xl border transition-all cursor-pointer group flex flex-col p-5 ${
                   isActive ? 'ring-2 ring-indigo-600 border-transparent shadow-xl' : 'border-zinc-200 dark:border-zinc-800 hover:shadow-lg hover:border-zinc-300'
                 }`}
               >
-                <div className={`p-3 sm:p-4 rounded-2xl shrink-0 ${isActive ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'}`}>
-                  <Folder className="w-6 h-6 sm:w-8 sm:h-8" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className={`p-3 rounded-xl shrink-0 ${isActive ? 'bg-indigo-600 text-white' : 'bg-indigo-50 text-indigo-600'}`}>
+                    <Folder className="w-6 h-6" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {project.archived ? (
+                      <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        <Archive className="w-3 h-3" />
+                        Archived
+                      </span>
+                    ) : (
+                      <span className="bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Active
+                      </span>
+                    )}
+                  </div>
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-3 mb-1">
-                    <h3 className="font-bold text-xl text-zinc-900 dark:text-white truncate">{project.name}</h3>
-                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                <div className="flex-1 min-w-0 flex flex-col">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="font-bold text-lg text-zinc-900 dark:text-white truncate" title={project.name}>{project.name}</h3>
+                  </div>
+                  <div className="mb-3">
+                    <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                       project.status === 'Discover' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
                       project.status === 'Define' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
                       project.status === 'Develop' ? 'bg-amber-50 text-amber-700 border border-amber-100' :
@@ -366,40 +381,30 @@ export function Projects({
                       {project.status}
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-1 mb-3">{project.description}</p>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 mb-4 flex-1">{project.description || 'No description provided.'}</p>
                   
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  <div className="grid grid-cols-2 gap-y-3 gap-x-2 mb-4">
                     <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                      <MapIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <MapIcon className="w-3.5 h-3.5" />
                       {projectJourneys.length} Journeys
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                      <GitMerge className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <GitMerge className="w-3.5 h-3.5" />
                       {projectProcessMaps.length} Processes
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                      <Target className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                      <Target className="w-3.5 h-3.5" />
                       {projectTasks.length} Tasks
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] sm:text-xs font-bold text-zinc-400 uppercase tracking-wider">
-                      <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                      Updated {new Date(project.updatedAt).toLocaleDateString()}
+                      <Clock className="w-3.5 h-3.5" />
+                      {new Date(project.updatedAt).toLocaleDateString()}
                     </div>
                   </div>
-                  
-                  {project.taxonomy && project.taxonomy.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {project.taxonomy.map((tag, idx) => (
-                        <span key={idx} className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-md text-[10px] font-bold uppercase tracking-wider border border-zinc-200 dark:border-zinc-800">
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
                 </div>
 
-                <div className="flex items-center justify-between sm:justify-start gap-3 shrink-0 pt-4 sm:pt-0 border-t sm:border-0 border-zinc-100">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800 mt-auto">
+                  <div className="flex items-center gap-1">
                     {canDeleteProject(project) && (
                       <>
                         {project.archived ? (
@@ -408,7 +413,7 @@ export function Projects({
                             className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
                             title="Restore Project"
                           >
-                            <Archive className="w-5 h-5" />
+                            <Archive className="w-4 h-4" />
                           </button>
                         ) : (
                           <button 
@@ -416,7 +421,7 @@ export function Projects({
                             className="p-2 text-zinc-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-xl transition-all"
                             title="Archive Project"
                           >
-                            <Archive className="w-5 h-5" />
+                            <Archive className="w-4 h-4" />
                           </button>
                         )}
                         <button 
@@ -427,20 +432,17 @@ export function Projects({
                           className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-all"
                           title="Delete Project"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </>
                     )}
-                    <button className="p-2 text-zinc-400 hover:text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-full transition-all">
-                      <MoreVertical className="w-5 h-5" />
-                    </button>
                   </div>
                   {isActive ? (
-                    <span className="bg-indigo-600 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg shadow-indigo-600/20">
-                      Active
+                    <span className="text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1">
+                      Selected
                     </span>
                   ) : (
-                    <button className="sm:opacity-0 sm:group-hover:opacity-100 transition-opacity bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-600 dark:text-zinc-300 px-4 py-1.5 rounded-full text-xs font-bold">
+                    <button className="opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 text-zinc-600 dark:text-zinc-300 px-4 py-1.5 rounded-full text-xs font-bold">
                       Select
                     </button>
                   )}

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Calculator, Loader2, AlertCircle, Sparkles, HelpCircle } from 'lucide-react';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import { stripPIData } from '../lib/piStripper';
 
 interface NpsData {
   promoters: number;
@@ -49,7 +50,7 @@ export function NpsCalculator() {
         contents: `Analyze the following NPS survey data. Count the number of promoters (scores 9-10), passives (scores 7-8), and detractors (scores 0-6).
         
         NPS Data:
-        ${inputText}`,
+        ${stripPIData(inputText)}`,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: "application/json",
@@ -135,6 +136,9 @@ export function NpsCalculator() {
             placeholder="Paste NPS scores (e.g., 9, 8, 10, 5, 7...) or upload a file containing the data."
             className="w-full h-32 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-emerald-500 outline-none resize-none text-sm"
           />
+          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
+            Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
+          </p>
 
           {error && (
             <div className="p-3 bg-rose-50 border border-rose-100 rounded-lg flex items-center gap-2 text-rose-700 text-sm">
