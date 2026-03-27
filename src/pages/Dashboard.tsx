@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle, Clock } from 'lucide-react';
+import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle, Clock, ArrowRight } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Persona, JourneyMap, Task, ProcessMap, Project, User } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';

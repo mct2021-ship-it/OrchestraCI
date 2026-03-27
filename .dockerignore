@@ -1,0 +1,13 @@
+node_modules
+*.db
+.git
+.gitignore
+Dockerfile
+logs.json
+logs_utf8.json
+build_desc.json
+build_desc_2.json
+build_id.txt
+build_log.txt
+build_list.json
+env_check.txt
