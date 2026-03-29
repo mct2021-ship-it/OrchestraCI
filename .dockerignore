@@ -1,0 +1,8 @@
+node_modules
+dist
+*.db
+*.json.bak
+build_*.json
+build_*.txt
+logs*.json
+.git
