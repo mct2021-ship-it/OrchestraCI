@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from "@google/genai";
 import { X, Sparkles, Loader2, Check, UserPlus, Upload, FileText as FileIcon } from 'lucide-react';
 import { Persona } from '../types';
 import { v4 as uuidv4 } from 'uuid';
@@ -34,7 +35,13 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
     if (!data.trim()) return;
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        alert("Gemini API key is missing. Please select one to enable AI features.");
+        await ensureApiKey();
+        setIsGenerating(false);
+        return;
+      }
       const prompt = `
         Analyze the following customer data/research and suggest up to 5 distinct user personas.
         For each persona, provide:
@@ -46,6 +53,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
         - 3-5 Goals
         - 3-5 Frustrations
         - 3 Demographic sliders (label and value 0-100)
+        - 3 User Stories in the format: "As a [persona], I want [action], so that [benefit]"
         
         Customer Data:
         ${stripPIData(data)}
@@ -81,9 +89,21 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
                     },
                     required: ["label", "value"]
                   }
+                },
+                userStories: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      asA: { type: Type.STRING },
+                      iWant: { type: Type.STRING },
+                      soThat: { type: Type.STRING }
+                    },
+                    required: ["asA", "iWant", "soThat"]
+                  }
                 }
               },
-              required: ["name", "role", "type", "age", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics"]
+              required: ["name", "role", "type", "age", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics", "userStories"]
             }
           }
         }
@@ -107,7 +127,8 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
         ...s,
         id: uuidv4(),
         imageUrl: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000)}?w=400&h=400&fit=crop`,
-        demographics: s.demographics?.map(d => ({ ...d, id: uuidv4() })) || []
+        demographics: s.demographics?.map(d => ({ ...d, id: uuidv4() })) || [],
+        userStories: s.userStories?.map(us => ({ ...us, id: uuidv4() })) || []
       } as Persona));
     
     onSave(selectedPersonas);

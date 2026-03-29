@@ -1,12 +1,26 @@
 import React, { useState, useRef } from 'react';
-import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Sliders, Star, Plus, Image as ImageIcon, Heart } from 'lucide-react';
+import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Sliders, Star, Plus, Image as ImageIcon, Heart, BookOpen, Folder, ChevronLeft, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Filter, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from "@google/genai";
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
 import { Persona, DemographicSlider } from '../types';
 import { personaTemplates } from '../data/mockData';
+import { personaLibrary, PersonaFolder } from '../data/personaLibrary';
 import { AvatarGalleryModal } from './AvatarGalleryModal';
+
+const iconMap: Record<string, React.ElementType> = {
+  Home,
+  Building2,
+  Briefcase,
+  HeartPulse,
+  ShoppingCart,
+  Folder,
+  Scale,
+  Calculator,
+  Zap
+};
 
 interface CreatePersonaModalProps {
   isOpen: boolean;
@@ -15,12 +29,18 @@ interface CreatePersonaModalProps {
 }
 
 export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaModalProps) {
-  const [mode, setMode] = useState<'manual' | 'ai' | 'template'>('manual');
+  const [mode, setMode] = useState<'manual' | 'ai' | 'template' | 'library'>('manual');
   const [isGenerating, setIsGenerating] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [uploadData, setUploadData] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Library State
+  const [selectedFolder, setSelectedFolder] = useState<PersonaFolder | null>(null);
+  const [previewPersona, setPreviewPersona] = useState<Partial<Persona> | null>(null);
+  const [genderFilter, setGenderFilter] = useState<string>('All');
+  const [ageFilter, setAgeFilter] = useState<string>('All');
 
   const defaultTemplate = personaTemplates.find(t => t.isDefaultTemplate) || personaTemplates[0];
 
@@ -75,11 +95,17 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
     setIsGenerating(true);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      await ensureApiKey();
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setIsGenerating(false);
+        return;
+      }
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Create a detailed customer persona based on this description: "${stripPIData(prompt)}". 
         ${uploadData ? `Use this demographic data as context: ${stripPIData(uploadData)}` : ''}
+        Also, generate 3 relevant user stories for this persona in the format: "As a [persona], I want [action], so that [benefit]".
         Provide the persona in JSON format.`,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -107,9 +133,21 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                   },
                   required: ["label", "value"]
                 }
+              },
+              userStories: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    asA: { type: Type.STRING },
+                    iWant: { type: Type.STRING },
+                    soThat: { type: Type.STRING }
+                  },
+                  required: ["asA", "iWant", "soThat"]
+                }
               }
             },
-            required: ["name", "role", "age", "gender", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics"]
+            required: ["name", "role", "age", "gender", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics", "userStories"]
           }
         }
       });
@@ -118,6 +156,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
       const newPersona: Persona = {
         id: uuidv4(),
         ...data,
+        userStories: (data.userStories || []).map((us: any) => ({ ...us, id: uuidv4() })),
         demographics: data.demographics.map((d: any) => ({ ...d, id: uuidv4() })),
         imageUrl: getRandomAvatar()
       };
@@ -199,19 +238,12 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
             Templates
           </button>
           <button 
-            onClick={() => fileInputRef.current?.click()}
-            className="flex-1 py-3 text-sm font-medium border-b-2 border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:text-zinc-200 flex items-center justify-center gap-2"
+            onClick={() => setMode('library')}
+            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-all ${mode === 'library' ? 'border-zinc-900 text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:text-zinc-200'} flex items-center justify-center gap-2`}
           >
-            <Upload className="w-4 h-4" />
-            Upload Data
+            <BookOpen className="w-4 h-4" />
+            Persona Library
           </button>
-          <input 
-            type="file" 
-            ref={fileInputRef} 
-            onChange={handleFileUpload} 
-            className="hidden" 
-            accept=".csv,.json,.txt"
-          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -496,6 +528,40 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                     placeholder="e.g. A tech-savvy millennial marketing manager who values automation and efficiency..."
                     className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900 min-h-[120px] resize-none"
                   />
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="file"
+                        id="ai-file-upload"
+                        className="hidden"
+                        onChange={handleFileUpload}
+                        accept=".txt,.csv,.json,.pdf,.docx"
+                      />
+                      <label
+                        htmlFor="ai-file-upload"
+                        className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700 cursor-pointer transition-colors"
+                      >
+                        <Upload className="w-4 h-4" />
+                        {uploadData ? 'File Uploaded' : 'Upload Context File'}
+                      </label>
+                      {uploadData && (
+                        <button
+                          onClick={() => setUploadData(null)}
+                          className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors"
+                          title="Remove uploaded data"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {uploadData && (
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium flex items-center gap-1">
+                        <Check className="w-3 h-3" /> Context added to prompt
+                      </span>
+                    )}
+                  </div>
+
                   <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
                     Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
                   </p>
@@ -518,6 +584,199 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
                     )}
                   </button>
                 </div>
+              </motion.div>
+            ) : mode === 'library' ? (
+              <motion.div 
+                key="library"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-6"
+              >
+                {previewPersona ? (
+                  <div className="bg-white dark:bg-zinc-800 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-700">
+                    <div className="flex flex-col md:flex-row gap-8 mb-8">
+                      <div className="w-full md:w-1/3 flex flex-col items-center text-center">
+                        <img 
+                          src={previewPersona.imageUrl || getRandomAvatar()} 
+                          alt={previewPersona.name} 
+                          className="w-32 h-32 rounded-full object-cover border-4 border-white dark:border-zinc-700 shadow-lg mb-4"
+                        />
+                        <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">{previewPersona.name}</h2>
+                        <p className="text-sm font-medium text-indigo-600 dark:text-indigo-400 mb-2">{previewPersona.role}</p>
+                        <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Age: {previewPersona.age}
+                        </div>
+                      </div>
+                      <div className="w-full md:w-2/3 space-y-4">
+                        <div className="bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/30">
+                          <p className="text-sm text-indigo-900 dark:text-indigo-300 italic">"{previewPersona.quote}"</p>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                              <Target className="w-3 h-3" /> Goals
+                            </h3>
+                            <ul className="space-y-1">
+                              {previewPersona.goals?.slice(0, 3).map((goal, i) => (
+                                <li key={i} className="flex items-start gap-2 text-xs text-zinc-700 dark:text-zinc-300">
+                                  <div className="w-1 h-1 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                                  <span className="line-clamp-1">{goal}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                          <div className="space-y-2">
+                            <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
+                              <Frown className="w-3 h-3" /> Frustrations
+                            </h3>
+                            <ul className="space-y-1">
+                              {previewPersona.frustrations?.slice(0, 3).map((frustration, i) => (
+                                <li key={i} className="flex items-start gap-2 text-xs text-zinc-700 dark:text-zinc-300">
+                                  <div className="w-1 h-1 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                                  <span className="line-clamp-1">{frustration}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex justify-end gap-3 pt-4 border-t border-zinc-100 dark:border-zinc-700">
+                      <button 
+                        onClick={() => setPreviewPersona(null)}
+                        className="px-4 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 rounded-lg transition-colors"
+                      >
+                        Back to Library
+                      </button>
+                      <button 
+                        onClick={() => {
+                          const newPersona: Persona = {
+                            ...previewPersona,
+                            id: uuidv4(),
+                            imageUrl: previewPersona.imageUrl || getRandomAvatar(),
+                            demographics: previewPersona.demographics?.map(d => ({ ...d, id: uuidv4() })) || []
+                          } as Persona;
+                          onSave(newPersona);
+                          onClose();
+                        }}
+                        className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-xs font-bold flex items-center gap-2 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Import Persona
+                      </button>
+                    </div>
+                  </div>
+                ) : !selectedFolder ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    {personaLibrary.map(folder => {
+                      const Icon = iconMap[folder.icon] || Folder;
+                      return (
+                        <div 
+                          key={folder.id}
+                          onClick={() => setSelectedFolder(folder)}
+                          className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 cursor-pointer hover:border-zinc-900 dark:hover:border-zinc-500 transition-all group"
+                        >
+                          <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-lg flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                            <Icon className="w-5 h-5" />
+                          </div>
+                          <h4 className="text-sm font-bold text-zinc-900 dark:text-white mb-1">{folder.name}</h4>
+                          <p className="text-[10px] text-zinc-500 dark:text-zinc-400 line-clamp-2">{folder.description}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => setSelectedFolder(null)}
+                          className="p-1 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-zinc-500" />
+                        </button>
+                        <h3 className="font-bold text-zinc-900 dark:text-white">{selectedFolder.name}</h3>
+                      </div>
+                      
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={genderFilter}
+                          onChange={(e) => setGenderFilter(e.target.value)}
+                          className="px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-[10px] outline-none"
+                        >
+                          <option value="All">All Genders</option>
+                          <option value="Female">Female</option>
+                          <option value="Male">Male</option>
+                          <option value="Non-binary">Non-binary</option>
+                        </select>
+                        <select
+                          value={ageFilter}
+                          onChange={(e) => setAgeFilter(e.target.value)}
+                          className="px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 text-[10px] outline-none"
+                        >
+                          <option value="All">All Ages</option>
+                          <option value="18-30">18-30</option>
+                          <option value="31-50">31-50</option>
+                          <option value="51+">51+</option>
+                        </select>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4">
+                      {selectedFolder.personas.filter(persona => {
+                        const genderMatch = genderFilter === 'All' || persona.gender === genderFilter;
+                        let ageMatch = true;
+                        if (ageFilter !== 'All' && persona.age) {
+                          if (ageFilter === '18-30') ageMatch = persona.age >= 18 && persona.age <= 30;
+                          if (ageFilter === '31-50') ageMatch = persona.age >= 31 && persona.age <= 50;
+                          if (ageFilter === '51+') ageMatch = persona.age >= 51;
+                        }
+                        return genderMatch && ageMatch;
+                      }).map((persona, idx) => (
+                        <div key={idx} className="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 flex flex-col hover:border-zinc-900 dark:hover:border-zinc-500 transition-all">
+                          <div className="flex items-center gap-3 mb-3">
+                            <img 
+                              src={persona.imageUrl || getRandomAvatar()} 
+                              alt={persona.name} 
+                              className="w-10 h-10 rounded-full object-cover border border-zinc-100 dark:border-zinc-700"
+                            />
+                            <div className="min-w-0">
+                              <h4 className="font-bold text-zinc-900 dark:text-white text-xs truncate">{persona.name}</h4>
+                              <p className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 truncate">{persona.role}</p>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-auto">
+                            <button 
+                              onClick={() => setPreviewPersona(persona)}
+                              className="flex-1 py-1.5 bg-zinc-50 dark:bg-zinc-900 text-zinc-900 dark:text-white rounded-lg text-[10px] font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            >
+                              Preview
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const newPersona: Persona = {
+                                  ...persona,
+                                  id: uuidv4(),
+                                  imageUrl: persona.imageUrl || getRandomAvatar(),
+                                  demographics: persona.demographics?.map(d => ({ ...d, id: uuidv4() })) || []
+                                } as Persona;
+                                onSave(newPersona);
+                                onClose();
+                              }}
+                              className="flex-1 py-1.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              Import
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div 

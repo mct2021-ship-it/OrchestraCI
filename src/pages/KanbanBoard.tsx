@@ -55,6 +55,8 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   const [isManageColumnsOpen, setIsManageColumnsOpen] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isInitialSprintModalOpen, setIsInitialSprintModalOpen] = useState(false);
+  const [initialSprintDescription, setInitialSprintDescription] = useState('');
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [animationStep, setAnimationStep] = useState(0);
   const [showExecutionFramework, setShowExecutionFramework] = useState(false);
@@ -206,6 +208,45 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
       ));
       addToast('Sprint 1 created and started', 'success');
     }
+  };
+
+  const handleCreateInitialSprint = () => {
+    const newSprint: Sprint = {
+      id: uuidv4(),
+      projectId: project.id,
+      number: 1,
+      name: 'Sprint 1',
+      description: initialSprintDescription,
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      status: 'In Progress'
+    };
+    setProjects(prev => prev.map(p => 
+      p.id === project.id ? { ...p, sprints: [newSprint], currentSprint: 1 } : p
+    ));
+    addToast('Sprint 1 created and started', 'success');
+    setIsInitialSprintModalOpen(false);
+    
+    // Create the task directly instead of calling handleAddTask to avoid race condition
+    const column = columns[0];
+    const status = column ? (column.id === column.title ? column.title : column.id) : columns[0].id;
+    
+    const newTask: Task = {
+      id: `t${Date.now()}`,
+      projectId: project.id,
+      title: 'New Task',
+      description: 'Enter task description...',
+      status: 'Discover',
+      kanbanStatus: status,
+      impact: 'Medium',
+      effort: 'Medium',
+      owner: '',
+      sprint: 'Sprint 1',
+      createdAt: new Date().toISOString(),
+      stageHistory: [{ stage: status, enteredAt: new Date().toISOString() }],
+    };
+    setTasks(prev => [...prev, newTask]);
+    setEditingTask(newTask);
   };
 
   const handleUpdateTask = (updatedTask: Task) => {
@@ -573,86 +614,22 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           </div>
 
           <button 
-            onClick={() => onNavigate && onNavigate('backlog')}
+            onClick={() => onNavigate && onNavigate('sprints')}
             className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm"
           >
-            <LayoutList className="w-4 h-4" />
-            <span className="hidden sm:inline">Manage Backlog</span>
+            <Target className="w-4 h-4" />
+            <span className="hidden sm:inline">Manage Sprints</span>
           </button>
-          
-          <div className="relative">
-            <select
-              value={selectedSprintId}
-              onChange={(e) => setSelectedSprintId(e.target.value === 'current' ? 'current' : Number(e.target.value))}
-              className="appearance-none bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white pl-4 pr-10 py-2 rounded-xl font-bold transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="current">Current Sprint ({project.currentSprint || 1})</option>
-              {(project.sprintSnapshots || []).map(s => (
-                <option key={s.sprintNumber} value={s.sprintNumber}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-          </div>
-
-          {selectedSprintId === 'current' ? (
-            !isReadOnly && (
-              <button 
-                onClick={() => {
-                  const currentSprint = project.currentSprint || 1;
-                  
-                  // Create a snapshot of the current board
-                  const snapshotTasks = tasks.filter(t => t.projectId === project.id && !t.archived);
-                  const newSnapshot = {
-                    sprintNumber: currentSprint,
-                    name: `Sprint ${currentSprint}`,
-                    description: project.currentSprintDescription,
-                    completedAt: new Date().toISOString(),
-                    tasks: JSON.parse(JSON.stringify(snapshotTasks)) // deep copy
-                  };
-                  
-                  // Archive completed tasks and tag them with the sprint
-                  const updatedTasks = tasks.map(t => {
-                    if (t.projectId === project.id && !t.archived && t.kanbanStatus === 'Done') {
-                      return { ...t, archived: true, sprint: `Sprint ${currentSprint}` };
-                    }
-                    return t;
-                  });
-                  
-                  setTasks(updatedTasks);
-                  
-                  // Increment sprint counter and save snapshot
-                  setProjects(prev => prev.map(p => 
-                    p.id === project.id ? { 
-                      ...p, 
-                      currentSprint: currentSprint + 1,
-                      currentSprintDescription: '',
-                      sprintSnapshots: [...(p.sprintSnapshots || []), newSnapshot]
-                    } : p
-                  ));
-                  
-                  addToast(`Sprint ${currentSprint} completed successfully`, 'success');
-                }}
-                className="bg-emerald-50 dark:bg-emerald-900/20 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-emerald-200 dark:border-emerald-800 shadow-sm"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Complete Sprint {project.currentSprint || 1}</span>
-              </button>
-            )
-          ) : (
-            <button
-              onClick={() => setIsReportModalOpen(true)}
-              className="bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-indigo-200 dark:border-indigo-800 shadow-sm"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">AI Sprint Report</span>
-            </button>
-          )}
 
           {!isReadOnly && (
             <button 
-              onClick={() => handleAddTask('Backlog')}
+              onClick={() => {
+                if (!project.sprints || project.sprints.length === 0) {
+                  setIsInitialSprintModalOpen(true);
+                } else {
+                  handleAddTask('Backlog');
+                }
+              }}
               className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg"
             >
               <Plus className="w-5 h-5" />
@@ -674,7 +651,13 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           </p>
           {!isReadOnly && (
             <button 
-              onClick={() => handleAddTask(columns[0].id)}
+              onClick={() => {
+                if (!project.sprints || project.sprints.length === 0) {
+                  setIsInitialSprintModalOpen(true);
+                } else {
+                  handleAddTask(columns[0].id);
+                }
+              }}
               className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg"
             >
               <Plus className="w-5 h-5" />
@@ -1029,6 +1012,64 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           onClose={() => setIsReportModalOpen(false)}
         />
       )}
+
+      <AnimatePresence>
+        {isInitialSprintModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                    <Target className="w-5 h-5" />
+                  </div>
+                  <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Create Initial Sprint</h2>
+                </div>
+                <button 
+                  onClick={() => setIsInitialSprintModalOpen(false)}
+                  className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Adding your first task will automatically create a new Sprint. Please provide a description or goal for this sprint.
+                </p>
+                <div>
+                  <label className="block text-xs font-bold text-zinc-700 dark:text-zinc-300 uppercase tracking-wider mb-2">
+                    Sprint Description
+                  </label>
+                  <textarea
+                    value={initialSprintDescription}
+                    onChange={(e) => setInitialSprintDescription(e.target.value)}
+                    placeholder="What is the main goal of this sprint?"
+                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none min-h-[100px] resize-none dark:text-white"
+                  />
+                </div>
+              </div>
+              <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3">
+                <button
+                  onClick={() => setIsInitialSprintModalOpen(false)}
+                  className="px-4 py-2 text-zinc-600 dark:text-zinc-400 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateInitialSprint}
+                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold shadow-lg shadow-indigo-200 dark:shadow-none transition-all"
+                >
+                  Create Sprint & Task
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -40,12 +40,14 @@ import { EditableText } from '../components/EditableText';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { usePermissions } from '../hooks/usePermissions';
 import { PRESET_AVATARS } from '../constants';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 import ReactMarkdown from 'react-markdown';
 
 interface ProjectDetailProps {
   project: Project;
+  projects: Project[];
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   journeys: JourneyMap[];
   processMaps: ProcessMap[];
@@ -65,7 +67,6 @@ interface ProjectDetailProps {
   isDarkMode?: boolean;
 }
 
-import { ProjectOnboardingWizard } from '../components/ProjectOnboardingWizard';
 import { AddTeamMemberModal } from '../components/AddTeamMemberModal';
 
 interface FlipTileProps {
@@ -125,6 +126,7 @@ const FlipTile: React.FC<FlipTileProps> = ({ title, icon: Icon, description, onE
 
 export function ProjectDetail({ 
   project, 
+  projects,
   setProjects,
   journeys, 
   processMaps, 
@@ -277,7 +279,13 @@ export function ProjectDetail({
     setShowRoiReport(true);
     
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setRoiReportContent('Gemini API key is missing. Please select one to enable AI features.');
+        await ensureApiKey();
+        setIsGeneratingRoi(false);
+        return;
+      }
       
       const currentJourneys = journeys.filter(j => j.projectId === project.id && j.state === 'Current');
       const proposedJourneys = journeys.filter(j => j.projectId === project.id && j.state === 'Proposed');
@@ -451,7 +459,7 @@ export function ProjectDetail({
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-bold text-indigo-600 uppercase tracking-widest">
             <Sparkles className="w-4 h-4" />
-            Project Management
+            Project Overview
           </div>
           <h1 className="text-3xl sm:text-4xl font-bold text-zinc-900 dark:text-white tracking-tight">
             <EditableText 
@@ -516,6 +524,64 @@ export function ProjectDetail({
           </div>
         </div>
       </div>
+
+      {/* Double Diamond Progress Bar */}
+      {project.useDoubleDiamond !== false && (
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-widest">Double Diamond Progress</h3>
+            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md">{project.status}</span>
+          </div>
+          <div className="relative h-4 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
+            {['Discover', 'Define', 'Develop', 'Deliver', 'Done'].map((stage, idx) => {
+              const isActive = project.status === stage;
+              const isPast = ['Discover', 'Define', 'Develop', 'Deliver', 'Done'].indexOf(project.status || 'Discover') > idx;
+              const isCurrentOrPast = isActive || isPast;
+              
+              return (
+                <div 
+                  key={stage}
+                  className={cn(
+                    "h-full flex-1 border-r border-white/20 last:border-0 transition-all duration-500 relative",
+                    isCurrentOrPast ? "bg-indigo-500" : "bg-transparent"
+                  )}
+                >
+                  {isActive && (
+                    <motion.div 
+                      layoutId="active-stage-indicator"
+                      className="absolute inset-0 bg-white/20"
+                      initial={false}
+                      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex justify-between mt-3 px-2">
+            {['Discover', 'Define', 'Develop', 'Deliver', 'Done'].map((stage, idx) => {
+              const isActive = project.status === stage;
+              const isPast = ['Discover', 'Define', 'Develop', 'Deliver', 'Done'].indexOf(project.status || 'Discover') > idx;
+              
+              return (
+                <button
+                  key={stage}
+                  onClick={() => canEdit && handleStageChange(stage as any)}
+                  disabled={!canEdit}
+                  className={cn(
+                    "text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors relative",
+                    isActive ? "text-indigo-600 dark:text-indigo-400" : 
+                    isPast ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400",
+                    !canEdit && "cursor-default"
+                  )}
+                >
+                  {stage}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Dashboard Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -691,9 +757,296 @@ export function ProjectDetail({
         )}
       </AnimatePresence>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+      {/* Project Charter */}
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col mb-8">
+        <div className="p-6 border-b border-zinc-100 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
+              <Info className="w-5 h-5" />
+            </div>
+            <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Project Charter</h3>
+          </div>
+          {canEdit && (
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={() => setIsEditingTaxonomy(!isEditingTaxonomy)}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+              >
+                <Package className="w-3 h-3" />
+                Products & Services
+              </button>
+              <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
+              <button 
+                onClick={() => setIsEditingTags(!isEditingTags)}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+              >
+                {isEditingTags ? 'Done' : 'Edit Tags'}
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
+          <div className="space-y-8">
+            {/* Strategy & Purpose */}
+            <div>
+              <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">The Mission</h4>
+              <EditableText 
+                value={project.purpose} 
+                onChange={(val) => updateProjectField('purpose', val)}
+                className="text-zinc-700 dark:text-zinc-200 text-xl font-medium leading-relaxed"
+                multiline
+              />
+              <div className="flex flex-wrap gap-2 items-center mt-4">
+                {project.taxonomy.map((tag, i) => (
+                  <span key={i} className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-full text-[10px] font-bold border border-zinc-200 dark:border-zinc-800 uppercase tracking-wider flex items-center gap-1">
+                    {isEditingTags ? (
+                      <EditableText 
+                        value={tag} 
+                        onChange={(val) => {
+                          const newTaxonomy = [...project.taxonomy];
+                          newTaxonomy[i] = val;
+                          updateProjectField('taxonomy', newTaxonomy);
+                        }}
+                        className="w-16"
+                      />
+                    ) : (
+                      tag
+                    )}
+                    {isEditingTags && (
+                      <button 
+                        onClick={() => {
+                          const newTaxonomy = project.taxonomy.filter((_, idx) => idx !== i);
+                          updateProjectField('taxonomy', newTaxonomy);
+                        }}
+                        className="text-zinc-400 hover:text-rose-500 ml-1"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </span>
+                ))}
+                {isEditingTags && (
+                  <button 
+                    onClick={() => updateProjectField('taxonomy', [...project.taxonomy, 'New Tag'])}
+                    className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-100 dark:border-indigo-800 uppercase tracking-wider flex items-center gap-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                  >
+                    <Plus className="w-3 h-3" /> Add Tag
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Improvement Focus */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Improvement Focus</h4>
+                {canEdit && (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsEditingFocus(!isEditingFocus)}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                    >
+                      {isEditingFocus ? 'Done' : 'Edit'}
+                    </button>
+                    {isEditingFocus && (
+                      <button 
+                        onClick={handleAddFocus}
+                        className="p-1 bg-zinc-100 dark:bg-zinc-800 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {project.improvementFocus && project.improvementFocus.length > 0 ? (
+                  project.improvementFocus.map((focus, idx) => {
+                    const colors = [
+                      { bg: 'bg-emerald-50', border: 'border-emerald-100', iconBg: 'bg-emerald-500', text: 'text-emerald-600', icon: 'TrendingUp' },
+                      { bg: 'bg-blue-50', border: 'border-blue-100', iconBg: 'bg-blue-500', text: 'text-blue-600', icon: 'Zap' },
+                      { bg: 'bg-amber-50', border: 'border-amber-100', iconBg: 'bg-amber-500', text: 'text-amber-600', icon: 'DollarSign' },
+                      { bg: 'bg-purple-50', border: 'border-purple-100', iconBg: 'bg-purple-500', text: 'text-purple-600', icon: 'Target' },
+                    ];
+                    const theme = colors[idx % colors.length];
+                    
+                    return (
+                      <div key={idx} className={`p-4 ${theme.bg} rounded-2xl border ${theme.border} flex items-center gap-4 relative group`}>
+                        <div className={`p-3 ${theme.iconBg} text-white rounded-xl`}>
+                          {theme.icon === 'TrendingUp' && <TrendingUp className="w-5 h-5" />}
+                          {theme.icon === 'Zap' && <Zap className="w-5 h-5" />}
+                          {theme.icon === 'DollarSign' && <DollarSign className="w-5 h-5" />}
+                          {theme.icon === 'Target' && <Target className="w-5 h-5" />}
+                        </div>
+                        <div className="flex-1">
+                          {isEditingFocus ? (
+                            <div className="space-y-2">
+                              <EditableText 
+                                value={focus.metric}
+                                onChange={(val) => handleUpdateFocus(idx, 'metric', val)}
+                                className="text-xs font-bold uppercase tracking-wider"
+                              />
+                              <EditableText 
+                                value={focus.target}
+                                onChange={(val) => handleUpdateFocus(idx, 'target', val)}
+                                className="text-sm font-bold"
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <p className={`text-xs font-bold ${theme.text} uppercase tracking-wider`}>{focus.metric}</p>
+                              <p className="text-lg font-bold text-zinc-900 dark:text-white">{focus.target}</p>
+                            </>
+                          )}
+                        </div>
+                        {isEditingFocus && (
+                          <button 
+                            onClick={() => handleRemoveFocus(idx)}
+                            className="absolute -top-2 -right-2 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full text-rose-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <Plus className="w-3 h-3 rotate-45" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className="text-center py-6 text-zinc-400 text-sm">
+                    No improvement focus defined.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            {/* Strategic Goals */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Target className="w-5 h-5 text-indigo-500" />
+                  <h4 className="font-bold text-zinc-900 dark:text-white">Strategic Goals</h4>
+                </div>
+                {canEdit && (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsEditingGoals(!isEditingGoals)}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                    >
+                      {isEditingGoals ? 'Done' : 'Edit'}
+                    </button>
+                    {isEditingGoals && (
+                      <button 
+                        onClick={() => updateProjectField('goals', [...project.goals, 'New Goal'])}
+                        className="p-1 bg-zinc-100 dark:bg-zinc-800 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <ul className="space-y-4">
+                {project.goals.map((goal, i) => (
+                  <li key={i} className="flex items-start gap-3 text-zinc-600 dark:text-zinc-300 group relative">
+                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 group-hover:scale-150 transition-transform" />
+                    {isEditingGoals ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <EditableText 
+                          value={goal} 
+                          onChange={(val) => {
+                            const newGoals = [...project.goals];
+                            newGoals[i] = val;
+                            updateProjectField('goals', newGoals);
+                          }}
+                          className="text-sm flex-1"
+                        />
+                        <button 
+                          onClick={() => {
+                            const newGoals = project.goals.filter((_, idx) => idx !== i);
+                            updateProjectField('goals', newGoals);
+                          }}
+                          className="text-zinc-400 hover:text-rose-500"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-sm leading-relaxed">{goal}</span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Expected Outcomes */}
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-emerald-500" />
+                  <h4 className="font-bold text-zinc-900 dark:text-white">Expected Outcomes</h4>
+                </div>
+                {canEdit && (
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setIsEditingOutcomes(!isEditingOutcomes)}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                    >
+                      {isEditingOutcomes ? 'Done' : 'Edit'}
+                    </button>
+                    {isEditingOutcomes && (
+                      <button 
+                        onClick={() => updateProjectField('expectedOutcomes', [...project.expectedOutcomes, 'New Outcome'])}
+                        className="p-1 bg-zinc-100 dark:bg-zinc-800 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <ul className="space-y-4">
+                {project.expectedOutcomes.map((outcome, i) => (
+                  <li key={i} className="flex items-start gap-3 text-zinc-600 dark:text-zinc-300 group relative">
+                    <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 group-hover:scale-150 transition-transform" />
+                    {isEditingOutcomes ? (
+                      <div className="flex-1 flex items-center gap-2">
+                        <EditableText
+                          value={outcome}
+                          onChange={(val) => {
+                            const newOutcomes = [...project.expectedOutcomes];
+                            newOutcomes[i] = val;
+                            updateProjectField('expectedOutcomes', newOutcomes);
+                          }}
+                          className="flex-1 text-sm"
+                        />
+                        <button
+                          onClick={() => {
+                            const newOutcomes = project.expectedOutcomes.filter((_, index) => index !== i);
+                            updateProjectField('expectedOutcomes', newOutcomes);
+                          }}
+                          className="p-1 text-zinc-400 hover:text-rose-600 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-sm leading-relaxed">{outcome}</span>
+                    )}
+                  </li>
+                ))}
+                {(project.expectedOutcomes || []).length === 0 && (
+                  <li className="text-sm text-zinc-400 italic">No expected outcomes defined.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Project Team */}
-        <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
@@ -763,515 +1116,98 @@ export function ProjectDetail({
           </div>
         </div>
 
-        {/* Project Features Toggle */}
-        <div className="lg:col-span-1 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-              <Sparkles className="w-5 h-5" />
+        {/* Project Personas */}
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Project Personas</h3>
             </div>
-            <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Project Features</h3>
+            {canEdit && (
+              <button 
+                onClick={() => setIsSelectingPersonas(!isSelectingPersonas)}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+              >
+                {isSelectingPersonas ? 'Done' : 'Select Personas'}
+              </button>
+            )}
           </div>
-          <div className="flex flex-col gap-4">
-            <div className="relative p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 hover:border-indigo-200 transition-colors group">
-              <label className="flex items-center gap-3 cursor-pointer pr-8">
-                <input 
-                  type="checkbox" 
-                  checked={project.features?.processMaps !== false} 
-                  disabled={!canEditFeatures}
-                  onChange={(e) => {
-                    updateProjectField('features', { ...project.features, processMaps: e.target.checked });
-                  }} 
-                  className="w-5 h-5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 shrink-0 disabled:opacity-50" 
-                />
-                <div>
-                  <span className="text-sm font-bold text-zinc-900 dark:text-white block">Process Maps</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Align internal operations</span>
-                </div>
-              </label>
-              {(project.features?.processMaps !== false) && (
-                <button 
-                  onClick={() => onNavigate('process_maps')}
-                  className="absolute top-2 right-2 p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                  title="Go to Process Maps"
+
+          {isSelectingPersonas ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {personas.map(p => (
+                <button
+                  key={p.id}
+                  onClick={() => togglePersona(p.id)}
+                  className={cn(
+                    "p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center gap-3",
+                    (project.personaIds || []).includes(p.id)
+                      ? "border-indigo-600 bg-indigo-50"
+                      : "border-zinc-100 hover:border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+                  )}
                 >
-                  <ArrowRight className="w-4 h-4" />
+                  <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  <div>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-white truncate w-full">{p.name}</p>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate w-full">{p.role}</p>
+                  </div>
                 </button>
-              )}
+              ))}
             </div>
-            <div className="relative p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 hover:border-indigo-200 transition-colors group">
-              <label className="flex items-center gap-3 cursor-pointer pr-8">
-                <input 
-                  type="checkbox" 
-                  checked={project.features?.raidLog !== false} 
-                  disabled={!canEditFeatures}
-                  onChange={(e) => {
-                    updateProjectField('features', { ...project.features, raidLog: e.target.checked });
-                  }} 
-                  className="w-5 h-5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500 shrink-0 disabled:opacity-50" 
-                />
-                <div>
-                  <span className="text-sm font-bold text-zinc-900 dark:text-white block">RAID Log</span>
-                  <span className="text-xs text-zinc-500 dark:text-zinc-400">Track risks and issues</span>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {personas.filter(p => (project.personaIds || []).includes(p.id)).map(p => (
+                <div key={p.id} className="p-4 rounded-2xl border border-zinc-100 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col items-center text-center gap-3">
+                  <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  <div>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-white">{p.name}</p>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{p.role}</p>
+                  </div>
                 </div>
-              </label>
-              {(project.features?.raidLog !== false) && (
-                <button 
-                  onClick={() => onNavigate('raid')}
-                  className="absolute top-2 right-2 p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all opacity-0 group-hover:opacity-100"
-                  title="Go to RAID Log"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="lg:col-span-3">
-          {/* Project Charter */}
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden flex flex-col mb-8">
-            <div className="p-6 border-b border-zinc-100 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
-                  <Info className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Project Charter</h3>
-              </div>
-              {canEdit && (
-                <div className="flex items-center gap-3">
-                  <button 
-                    onClick={() => setIsEditingTaxonomy(!isEditingTaxonomy)}
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-                  >
-                    <Package className="w-3 h-3" />
-                    Products & Services
-                  </button>
-                  <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
-                  <button 
-                    onClick={() => setIsEditingTags(!isEditingTags)}
-                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
-                  >
-                    {isEditingTags ? 'Done' : 'Edit Tags'}
-                  </button>
+              ))}
+              {(project.personaIds || []).length === 0 && (
+                <div className="col-span-full py-8 text-center text-zinc-400 text-sm">
+                  No personas selected for this project.
                 </div>
               )}
             </div>
-            <div className="p-8 grid grid-cols-1 lg:grid-cols-2 gap-12">
-              <div className="space-y-8">
-                {/* Strategy & Purpose */}
-                <div>
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">The Mission</h4>
-                  <EditableText 
-                    value={project.purpose} 
-                    onChange={(val) => updateProjectField('purpose', val)}
-                    className="text-zinc-700 dark:text-zinc-200 text-xl font-medium leading-relaxed"
-                    multiline
-                  />
-                  <div className="flex flex-wrap gap-2 items-center mt-4">
-                    {project.taxonomy.map((tag, i) => (
-                      <span key={i} className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-full text-[10px] font-bold border border-zinc-200 dark:border-zinc-800 uppercase tracking-wider flex items-center gap-1">
-                        {isEditingTags ? (
-                          <EditableText 
-                            value={tag} 
-                            onChange={(val) => {
-                              const newTaxonomy = [...project.taxonomy];
-                              newTaxonomy[i] = val;
-                              updateProjectField('taxonomy', newTaxonomy);
-                            }}
-                            className="w-16"
-                          />
-                        ) : (
-                          tag
-                        )}
-                        {isEditingTags && (
-                          <button 
-                            onClick={() => {
-                              const newTaxonomy = project.taxonomy.filter((_, idx) => idx !== i);
-                              updateProjectField('taxonomy', newTaxonomy);
-                            }}
-                            className="text-zinc-400 hover:text-rose-500 ml-1"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </span>
-                    ))}
-                    {isEditingTags && (
-                      <button 
-                        onClick={() => updateProjectField('taxonomy', [...project.taxonomy, 'New Tag'])}
-                        className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold border border-indigo-100 dark:border-indigo-800 uppercase tracking-wider flex items-center gap-1 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
-                      >
-                        <Plus className="w-3 h-3" /> Add Tag
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Improvement Focus */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Improvement Focus</h4>
-                    {canEdit && (
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setIsEditingFocus(!isEditingFocus)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
-                        >
-                          {isEditingFocus ? 'Done' : 'Edit'}
-                        </button>
-                        {isEditingFocus && (
-                          <button 
-                            onClick={handleAddFocus}
-                            className="p-1 bg-zinc-100 dark:bg-zinc-800 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-1 gap-4">
-                    {project.improvementFocus && project.improvementFocus.length > 0 ? (
-                      project.improvementFocus.map((focus, idx) => {
-                        const colors = [
-                          { bg: 'bg-emerald-50', border: 'border-emerald-100', iconBg: 'bg-emerald-500', text: 'text-emerald-600', icon: 'TrendingUp' },
-                          { bg: 'bg-blue-50', border: 'border-blue-100', iconBg: 'bg-blue-500', text: 'text-blue-600', icon: 'Zap' },
-                          { bg: 'bg-amber-50', border: 'border-amber-100', iconBg: 'bg-amber-500', text: 'text-amber-600', icon: 'DollarSign' },
-                          { bg: 'bg-purple-50', border: 'border-purple-100', iconBg: 'bg-purple-500', text: 'text-purple-600', icon: 'Target' },
-                        ];
-                        const theme = colors[idx % colors.length];
-                        
-                        return (
-                          <div key={idx} className={`p-4 ${theme.bg} rounded-2xl border ${theme.border} flex items-center gap-4 relative group`}>
-                            <div className={`p-3 ${theme.iconBg} text-white rounded-xl`}>
-                              {theme.icon === 'TrendingUp' && <TrendingUp className="w-5 h-5" />}
-                              {theme.icon === 'Zap' && <Zap className="w-5 h-5" />}
-                              {theme.icon === 'DollarSign' && <DollarSign className="w-5 h-5" />}
-                              {theme.icon === 'Target' && <Target className="w-5 h-5" />}
-                            </div>
-                            <div className="flex-1">
-                              {isEditingFocus ? (
-                                <div className="space-y-2">
-                                  <EditableText 
-                                    value={focus.metric}
-                                    onChange={(val) => handleUpdateFocus(idx, 'metric', val)}
-                                    className="text-xs font-bold uppercase tracking-wider"
-                                  />
-                                  <EditableText 
-                                    value={focus.target}
-                                    onChange={(val) => handleUpdateFocus(idx, 'target', val)}
-                                    className="text-sm font-bold"
-                                  />
-                                </div>
-                              ) : (
-                                <>
-                                  <p className={`text-xs font-bold ${theme.text} uppercase tracking-wider`}>{focus.metric}</p>
-                                  <p className="text-lg font-bold text-zinc-900 dark:text-white">{focus.target}</p>
-                                </>
-                              )}
-                            </div>
-                            {isEditingFocus && (
-                              <button 
-                                onClick={() => handleRemoveFocus(idx)}
-                                className="absolute -top-2 -right-2 p-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full text-rose-500 shadow-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <Plus className="w-3 h-3 rotate-45" />
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-6 text-zinc-400 text-sm">
-                        No improvement focus defined.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-8">
-                {/* Strategic Goals */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Target className="w-5 h-5 text-indigo-500" />
-                      <h4 className="font-bold text-zinc-900 dark:text-white">Strategic Goals</h4>
-                    </div>
-                    {canEdit && (
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setIsEditingGoals(!isEditingGoals)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
-                        >
-                          {isEditingGoals ? 'Done' : 'Edit'}
-                        </button>
-                        {isEditingGoals && (
-                          <button 
-                            onClick={() => updateProjectField('goals', [...project.goals, 'New Goal'])}
-                            className="p-1 bg-zinc-100 dark:bg-zinc-800 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <ul className="space-y-4">
-                    {project.goals.map((goal, i) => (
-                      <li key={i} className="flex items-start gap-3 text-zinc-600 dark:text-zinc-300 group relative">
-                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0 group-hover:scale-150 transition-transform" />
-                        {isEditingGoals ? (
-                          <div className="flex-1 flex items-center gap-2">
-                            <EditableText 
-                              value={goal} 
-                              onChange={(val) => {
-                                const newGoals = [...project.goals];
-                                newGoals[i] = val;
-                                updateProjectField('goals', newGoals);
-                              }}
-                              className="text-sm flex-1"
-                            />
-                            <button 
-                              onClick={() => {
-                                const newGoals = project.goals.filter((_, idx) => idx !== i);
-                                updateProjectField('goals', newGoals);
-                              }}
-                              className="text-zinc-400 hover:text-rose-500"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-sm leading-relaxed">{goal}</span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Expected Outcomes */}
-                <div>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-emerald-500" />
-                      <h4 className="font-bold text-zinc-900 dark:text-white">Expected Outcomes</h4>
-                    </div>
-                    {canEdit && (
-                      <div className="flex items-center gap-2">
-                        <button 
-                          onClick={() => setIsEditingOutcomes(!isEditingOutcomes)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
-                        >
-                          {isEditingOutcomes ? 'Done' : 'Edit'}
-                        </button>
-                        {isEditingOutcomes && (
-                          <button 
-                            onClick={() => updateProjectField('expectedOutcomes', [...project.expectedOutcomes, 'New Outcome'])}
-                            className="p-1 bg-zinc-100 dark:bg-zinc-800 rounded-md text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <ul className="space-y-4">
-                    {project.expectedOutcomes.map((outcome, i) => (
-                      <li key={i} className="flex items-start gap-3 text-zinc-600 dark:text-zinc-300 group relative">
-                        <div className="mt-1.5 w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 group-hover:scale-150 transition-transform" />
-                        {isEditingOutcomes ? (
-                          <div className="flex-1 flex items-center gap-2">
-                            <EditableText
-                              value={outcome}
-                              onChange={(val) => {
-                                const newOutcomes = [...project.expectedOutcomes];
-                                newOutcomes[i] = val;
-                                updateProjectField('expectedOutcomes', newOutcomes);
-                              }}
-                              className="flex-1 text-sm"
-                            />
-                            <button
-                              onClick={() => {
-                                const newOutcomes = project.expectedOutcomes.filter((_, index) => index !== i);
-                                updateProjectField('expectedOutcomes', newOutcomes);
-                              }}
-                              className="p-1 text-zinc-400 hover:text-rose-600 transition-colors"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="text-sm leading-relaxed">{outcome}</span>
-                        )}
-                      </li>
-                    ))}
-                    {(project.expectedOutcomes || []).length === 0 && (
-                      <li className="text-sm text-zinc-400 italic">No expected outcomes defined.</li>
-                    )}
-                  </ul>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2">
-          <LimitReachedModal
-            isOpen={showLimitModal}
-            onClose={() => setShowLimitModal(false)}
-            title="Project Persona Limit"
-            description={`You've reached the maximum number of personas allowed per project on your current plan (${details.maxPersonasPerProject}). Upgrade to assign more personas to this project.`}
-            limitType="personas"
-            currentUsage={project.personaIds?.length || 0}
-            maxLimit={details.maxPersonasPerProject}
-            onUpgrade={() => onNavigate('pricing')}
-            isDarkMode={isDarkMode}
+          <div className="lg:col-span-3">
+            <LimitReachedModal
+              isOpen={showLimitModal}
+              onClose={() => setShowLimitModal(false)}
+              title="Project Persona Limit"
+              description={`You've reached the maximum number of personas allowed per project on your current plan (${details.maxPersonasPerProject}). Upgrade to assign more personas to this project.`}
+              limitType="personas"
+              currentUsage={project.personaIds?.length || 0}
+              maxLimit={details.maxPersonasPerProject}
+              onUpgrade={() => onNavigate('pricing')}
+              isDarkMode={isDarkMode}
+            />
+          </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <FlipTile 
+            title="Stakeholder Mapping" 
+            icon={Target} 
+            colorClass="bg-purple-100" 
+            iconColorClass="text-purple-600"
+            description="Map and track project stakeholders on a power-interest grid to optimize engagement."
+            onExplore={() => onNavigate('stakeholder_mapping')}
           />
-
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8 h-full">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Project Personas</h3>
-              </div>
-              {canEdit && (
-                <button 
-                  onClick={() => setIsSelectingPersonas(!isSelectingPersonas)}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
-                >
-                  {isSelectingPersonas ? 'Done' : 'Select Personas'}
-                </button>
-              )}
-            </div>
-
-            {isSelectingPersonas ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {personas.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => togglePersona(p.id)}
-                    className={cn(
-                      "p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center gap-3",
-                      (project.personaIds || []).includes(p.id)
-                        ? "border-indigo-600 bg-indigo-50"
-                        : "border-zinc-100 hover:border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
-                    )}
-                  >
-                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
-                    <div>
-                      <p className="text-xs font-bold text-zinc-900 dark:text-white truncate w-full">{p.name}</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate w-full">{p.role}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {personas.filter(p => (project.personaIds || []).includes(p.id)).map(p => (
-                  <div key={p.id} className="p-4 rounded-2xl border border-zinc-100 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col items-center text-center gap-3">
-                    <img src={p.imageUrl} alt={p.name} className="w-12 h-12 rounded-full object-cover" referrerPolicy="no-referrer" />
-                    <div>
-                      <p className="text-xs font-bold text-zinc-900 dark:text-white">{p.name}</p>
-                      <p className="text-[10px] text-zinc-500 dark:text-zinc-400">{p.role}</p>
-                    </div>
-                  </div>
-                ))}
-                {(project.personaIds || []).length === 0 && (
-                  <div className="col-span-full py-8 text-center text-zinc-400 text-sm">
-                    No personas selected for this project.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="col-span-1 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8 h-full">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                <MapIcon className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Project Stage</h3>
-            </div>
-          </div>
-          
-          <div className="space-y-4">
-            {['Discover', 'Define', 'Develop', 'Deliver', 'Done'].map((stage, idx) => {
-              const isActive = project.stage === stage;
-              const isPast = ['Discover', 'Define', 'Develop', 'Deliver', 'Done'].indexOf(project.stage || 'Discover') > idx;
-              
-              return (
-                <div 
-                  key={stage}
-                  className={cn(
-                    "p-4 rounded-2xl border transition-all flex items-center justify-between",
-                    isActive 
-                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20" 
-                      : isPast
-                        ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-900/30 dark:bg-emerald-900/10"
-                        : "border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 opacity-60"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={cn(
-                      "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-                      isActive 
-                        ? "bg-blue-500 text-white" 
-                        : isPast
-                          ? "bg-emerald-500 text-white"
-                          : "bg-zinc-200 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-400"
-                    )}>
-                      {isPast ? <CheckSquare className="w-3 h-3" /> : idx + 1}
-                    </div>
-                    <span className={cn(
-                      "font-bold text-sm",
-                      isActive ? "text-blue-700 dark:text-blue-400" : isPast ? "text-emerald-700 dark:text-emerald-400" : "text-zinc-500 dark:text-zinc-400"
-                    )}>
-                      {stage}
-                    </span>
-                  </div>
-                  {canEdit && (
-                    <button
-                      onClick={() => updateProjectField('stage', stage)}
-                      className={cn(
-                        "text-xs font-bold px-3 py-1.5 rounded-lg transition-colors",
-                        isActive 
-                          ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" 
-                          : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700"
-                      )}
-                    >
-                      {isActive ? 'Current' : 'Set'}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <FlipTile 
-          title="Stakeholder Mapping" 
-          icon={Target} 
-          colorClass="bg-purple-100" 
-          iconColorClass="text-purple-600"
-          description="Map and track project stakeholders on a power-interest grid to optimize engagement."
-          onExplore={() => onNavigate('stakeholder_mapping')}
-        />
-        <FlipTile 
-          title="Journey Maps" 
-          icon={MapIcon} 
-          colorClass="bg-amber-100" 
-          iconColorClass="text-amber-600"
-          description="Visualize the customer experience over time to identify pain points and opportunities."
-          onExplore={() => onNavigate('journeys')}
-        />
-        {project.features?.processMaps !== false && (
+          <FlipTile 
+            title="Journey Maps" 
+            icon={MapIcon} 
+            colorClass="bg-amber-100" 
+            iconColorClass="text-amber-600"
+            description="Visualize the customer experience over time to identify pain points and opportunities."
+            onExplore={() => onNavigate('journeys')}
+          />
           <FlipTile 
             title="Process Maps" 
             icon={GitMerge} 
@@ -1280,8 +1216,6 @@ export function ProjectDetail({
             description="Map out internal processes to identify inefficiencies and align with customer journeys."
             onExplore={() => onNavigate('process_maps')}
           />
-        )}
-        {project.features?.raidLog !== false && (
           <FlipTile 
             title="RAID Log" 
             icon={Shield} 
@@ -1290,22 +1224,23 @@ export function ProjectDetail({
             description="Track Risks, Assumptions, Issues, and Dependencies to ensure successful project delivery."
             onExplore={() => onNavigate('raid')}
           />
-        )}
-        <FlipTile 
-          title="Kanban Board" 
-          icon={KanbanSquare} 
-          colorClass="bg-indigo-100" 
-          iconColorClass="text-indigo-600"
-          description="Manage tasks and track progress through customizable workflows."
-          onExplore={() => onNavigate('kanban')}
-        />
-      </div>
+          <FlipTile 
+            title="Kanban Board" 
+            icon={KanbanSquare} 
+            colorClass="bg-indigo-100" 
+            iconColorClass="text-indigo-600"
+            description="Manage tasks and track progress through customizable workflows."
+            onExplore={() => onNavigate('kanban')}
+          />
+        </div>
       <AnimatePresence mode="wait">
         {/* User Selection Modal */}
         <AddTeamMemberModal
           isOpen={isUserSelectionModalOpen}
           onClose={() => setIsUserSelectionModalOpen(false)}
           project={project}
+          projects={projects}
+          setProjects={setProjects}
           users={users}
           setUsers={setUsers}
           onAddMember={handleAddTeamMember}
@@ -1752,18 +1687,6 @@ export function ProjectDetail({
         }}
       />
 
-      {isNewProject && onOnboardingComplete && (
-        <ProjectOnboardingWizard
-          project={project}
-          personas={personas}
-          onComplete={onOnboardingComplete}
-          onUpdateProject={(updates) => {
-            setProjects(prev => prev.map(p => p.id === project.id ? { ...p, ...updates } : p));
-          }}
-          onAddTeamMember={() => setIsUserSelectionModalOpen(true)}
-          onNavigate={onNavigate}
-        />
-      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { PRESET_AVATARS } from '../constants';
 
 interface ProjectTeamProps {
   project: Project;
+  projects: Project[];
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   tasks: Task[];
   onNavigate: (tab: string, subTab?: string) => void;
@@ -19,7 +20,7 @@ interface ProjectTeamProps {
   currentUser: SystemUser | null;
 }
 
-export function ProjectTeam({ project, setProjects, tasks, onNavigate, users, setUsers, currentUser }: ProjectTeamProps) {
+export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate, users, setUsers, currentUser }: ProjectTeamProps) {
   const { canEditProject } = usePermissions();
   const canEdit = canEditProject(project);
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false);
@@ -179,6 +180,8 @@ export function ProjectTeam({ project, setProjects, tasks, onNavigate, users, se
           isOpen={isAddMemberOpen}
           onClose={() => setIsAddMemberOpen(false)}
           project={project}
+          projects={projects}
+          setProjects={setProjects}
           users={users}
           setUsers={setUsers}
           onAddMember={handleAddMember}

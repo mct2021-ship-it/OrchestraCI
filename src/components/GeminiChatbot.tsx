@@ -1,27 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, X, Send, Sparkles, Bot, User as UserIcon, HelpCircle } from 'lucide-react';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { GeminiChatbotProps, Message } from '../types';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { ThinkingLevel } from "@google/genai";
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { stripPIData } from '../lib/piStripper';
-
-interface Message {
-  role: 'user' | 'assistant';
-  content: string;
-}
-
-interface GeminiChatbotProps {
-  onNavigate?: (tab: string, subTab?: string) => void;
-  contextData?: {
-    activeProject?: any;
-    tasks?: any[];
-    personas?: any[];
-    journeys?: any[];
-    stakeholders?: any[];
-    projectStakeholders?: any[];
-  };
-}
 
 export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +34,17 @@ export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
     setIsLoading(true);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      
+      if (!ai) {
+        setMessages(prev => [...prev, { 
+          role: 'assistant', 
+          content: "I'm sorry, I couldn't find a Gemini API key. Please select one to enable AI features." 
+        }]);
+        await ensureApiKey();
+        setIsLoading(false);
+        return;
+      }
       
       const projectContext = contextData?.activeProject ? `
       Current Active Project: ${contextData.activeProject.name}
@@ -159,14 +154,19 @@ export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] print:hidden">
+    <motion.div 
+      drag
+      dragMomentum={false}
+      className="fixed bottom-6 right-6 z-[100] print:hidden flex flex-col items-end"
+    >
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9, y: 20, transformOrigin: 'bottom right' }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="absolute bottom-20 right-0 w-96 max-w-[calc(100vw-3rem)] bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col"
+            onPointerDown={(e) => e.stopPropagation()} // Prevent dragging when interacting with the chat window
+            className="absolute bottom-20 right-0 w-96 max-w-[calc(100vw-3rem)] bg-white dark:bg-zinc-900 rounded-[2rem] shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col cursor-default"
           >
             {/* Header */}
             <div className="p-6 bg-indigo-600 text-white flex items-center justify-between">
@@ -294,6 +294,6 @@ export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
           </div>
         )}
       </button>
-    </div>
+    </motion.div>
   );
 }

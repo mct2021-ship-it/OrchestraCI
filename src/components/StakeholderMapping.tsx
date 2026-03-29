@@ -3,7 +3,8 @@ import { Users, Plus, Search, Filter, Trash2, Edit2, Globe, Building2, Mail, Tag
 import { Stakeholder, ProjectStakeholder, Project, StakeholderSentiment } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
 
 interface StakeholderMappingProps {
@@ -22,6 +23,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   const [showGlobalLibrary, setShowGlobalLibrary] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isGeneratingStrategy, setIsGeneratingStrategy] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -38,8 +40,9 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     percentX = Math.max(0, Math.min(100, percentX));
     percentY = Math.max(0, Math.min(100, percentY));
     
-    const newInterest = Math.round(percentX);
-    const newPower = Math.round(100 - percentY);
+    // Convert to 1-10 scale
+    const newInterest = Math.max(1, Math.min(10, Math.round((percentX / 100) * 9) + 1));
+    const newPower = Math.max(1, Math.min(10, 10 - Math.round((percentY / 100) * 9)));
     
     setProjectStakeholders(prev => prev.map(s => 
       s.id === id ? { ...s, interest: newInterest, power: newPower } : s
@@ -51,8 +54,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     category: 'Operational Manager',
     organization: '',
     email: '',
-    power: 50,
-    interest: 50,
+    power: 5,
+    interest: 5,
     sentiment: 'Neutral',
     engagementStrategy: '',
     linkedItems: []
@@ -89,8 +92,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     const newProjectStakeholder: ProjectStakeholder = {
       ...global,
       projectId: project.id,
-      power: 50,
-      interest: 50,
+      power: 5,
+      interest: 5,
       sentiment: 'Neutral',
       sentimentHistory: [{ date: new Date().toISOString(), sentiment: 'Neutral', note: 'Added to project' }],
       engagementStrategy: '',
@@ -117,8 +120,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
         organization: formData.organization,
         email: formData.email,
         isGlobal: false,
-        power: formData.power || 50,
-        interest: formData.interest || 50,
+        power: formData.power || 5,
+        interest: formData.interest || 5,
         sentiment: formData.sentiment || 'Neutral',
         sentimentHistory: [{ date: new Date().toISOString(), sentiment: formData.sentiment || 'Neutral', note: 'Initial entry' }],
         engagementStrategy: formData.engagementStrategy || '',
@@ -127,7 +130,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
       setProjectStakeholders(prev => [...prev, newStakeholder]);
     }
 
-    setFormData({ name: '', category: 'Operational Manager', organization: '', email: '', power: 50, interest: 50, sentiment: 'Neutral', engagementStrategy: '', linkedItems: [] });
+    setFormData({ name: '', category: 'Operational Manager', organization: '', email: '', power: 5, interest: 5, sentiment: 'Neutral', engagementStrategy: '', linkedItems: [] });
     setIsAdding(false);
   };
 
@@ -153,7 +156,17 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     const targetId = stakeholder.id || 'new';
     setIsGeneratingStrategy(targetId);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        setIsGeneratingStrategy(null);
+        return;
+      }
+
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setIsGeneratingStrategy(null);
+        return;
+      }
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: `Generate a concise engagement strategy for a stakeholder in a project.
@@ -163,8 +176,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
         Stakeholder Name: ${stripPIData(stakeholder.name)}
         Category: ${stripPIData(stakeholder.category)}
         About/Context: ${stripPIData(stakeholder.about || 'No additional context provided.')}
-        Power: ${stakeholder.power}/100
-        Interest: ${stakeholder.interest}/100
+        Power: ${stakeholder.power}/10
+        Interest: ${stakeholder.interest}/10
         Current Sentiment: ${stakeholder.sentiment}
         
         Provide 3-4 actionable bullet points for how to engage this person effectively.`,
@@ -192,8 +205,9 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   const gridStakeholders = useMemo(() => {
     return projectStakeholders.map(s => ({
       ...s,
-      x: s.interest,
-      y: 100 - s.power // Invert power so high power is at the top
+      // Map 1-10 scale to 0-100% for positioning
+      x: ((s.interest - 1) / 9) * 100,
+      y: 100 - (((s.power - 1) / 9) * 100)
     }));
   }, [projectStakeholders]);
 
@@ -224,7 +238,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
             onClick={() => {
               setIsAdding(true);
               setEditingId(null);
-              setFormData({ name: '', category: 'Operational Manager', organization: '', email: '', power: 50, interest: 50, sentiment: 'Neutral', engagementStrategy: '', linkedItems: [] });
+              setFormData({ name: '', category: 'Operational Manager', organization: '', email: '', power: 5, interest: 5, sentiment: 'Neutral', engagementStrategy: '', linkedItems: [] });
             }}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
           >
@@ -243,7 +257,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
             <div className="absolute left-4 top-1/2 -rotate-90 -translate-y-1/2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest origin-center">Low Interest</div>
             <div className="absolute right-4 top-1/2 rotate-90 -translate-y-1/2 text-[10px] font-bold text-zinc-400 uppercase tracking-widest origin-center">High Interest</div>
 
-            <div ref={gridRef} className="aspect-square w-full relative border-2 border-zinc-100 dark:border-zinc-800 rounded-lg">
+            <div ref={gridRef} className="aspect-square w-full relative border-2 border-zinc-100 dark:border-zinc-800 rounded-lg overflow-hidden">
               {/* Grid Lines */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-full h-px bg-zinc-200 dark:bg-zinc-800" />
@@ -269,7 +283,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                     setTimeout(() => { isDragging.current = false; }, 100);
                     handleDragEnd(s.id, e, info);
                   }}
-                  className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-grab active:cursor-grabbing"
+                  className="absolute -translate-x-1/2 -translate-y-1/2 group cursor-grab active:cursor-grabbing z-10"
                   style={{ left: `${s.x}%`, top: `${s.y}%` }}
                   onClick={(e) => {
                     if (isDragging.current) return;
@@ -278,13 +292,32 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                     setIsAdding(true);
                   }}
                 >
-                  <div className={cn(
-                    "w-4 h-4 rounded-full border-2 border-white dark:border-zinc-900 shadow-sm transition-transform group-hover:scale-125",
-                    s.sentiment === 'Positive' ? 'bg-emerald-500' : 
-                    s.sentiment === 'Negative' ? 'bg-rose-500' : 'bg-amber-500'
-                  )} />
-                  <div className="absolute top-full mt-1 left-1/2 -translate-x-1/2 whitespace-nowrap bg-zinc-900 text-white text-[10px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
-                    {s.name}
+                  <div className="bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 rounded-xl p-3 shadow-xl min-w-[140px] max-w-[180px] transition-all group-hover:scale-105 group-hover:border-indigo-500">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className={cn(
+                        "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",
+                        s.sentiment === 'Positive' ? "bg-emerald-100 text-emerald-700" :
+                        s.sentiment === 'Negative' ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-700"
+                      )}>
+                        {s.sentiment}
+                      </div>
+                      <div className="flex gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-300" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-zinc-300" />
+                      </div>
+                    </div>
+                    <p className="text-xs font-black text-zinc-900 dark:text-white truncate mb-0.5">{s.name}</p>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate mb-2">{s.category}</p>
+                    <div className="flex items-center gap-3 pt-2 border-t border-zinc-100 dark:border-zinc-700">
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-zinc-400 uppercase font-bold">Power</span>
+                        <span className="text-xs font-black text-indigo-600">{s.power}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[8px] text-zinc-400 uppercase font-bold">Interest</span>
+                        <span className="text-xs font-black text-indigo-600">{s.interest}</span>
+                      </div>
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -468,8 +501,9 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                       </div>
                       <input
                         type="range"
-                        min="0"
-                        max="100"
+                        min="1"
+                        max="10"
+                        step="1"
                         value={formData.power}
                         onChange={(e) => setFormData({ ...formData, power: parseInt(e.target.value) })}
                         className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
@@ -482,8 +516,9 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                       </div>
                       <input
                         type="range"
-                        min="0"
-                        max="100"
+                        min="1"
+                        max="10"
+                        step="1"
                         value={formData.interest}
                         onChange={(e) => setFormData({ ...formData, interest: parseInt(e.target.value) })}
                         className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
@@ -543,12 +578,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                   {editingId && (
                     <button
                       type="button"
-                      onClick={() => {
-                        if (window.confirm('Remove from project?')) {
-                          setProjectStakeholders(prev => prev.filter(s => s.id !== editingId));
-                          setIsAdding(false);
-                        }
-                      }}
+                      onClick={() => setShowDeleteConfirm(true)}
                       className="px-6 py-3 border border-rose-200 text-rose-600 rounded-xl font-bold hover:bg-rose-50 transition-colors"
                     >
                       Remove
@@ -563,6 +593,46 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {showDeleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl max-w-md w-full p-6 border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="flex items-center gap-3 mb-4 text-rose-600">
+                <AlertCircle className="w-6 h-6" />
+                <h3 className="text-lg font-bold">Remove Stakeholder?</h3>
+              </div>
+              <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+                Are you sure you want to remove this stakeholder from the project? This action cannot be undone.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-xl font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setProjectStakeholders(prev => prev.filter(s => s.id !== editingId));
+                    setIsAdding(false);
+                    setShowDeleteConfirm(false);
+                  }}
+                  className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-xl font-bold hover:bg-rose-700 transition-all shadow-lg shadow-rose-500/20"
+                >
+                  Remove
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

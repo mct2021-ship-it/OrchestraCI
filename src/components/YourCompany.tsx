@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Building2, Upload, X, CheckCircle2, AlertCircle, Globe, Sparkles, Plus, Trash2, FileText, Download, History, ChevronRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
-import { GoogleGenAI, ThinkingLevel, Type } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { ThinkingLevel, Type } from "@google/genai";
 import { jsPDF } from "jspdf";
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -197,6 +198,11 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     setIsAnalyzing(true);
     setAiError(null);
     try {
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        throw new Error("Gemini API key is required. Please select one in the settings.");
+      }
+
       const prompt = `Analyze the company at this URL: ${stripPIData(tempProfile.websiteUrl)}. 
       Provide a JSON object with the following fields:
       - description: A concise description of what the company does (max 3 sentences).
@@ -205,7 +211,9 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
       
       If the vertical is not one of these: ${VERTICALS.join(', ')}, provide a new suitable vertical name.`;
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) throw new Error("Failed to initialize Gemini AI client");
+
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
@@ -274,6 +282,11 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     setIsCompetitorAnalyzing(true);
     setAiError(null);
     try {
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        throw new Error("Gemini API key is required. Please select one in the settings.");
+      }
+
       const prompt = `Perform a competitor analysis for ${stripPIData(profile.name)} (${stripPIData(profile.websiteUrl || '')}) against the following competitors:
       ${profile.competitors.map(c => `- ${stripPIData(c.name)} (${stripPIData(c.url)})`).join('\n')}
       
@@ -285,7 +298,9 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
       
       Format the output as clear, structured markdown.`;
 
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) throw new Error("Failed to initialize Gemini AI client");
+
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,

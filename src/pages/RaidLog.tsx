@@ -5,7 +5,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { Project, RAIDItem, User } from '../types';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 
@@ -32,7 +33,13 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
     addToast(`Suggesting ${activeTab}s...`, 'info');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        addToast(`Gemini API key is missing. Please select one to enable AI features.`, 'error');
+        await ensureApiKey();
+        setIsSuggestingItems(false);
+        return;
+      }
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Suggest 3-5 potential ${activeTab}s for the following project:
@@ -133,7 +140,13 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
     addToast('Generating mitigation strategy...', 'info');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        addToast('Gemini API key is missing. Please select one to enable AI features.', 'error');
+        await ensureApiKey();
+        setIsGeneratingMitigation(false);
+        return;
+      }
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Suggest a concise mitigation strategy for the following project ${editingRisk.type}:

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, MessageSquare, Loader2, AlertCircle, Sparkles, TrendingUp, RefreshCw } from 'lucide-react';
-import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Markdown from 'react-markdown';
@@ -124,10 +125,13 @@ export function VocSection() {
     setError(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API key is missing.");
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        throw new Error("Gemini API key is required. Please select one in the settings.");
+      }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = await getGeminiClient();
+      if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',

@@ -98,7 +98,8 @@ import { JourneyAiAssistant } from '../components/JourneyAiAssistant';
 import { CarbonLibraryModal } from '../components/CarbonLibraryModal';
 import { carbonLibrary } from '../data/carbonLibrary';
 import { BookOpen } from 'lucide-react';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 import { CommentsPanel } from '../components/CommentsPanel';
 import { VersionHistory } from '../components/VersionHistory';
@@ -177,6 +178,7 @@ export function JourneyMaps({
   const [editingStageIconId, setEditingStageIconId] = useState<string | null>(null);
   const [editingSwimlaneIconId, setEditingSwimlaneIconId] = useState<string | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isMoreActionsOpen, setIsMoreActionsOpen] = useState(false);
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [isAddSwimlaneMenuOpen, setIsAddSwimlaneMenuOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -186,6 +188,7 @@ export function JourneyMaps({
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [activeCarbonTarget, setActiveCarbonTarget] = useState<{ stageId: string; laneId: string; itemIndex: number } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  const moreActionsMenuRef = useRef<HTMLDivElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
   const addSwimlaneMenuRef = useRef<HTMLDivElement>(null);
 
@@ -193,6 +196,9 @@ export function JourneyMaps({
     const handleClickOutside = (event: MouseEvent) => {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
         setIsExportMenuOpen(false);
+      }
+      if (moreActionsMenuRef.current && !moreActionsMenuRef.current.contains(event.target as Node)) {
+        setIsMoreActionsOpen(false);
       }
       if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
         setIsViewMenuOpen(false);
@@ -393,7 +399,14 @@ export function JourneyMaps({
 
     setIsAssessing(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setAssessmentResult('Gemini API key is missing. Please select one to enable AI features.');
+        await ensureApiKey();
+        setIsAssessing(false);
+        return;
+      }
+      
       const currentMap = activeJourney.state === 'Current' ? activeJourney : otherMap;
       const proposedMap = activeJourney.state === 'Proposed' ? activeJourney : otherMap;
 
@@ -820,11 +833,17 @@ export function JourneyMaps({
   };
 
   const handleAddStage = () => {
+    const name = 'New Stage';
+    let icon = 'Target';
+    
+    // Try to guess icon based on name if it was changed, but here it's just 'New Stage'
+    
     const newStage: JourneyStage = {
       id: `s${Date.now()}`,
-      name: 'New Stage',
+      name,
       emotion: 3,
-      laneData: {}
+      laneData: {},
+      icon
     };
     
     // Initialize empty arrays for all current swimlanes
@@ -1046,7 +1065,13 @@ export function JourneyMaps({
     addToast('AI is estimating carbon footprint...', 'info');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        addToast('Gemini API key is missing. Please select one to enable AI features.', 'error');
+        await ensureApiKey();
+        setIsCalculatingCarbon(false);
+        return;
+      }
       
       // Prepare data for AI
       const touchpoints = activeJourney.stages.flatMap(stage => 
@@ -1240,16 +1265,16 @@ export function JourneyMaps({
               
               <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
               
-              <div className="relative" ref={exportMenuRef}>
+              <div className="relative" ref={moreActionsMenuRef}>
                 <button 
-                  onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                  onClick={() => setIsMoreActionsOpen(!isMoreActionsOpen)}
                   className="hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300 px-2 py-1.5 rounded-lg font-medium flex items-center transition-all"
                   title="More Actions"
                 >
                   <MoreHorizontal className="w-4 h-4" />
                 </button>
                 <AnimatePresence>
-                  {isExportMenuOpen && (
+                  {isMoreActionsOpen && (
                     <motion.div
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -1260,14 +1285,14 @@ export function JourneyMaps({
                       {canEdit && (
                         <>
                           <button 
-                            onClick={() => { handleDuplicate(activeJourney); setIsExportMenuOpen(false); }}
+                            onClick={() => { handleDuplicate(activeJourney); setIsMoreActionsOpen(false); }}
                             className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                           >
                             <Layers className="w-4 h-4 text-zinc-400" /> Duplicate Journey
                           </button>
                           {activeJourney.state === 'Current' && (
                             <button 
-                              onClick={() => { handleDuplicate(activeJourney, 'Proposed'); setIsExportMenuOpen(false); }}
+                              onClick={() => { handleDuplicate(activeJourney, 'Proposed'); setIsMoreActionsOpen(false); }}
                               className="w-full px-4 py-2.5 text-left text-sm font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 flex items-center gap-2"
                             >
                               <GitMerge className="w-4 h-4" /> Copy to Proposed
@@ -1278,44 +1303,10 @@ export function JourneyMaps({
                       )}
                       
                       <button 
-                        onClick={() => { setIsVersionHistoryOpen(true); setIsExportMenuOpen(false); }}
+                        onClick={() => { setIsVersionHistoryOpen(true); setIsMoreActionsOpen(false); }}
                         className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                       >
                         <Clock className="w-4 h-4 text-zinc-400" /> Version History
-                      </button>
-                      
-                      <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
-                      
-                      <div className="px-4 py-2 text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Export & Print</div>
-                      <button 
-                        onClick={() => { handlePrint(); setIsExportMenuOpen(false); }}
-                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <Printer className="w-4 h-4 text-zinc-400" /> Print
-                      </button>
-                      <button 
-                        onClick={() => { handleDownloadPdf(); setIsExportMenuOpen(false); }}
-                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4 text-zinc-400" /> Save as PDF
-                      </button>
-                      <button 
-                        onClick={() => { handleDownloadImage(); setIsExportMenuOpen(false); }}
-                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <ImageIcon className="w-4 h-4 text-zinc-400" /> Save as Image
-                      </button>
-                      <button 
-                        onClick={() => { handleExportWord(); setIsExportMenuOpen(false); }}
-                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4 text-zinc-400" /> Export to Word
-                      </button>
-                      <button 
-                        onClick={() => { handleExport(); setIsExportMenuOpen(false); }}
-                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <Download className="w-4 h-4 text-zinc-400" /> Export to JSON
                       </button>
                     </motion.div>
                   )}
@@ -1598,7 +1589,7 @@ export function JourneyMaps({
                 <button 
                   onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
                   className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
-                  title="Export"
+                  title="Export Options"
                 >
                   <Download className="w-4 h-4" />
                 </button>
@@ -1621,13 +1612,13 @@ export function JourneyMaps({
                         onClick={() => { handleDownloadPdf(); setIsExportMenuOpen(false); }}
                         className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                       >
-                        <FileText className="w-4 h-4 text-zinc-400" /> Save as PDF
+                        <FileText className="w-4 h-4 text-zinc-400" /> Download PDF
                       </button>
                       <button 
                         onClick={() => { handleDownloadImage(); setIsExportMenuOpen(false); }}
                         className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                       >
-                        <ImageIcon className="w-4 h-4 text-zinc-400" /> Save as Image
+                        <ImageIcon className="w-4 h-4 text-zinc-400" /> Download Image
                       </button>
                       <button 
                         onClick={() => { handleExportWord(); setIsExportMenuOpen(false); }}
@@ -1635,11 +1626,12 @@ export function JourneyMaps({
                       >
                         <FileText className="w-4 h-4 text-zinc-400" /> Export to Word
                       </button>
+                      <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
                       <button 
                         onClick={() => { handleExport(); setIsExportMenuOpen(false); }}
                         className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                       >
-                        <Download className="w-4 h-4 text-zinc-400" /> Export to JSON
+                        <Share2 className="w-4 h-4 text-zinc-400" /> Export JSON
                       </button>
                     </motion.div>
                   )}
@@ -1854,13 +1846,17 @@ export function JourneyMaps({
                       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden no-export">
                         <button 
                           onClick={() => toggleSwimlaneVisibility(lane.id)} 
-                          className="text-zinc-300 hover:text-indigo-500 transition-colors"
+                          className="p-1 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-all"
                           title="Hide Swimlane"
                         >
                           <EyeOff className="w-3.5 h-3.5" />
                         </button>
                         {canEdit && (
-                          <button onClick={() => removeLane(lane.id)} className="text-zinc-300 hover:text-rose-500 transition-colors">
+                          <button 
+                            onClick={() => removeLane(lane.id)} 
+                            className="p-1 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded transition-all"
+                            title="Delete Swimlane"
+                          >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         )}

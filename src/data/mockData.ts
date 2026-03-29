@@ -9,7 +9,7 @@ export const mockSprints: Sprint[] = [
     goal: 'Explore the platform features',
     startDate: new Date(Date.now() - 86400000 * 2).toISOString(),
     endDate: new Date(Date.now() + 86400000 * 12).toISOString(),
-    status: 'Active',
+    status: 'In Progress',
     tasks: ['i_test1']
   },
   {
@@ -20,7 +20,7 @@ export const mockSprints: Sprint[] = [
     goal: 'Initial onboarding improvements',
     startDate: new Date(Date.now() - 86400000 * 5).toISOString(),
     endDate: new Date(Date.now() + 86400000 * 9).toISOString(),
-    status: 'Active',
+    status: 'In Progress',
     tasks: ['i1', 'i2']
   },
   {
@@ -31,7 +31,7 @@ export const mockSprints: Sprint[] = [
     goal: 'Consolidate communications',
     startDate: new Date(Date.now() - 86400000 * 14).toISOString(),
     endDate: new Date(Date.now() - 86400000 * 1).toISOString(),
-    status: 'Completed',
+    status: 'Done',
     tasks: ['i3']
   }
 ];
@@ -766,8 +766,8 @@ export const mockProjectStakeholders: ProjectStakeholder[] = [
       isGlobal: true
     },
     projectId: 'proj_test',
-    power: 90,
-    interest: 85,
+    power: 9,
+    interest: 8,
     sentiment: 'Positive',
     sentimentHistory: [
       { date: new Date(Date.now() - 86400000 * 7).toISOString(), sentiment: 'Neutral', note: 'Initial briefing' },
@@ -785,8 +785,8 @@ export const mockProjectStakeholders: ProjectStakeholder[] = [
       isGlobal: true
     },
     projectId: 'proj_test',
-    power: 70,
-    interest: 40,
+    power: 7,
+    interest: 4,
     sentiment: 'Neutral',
     sentimentHistory: [
       { date: new Date().toISOString(), sentiment: 'Neutral' }

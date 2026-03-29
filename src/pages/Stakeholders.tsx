@@ -24,7 +24,7 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
     isGlobal: true
   });
 
-  const categories = [
+  const [categories, setCategories] = useState([
     'Executive Sponsor',
     'Director/Head of Service',
     'Corporate Function (IT, Finance, HR, Legal, Comms)',
@@ -33,7 +33,18 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
     'Resident/Tenant Group',
     'Union',
     'Other'
-  ];
+  ]);
+  const [newCategory, setNewCategory] = useState('');
+  const [showAddCategory, setShowAddCategory] = useState(false);
+
+  const handleAddCategory = () => {
+    if (newCategory && !categories.includes(newCategory)) {
+      setCategories(prev => [...prev, newCategory]);
+      setFormData(prev => ({ ...prev, category: newCategory }));
+      setNewCategory('');
+      setShowAddCategory(false);
+    }
+  };
 
   const filteredStakeholders = useMemo(() => {
     return stakeholders.filter(s => {
@@ -151,15 +162,44 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Category *</label>
-              <select
-                required
-                value={formData.category}
-                onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:ring-2 focus:ring-indigo-500 outline-none"
-              >
-                {categories.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Category *</label>
+                <button
+                  type="button"
+                  onClick={() => setShowAddCategory(!showAddCategory)}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  {showAddCategory ? 'Cancel' : 'New Category'}
+                </button>
+              </div>
+              {showAddCategory ? (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={newCategory}
+                    onChange={(e) => setNewCategory(e.target.value)}
+                    className="flex-1 px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:ring-2 focus:ring-indigo-500 outline-none"
+                    placeholder="Enter new category..."
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCategory}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors"
+                  >
+                    Add
+                  </button>
+                </div>
+              ) : (
+                <select
+                  required
+                  value={formData.category}
+                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              )}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Organization</label>

@@ -8,7 +8,8 @@ import { cn } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { TaskModal } from '../components/TaskModal';
 import { usePermissions } from '../hooks/usePermissions';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -34,6 +35,8 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
   const [bulkTargetColumn, setBulkTargetColumn] = useState<string>('');
   const [bulkTargetSprint, setBulkTargetSprint] = useState<string>('current');
   const { addToast } = useToast();
+  
+  const [showBoardPrompt, setShowBoardPrompt] = useState<{ isOpen: boolean, task: Task | null }>({ isOpen: false, task: null });
   
   const { canEditProjectFeature } = usePermissions();
   const canEdit = canEditProjectFeature(project);
@@ -130,6 +133,7 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
     if (isAddingTask) {
       setTasks([...tasks, updatedTask]);
       setIsAddingTask(false);
+      setShowBoardPrompt({ isOpen: true, task: updatedTask });
     } else if (editingTask) {
       setTasks(tasks.map(t => t.id === updatedTask.id ? updatedTask : t));
       setEditingTask(null);
@@ -196,7 +200,11 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
     addToast('Analyzing backlog for prioritization...', 'info');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      await ensureApiKey();
+      const ai = await getGeminiClient();
+      if (!ai) {
+        throw new Error('AI client not initialized');
+      }
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Prioritize the following project tasks using the MoSCoW method (Must, Should, Could, Wont).
@@ -392,6 +400,49 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
           onAddTeamMember={onAddTeamMember}
         />
       )}
+
+      {/* Kanban Board Prompt */}
+      <AnimatePresence>
+        {showBoardPrompt.isOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl max-w-md w-full p-6 border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                  <LayoutList className="w-5 h-5" />
+                </div>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Add to Kanban Board?</h3>
+              </div>
+              <p className="text-zinc-600 dark:text-zinc-400 mb-6">
+                Would you like to move "{showBoardPrompt.task?.title}" to the Kanban board for execution?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowBoardPrompt({ isOpen: false, task: null })}
+                  className="flex-1 px-4 py-2 border border-zinc-200 dark:border-zinc-800 rounded-xl font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all"
+                >
+                  Keep in Backlog
+                </button>
+                <button
+                  onClick={() => {
+                    if (showBoardPrompt.task) {
+                      handleMoveToBoard(showBoardPrompt.task.id);
+                    }
+                    setShowBoardPrompt({ isOpen: false, task: null });
+                  }}
+                  className="flex-1 px-4 py-2 bg-zinc-900 text-white rounded-xl font-bold hover:bg-zinc-800 transition-all shadow-lg"
+                >
+                  Move to Board
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <DragDropContext onDragEnd={onDragEnd}>
         <div className="flex gap-6 overflow-x-auto pb-4 min-h-[600px]">

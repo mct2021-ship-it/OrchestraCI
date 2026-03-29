@@ -1,24 +1,29 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, UsersRound, Plus, Shield, Mail, User as UserIcon, Upload } from 'lucide-react';
+import { X, UsersRound, Plus, Shield, Mail, User as UserIcon, Upload, HelpCircle, Check, Image as ImageIcon } from 'lucide-react';
 import { User, Project, TeamMember } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { PRESET_AVATARS } from '../constants';
+import { AvatarGalleryModal } from './AvatarGalleryModal';
 import { cn } from '../lib/utils';
 
 interface AddTeamMemberModalProps {
   isOpen: boolean;
   onClose: () => void;
   project: Project;
+  projects: Project[];
+  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
   onAddMember: (member: TeamMember) => void;
   isAdmin: boolean;
 }
 
-export function AddTeamMemberModal({ isOpen, onClose, project, users, setUsers, onAddMember, isAdmin }: AddTeamMemberModalProps) {
+export function AddTeamMemberModal({ isOpen, onClose, project, projects, setProjects, users, setUsers, onAddMember, isAdmin }: AddTeamMemberModalProps) {
   const [isCreatingUser, setIsCreatingUser] = useState(false);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'User', photoUrl: '' });
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([project.id]);
+  const [isAvatarGalleryOpen, setIsAvatarGalleryOpen] = useState(false);
 
   const allAvailableUsers = React.useMemo(() => {
     const list = [...users];
@@ -35,13 +40,39 @@ export function AddTeamMemberModal({ isOpen, onClose, project, users, setUsers, 
       email: newUser.email,
       role: newUser.role,
       status: 'Active',
+      projectIds: selectedProjectIds,
       photoUrl: newUser.photoUrl || `https://ui-avatars.com/api/?name=${newUser.name.replace(/\s+/g, '+')}&background=random`
     };
 
     setUsers(prev => [...prev, userObj]);
+    
+    // Add to current project via onAddMember
     handleAddTeamMember(userObj);
+
+    // Add to other selected projects
+    const otherProjectIds = selectedProjectIds.filter(id => id !== project.id);
+    if (otherProjectIds.length > 0) {
+      setProjects(prev => prev.map(p => {
+        if (otherProjectIds.includes(p.id)) {
+          return {
+            ...p,
+            team: [...(p.team || []), {
+              id: uuidv4(),
+              userId: userObj.id,
+              name: userObj.name,
+              jobTitle: userObj.role || 'Team Member',
+              projectRole: 'Member',
+              photoUrl: userObj.photoUrl || `https://ui-avatars.com/api/?name=${userObj.name.replace(/\s+/g, '+')}&background=random`
+            }]
+          };
+        }
+        return p;
+      }));
+    }
+
     setIsCreatingUser(false);
     setNewUser({ name: '', email: '', role: 'User', photoUrl: '' });
+    setSelectedProjectIds([project.id]);
   };
 
   const handleAddTeamMember = (user?: User) => {
@@ -114,8 +145,22 @@ export function AddTeamMemberModal({ isOpen, onClose, project, users, setUsers, 
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">System Role</label>
+              <div className="space-y-2 relative">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">System Role</label>
+                  <div className="group relative flex items-center">
+                    <HelpCircle className="w-4 h-4 text-zinc-400 cursor-help hover:text-indigo-500 transition-colors" />
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-zinc-900 dark:bg-zinc-800 text-white text-xs rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 pointer-events-none">
+                      <div className="space-y-2">
+                        <p><strong>Admin:</strong> Site-wide administrator with full access to all projects and settings.</p>
+                        <p><strong>Project Admin:</strong> Administrates specific assigned projects.</p>
+                        <p><strong>User:</strong> Standard user with access to assigned projects.</p>
+                        <p><strong>Viewer:</strong> Read-only access to assigned projects.</p>
+                      </div>
+                      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900 dark:border-t-zinc-800"></div>
+                    </div>
+                  </div>
+                </div>
                 <select 
                   value={newUser.role}
                   onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
@@ -128,84 +173,122 @@ export function AddTeamMemberModal({ isOpen, onClose, project, users, setUsers, 
                 </select>
               </div>
 
+              {(newUser.role === 'Project Admin' || newUser.role === 'User' || newUser.role === 'Viewer') && (
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Project Access</label>
+                  <div className="max-h-32 overflow-y-auto space-y-2 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700">
+                    {projects.map(p => (
+                      <label key={p.id} className="flex items-center gap-3 cursor-pointer group">
+                        <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${selectedProjectIds.includes(p.id) ? 'bg-indigo-500 border-indigo-500 text-white' : 'border-zinc-300 dark:border-zinc-600 group-hover:border-indigo-500'}`}>
+                          {selectedProjectIds.includes(p.id) && <Check className="w-3.5 h-3.5" />}
+                        </div>
+                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{p.name}</span>
+                        <input 
+                          type="checkbox" 
+                          className="hidden"
+                          checked={selectedProjectIds.includes(p.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedProjectIds(prev => [...prev, p.id]);
+                            } else {
+                              // Don't allow unchecking the current project
+                              if (p.id !== project.id) {
+                                setSelectedProjectIds(prev => prev.filter(id => id !== p.id));
+                              }
+                            }
+                          }}
+                        />
+                      </label>
+                    ))}
+                  </div>
+                  <p className="text-xs text-zinc-500">Note: They will automatically be added to the current project ({project.name}).</p>
+                </div>
+              )}
+
               <div className="space-y-3 pt-2">
                 <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Profile Photo</label>
-                <div className="flex items-center gap-4">
-                  {newUser.photoUrl ? (
-                    <img src={newUser.photoUrl} alt="Preview" className="w-12 h-12 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700" />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
-                      <UserIcon className="w-6 h-6" />
-                    </div>
-                  )}
-                  <div className="flex gap-2">
-                    <input 
-                      type="file" 
-                      id="modal-photo-upload"
-                      className="hidden" 
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (event) => {
-                            const img = new Image();
-                            img.onload = () => {
-                              const canvas = document.createElement('canvas');
-                              const MAX_WIDTH = 400;
-                              const MAX_HEIGHT = 400;
-                              let width = img.width;
-                              let height = img.height;
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center gap-4">
+                    {newUser.photoUrl ? (
+                      <img src={newUser.photoUrl} alt="Preview" className="w-16 h-16 rounded-full object-cover border-2 border-zinc-200 dark:border-zinc-700" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                        <UserIcon className="w-8 h-8" />
+                      </div>
+                    )}
+                    <div className="flex flex-col gap-2">
+                      <input 
+                        type="file" 
+                        id="modal-photo-upload"
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (event) => {
+                              const img = new Image();
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                const MAX_WIDTH = 400;
+                                const MAX_HEIGHT = 400;
+                                let width = img.width;
+                                let height = img.height;
 
-                              if (width > height) {
-                                if (width > MAX_WIDTH) {
-                                  height *= MAX_WIDTH / width;
-                                  width = MAX_WIDTH;
+                                if (width > height) {
+                                  if (width > MAX_WIDTH) {
+                                    height *= MAX_WIDTH / width;
+                                    width = MAX_WIDTH;
+                                  }
+                                } else {
+                                  if (height > MAX_HEIGHT) {
+                                    width *= MAX_HEIGHT / height;
+                                    height = MAX_HEIGHT;
+                                  }
                                 }
-                              } else {
-                                if (height > MAX_HEIGHT) {
-                                  width *= MAX_HEIGHT / height;
-                                  height = MAX_HEIGHT;
-                                }
-                              }
 
-                              canvas.width = width;
-                              canvas.height = height;
-                              const ctx = canvas.getContext('2d');
-                              if (ctx) {
-                                ctx.drawImage(img, 0, 0, width, height);
-                                setNewUser({...newUser, photoUrl: canvas.toDataURL('image/jpeg', 0.8)});
-                              }
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                if (ctx) {
+                                  ctx.drawImage(img, 0, 0, width, height);
+                                  setNewUser({...newUser, photoUrl: canvas.toDataURL('image/jpeg', 0.8)});
+                                }
+                              };
+                              img.src = event.target?.result as string;
                             };
-                            img.src = event.target?.result as string;
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                    <label 
-                      htmlFor="modal-photo-upload"
-                      className="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors cursor-pointer"
-                      title="Upload Photo"
-                    >
-                      <Upload className="w-4 h-4" />
-                    </label>
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                      <div className="flex items-center gap-2">
+                        <label 
+                          htmlFor="modal-photo-upload"
+                          className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors cursor-pointer text-sm font-medium"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload Photo
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setIsAvatarGalleryOpen(true)}
+                          className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors text-sm font-medium"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                          Choose Avatar
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-                <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                  {PRESET_AVATARS.map((url, i) => (
-                    <button 
-                      key={i}
-                      type="button"
-                      onClick={() => setNewUser({...newUser, photoUrl: url})}
-                      className={cn(
-                        "w-8 h-8 rounded-full overflow-hidden border-2 transition-all shrink-0",
-                        newUser.photoUrl === url ? "border-indigo-600 scale-110 shadow-sm" : "border-transparent hover:border-zinc-300 dark:hover:border-zinc-600"
-                      )}
-                    >
-                      <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    </button>
-                  ))}
+                  
+                  <AvatarGalleryModal 
+                    isOpen={isAvatarGalleryOpen}
+                    onClose={() => setIsAvatarGalleryOpen(false)}
+                    onSelect={(url) => {
+                      setNewUser({ ...newUser, photoUrl: url });
+                      setIsAvatarGalleryOpen(false);
+                    }}
+                  />
                 </div>
               </div>
 

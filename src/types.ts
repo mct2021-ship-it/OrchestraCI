@@ -5,6 +5,7 @@ export interface User {
   role: string;
   photoUrl?: string;
   status: 'Active' | 'Inactive';
+  projectIds?: string[];
 }
 
 export interface DemographicSlider {
@@ -146,6 +147,7 @@ export interface Sprint {
   number: number;
   name: string;
   goal?: string;
+  description?: string;
   startDate: string;
   endDate: string;
   status: 'In Progress' | 'Done' | 'Not Started';
@@ -191,6 +193,7 @@ export interface Project {
   expectedOutcomes: string[];
   taxonomy: string[];
   status: 'Discover' | 'Define' | 'Develop' | 'Deliver' | 'Done' | 'Archived';
+  useDoubleDiamond?: boolean;
   updatedAt: string;
   improvementFocus?: ImprovementFocus[];
   personaIds?: string[];
@@ -204,6 +207,8 @@ export interface Project {
   features?: {
     processMaps: boolean;
     raidLog: boolean;
+    sprints: boolean;
+    insights: boolean;
   };
   currentSprint?: number;
   currentSprintDescription?: string;
@@ -304,6 +309,23 @@ export interface ProjectStakeholder extends Stakeholder {
   sentimentHistory: StakeholderSentiment[];
   engagementStrategy: string;
   linkedItems: { type: 'Journey' | 'Process' | 'Risk' | 'Task'; id: string }[];
+}
+
+export interface Message {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface GeminiChatbotProps {
+  onNavigate?: (tab: string, subTab?: string) => void;
+  contextData?: {
+    activeProject?: any;
+    tasks?: any[];
+    personas?: any[];
+    journeys?: any[];
+    stakeholders?: any[];
+    projectStakeholders?: any[];
+  };
 }
 
 

@@ -1,18 +1,22 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Camera, LogOut, Save, Shield, Upload, Zap, CreditCard, Building2 } from 'lucide-react';
-import { motion } from 'motion/react';
+import { User, Camera, LogOut, Save, Shield, Upload, Zap, CreditCard, Building2, Users, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { PRESET_AVATARS } from '../constants';
+import { User as SystemUser, Project } from '../types';
 
 interface AccountSettingsProps {
   isDarkMode?: boolean;
   onNavigate?: (tab: string) => void;
+  users?: SystemUser[];
+  setUsers?: React.Dispatch<React.SetStateAction<SystemUser[]>>;
+  projects?: Project[];
 }
 
 import { usePlan } from '../context/PlanContext';
 
-export function AccountSettings({ isDarkMode, onNavigate }: AccountSettingsProps) {
+export function AccountSettings({ isDarkMode, onNavigate, users, setUsers, projects }: AccountSettingsProps) {
   const { user, token, login, logout } = useAuth();
   const { plan, details } = usePlan();
   const [name, setName] = useState(user?.name || '');
@@ -20,6 +24,7 @@ export function AccountSettings({ isDarkMode, onNavigate }: AccountSettingsProps
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedUserForProjects, setSelectedUserForProjects] = useState<string | null>(null);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -254,10 +259,126 @@ export function AccountSettings({ isDarkMode, onNavigate }: AccountSettingsProps
             </div>
           </motion.div>
 
+          {user?.role === 'Admin' && users && setUsers && projects && (
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className={cn(
+                "p-6 rounded-2xl border",
+                isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200 shadow-sm"
+              )}
+            >
+              <div className="flex items-center gap-3 mb-6">
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  isDarkMode ? "bg-indigo-500/20 text-indigo-400" : "bg-indigo-100 text-indigo-600"
+                )}>
+                  <Users className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className={cn(
+                    "text-lg font-bold",
+                    isDarkMode ? "text-white" : "text-zinc-900"
+                  )}>Team Management</h2>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                    Manage users and their project access.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {users.map(u => (
+                  <div key={u.id} className={cn(
+                    "p-4 rounded-xl border transition-colors",
+                    isDarkMode ? "bg-zinc-950 border-zinc-800" : "bg-zinc-50 border-zinc-200"
+                  )}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-3">
+                        <img src={u.photoUrl} alt={u.name} className="w-10 h-10 rounded-full object-cover" referrerPolicy="no-referrer" />
+                        <div>
+                          <p className={cn("font-medium", isDarkMode ? "text-white" : "text-zinc-900")}>{u.name}</p>
+                          <p className="text-xs text-zinc-500">{u.email} • {u.role}</p>
+                        </div>
+                      </div>
+                      {(u.role === 'Project Admin' || u.role === 'User' || u.role === 'Viewer') && (
+                        <button
+                          onClick={() => setSelectedUserForProjects(selectedUserForProjects === u.id ? null : u.id)}
+                          className={cn(
+                            "px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border",
+                            selectedUserForProjects === u.id
+                              ? "bg-indigo-600 text-white border-indigo-600"
+                              : isDarkMode
+                                ? "bg-zinc-800 text-zinc-300 border-zinc-700 hover:bg-zinc-700"
+                                : "bg-white text-zinc-700 border-zinc-200 hover:bg-zinc-50"
+                          )}
+                        >
+                          Manage Project Access
+                        </button>
+                      )}
+                    </div>
+
+                    <AnimatePresence>
+                      {selectedUserForProjects === u.id && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className={cn(
+                            "p-4 rounded-lg border mt-4",
+                            isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200"
+                          )}>
+                            <h4 className={cn("text-sm font-bold mb-3", isDarkMode ? "text-zinc-300" : "text-zinc-700")}>Assigned Projects</h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {projects.map(p => {
+                                const isAssigned = u.projectIds?.includes(p.id);
+                                return (
+                                  <label key={p.id} className="flex items-center gap-3 cursor-pointer group">
+                                    <div className={cn(
+                                      "w-5 h-5 rounded border flex items-center justify-center transition-colors",
+                                      isAssigned 
+                                        ? "bg-indigo-500 border-indigo-500 text-white" 
+                                        : isDarkMode
+                                          ? "border-zinc-600 group-hover:border-indigo-500"
+                                          : "border-zinc-300 group-hover:border-indigo-500"
+                                    )}>
+                                      {isAssigned && <Check className="w-3.5 h-3.5" />}
+                                    </div>
+                                    <span className={cn("text-sm font-medium", isDarkMode ? "text-zinc-300" : "text-zinc-700")}>{p.name}</span>
+                                    <input 
+                                      type="checkbox" 
+                                      className="hidden"
+                                      checked={isAssigned || false}
+                                      onChange={(e) => {
+                                        const newProjectIds = e.target.checked
+                                          ? [...(u.projectIds || []), p.id]
+                                          : (u.projectIds || []).filter(id => id !== p.id);
+                                        
+                                        setUsers(prev => prev.map(user => 
+                                          user.id === u.id ? { ...user, projectIds: newProjectIds } : user
+                                        ));
+                                      }}
+                                    />
+                                  </label>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
+            transition={{ delay: 0.2 }}
             className={cn(
               "p-6 rounded-2xl border",
               isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200 shadow-sm"

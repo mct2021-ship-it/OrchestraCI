@@ -19,20 +19,27 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
   const [isUploading, setIsUploading] = useState(false);
 
   React.useEffect(() => {
+    window.scrollTo(0, 0);
     if (startInEditMode) {
       setActiveTab('profile');
     }
-  }, [startInEditMode]);
+  }, [startInEditMode, activeTab]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   
   const [uploadedData, setUploadedData] = useState([
     { id: 1, date: '2024-03-15', source: 'Trustpilot', type: 'Reviews', count: 1240, status: 'Synced' },
-    { id: 2, date: '2024-03-14', source: 'HubSpot', type: 'Tickets', count: 850, status: 'Synced' },
     { id: 3, date: '2024-03-10', source: 'Manual', type: 'Survey', count: 150, status: 'Processed' },
   ]);
+  const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
+  const [selectedIntegration, setSelectedIntegration] = useState<any>(null);
 
   const handleDeleteData = (id: number) => {
     setUploadedData(uploadedData.filter(d => d.id !== id));
+  };
+
+  const handleConnect = (integration: any) => {
+    setSelectedIntegration(integration);
+    setIsConfigModalOpen(true);
   };
 
   // Fallback profile if not provided (though it should be from App.tsx)
@@ -305,9 +312,16 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
-                             <button className="p-1 text-zinc-400 hover:text-indigo-600 transition-colors" title="Sync Now">
-                               <RefreshCw className="w-4 h-4" />
-                             </button>
+                              <button 
+                                onClick={() => handleConnect({ name: row.source, icon: row.source.toLowerCase() })}
+                                className="p-1 text-zinc-400 hover:text-indigo-600 transition-colors" 
+                                title="Configure Connection"
+                              >
+                                <Database className="w-4 h-4" />
+                              </button>
+                              <button className="p-1 text-zinc-400 hover:text-indigo-600 transition-colors" title="Sync Now">
+                                <RefreshCw className="w-4 h-4" />
+                              </button>
                              <button className="p-1 text-zinc-400 hover:text-rose-600 transition-colors" title="Remove" onClick={() => handleDeleteData(row.id)}>
                                <Trash2 className="w-4 h-4" />
                              </button>
@@ -324,6 +338,8 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
                 <h3 className="text-lg font-bold text-zinc-900 dark:text-white px-2">Available Integrations</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
+                    { name: 'HubSpot', category: 'CRM', icon: 'hubspot' },
+                    { name: 'Trustpilot', category: 'Reviews', icon: 'trustpilot' },
                     { name: 'Salesforce', category: 'CRM', icon: 'salesforce' },
                     { name: 'Zendesk', category: 'Support', icon: 'zendesk' },
                     { name: 'Intercom', category: 'Support', icon: 'intercom' },
@@ -331,7 +347,11 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
                     { name: 'Qualtrics', category: 'Surveys', icon: 'qualtrics' },
                     { name: 'G2', category: 'Reviews', icon: 'g2' },
                   ].map((int) => (
-                    <div key={int.name} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between group hover:border-indigo-500 transition-all cursor-pointer">
+                    <div 
+                      key={int.name} 
+                      onClick={() => handleConnect(int)}
+                      className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between group hover:border-indigo-500 transition-all cursor-pointer"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center p-2">
                           <img src={`https://cdn.simpleicons.org/${int.icon}`} alt={int.name} className="w-full h-full object-contain" />
@@ -398,6 +418,59 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
           </div>
           <VocSection />
           <NpsCalculator />
+        </div>
+      )}
+      {/* API Configuration Modal */}
+      {isConfigModalOpen && selectedIntegration && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl max-w-md w-full p-8 border border-zinc-200 dark:border-zinc-800"
+          >
+            <div className="flex items-center gap-4 mb-6">
+              <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-2xl flex items-center justify-center p-2">
+                <img src={`https://cdn.simpleicons.org/${selectedIntegration.icon}`} alt={selectedIntegration.name} className="w-full h-full object-contain" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Configure {selectedIntegration.name}</h3>
+                <p className="text-sm text-zinc-500">Enter your API credentials to sync data.</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">API Key</label>
+                <input 
+                  type="password" 
+                  placeholder="sk_live_..."
+                  className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Environment</label>
+                <select className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500">
+                  <option>Production</option>
+                  <option>Sandbox / Development</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="mt-8 flex gap-3">
+              <button 
+                onClick={() => setIsConfigModalOpen(false)}
+                className="flex-1 px-6 py-3 border border-zinc-200 dark:border-zinc-800 rounded-xl font-bold hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => setIsConfigModalOpen(false)}
+                className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
+              >
+                Save & Connect
+              </button>
+            </div>
+          </motion.div>
         </div>
       )}
     </div>

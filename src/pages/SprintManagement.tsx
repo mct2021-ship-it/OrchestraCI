@@ -19,7 +19,8 @@ import {
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
 import { cn } from '../lib/utils';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 
 interface SprintManagementProps {
@@ -33,10 +34,51 @@ interface SprintManagementProps {
 
 export function SprintManagement({ projects, tasks, users, sprints, setSprints, activeProjectId }: SprintManagementProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'Active' | 'Completed' | 'Planned'>('Active');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'In Progress' | 'Done' | 'Not Started'>('In Progress');
   const [projectFilter, setProjectFilter] = useState<string>(activeProjectId || 'All');
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const [isAddingSprint, setIsAddingSprint] = useState(false);
+  const [newSprintData, setNewSprintData] = useState<Partial<Sprint>>({
+    name: '',
+    goal: '',
+    startDate: new Date().toISOString().split('T')[0],
+    endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+    status: 'Not Started',
+    stage: 'Discover',
+    tasks: []
+  });
+
+  const handleAddSprint = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSprintData.name || !newSprintData.projectId) return;
+
+    const newSprint: Sprint = {
+      id: `spr_${Date.now()}`,
+      projectId: newSprintData.projectId,
+      number: sprints.filter(s => s.projectId === newSprintData.projectId).length + 1,
+      name: newSprintData.name,
+      goal: newSprintData.goal,
+      startDate: newSprintData.startDate!,
+      endDate: newSprintData.endDate!,
+      status: newSprintData.status as any,
+      stage: newSprintData.stage as any,
+      tasks: []
+    };
+
+    setSprints(prev => [...prev, newSprint]);
+    setIsAddingSprint(false);
+    setNewSprintData({
+      name: '',
+      goal: '',
+      startDate: new Date().toISOString().split('T')[0],
+      endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+      status: 'Not Started',
+      stage: 'Discover',
+      tasks: []
+    });
+  };
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
 
@@ -63,15 +105,25 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
   const handleGenerateReport = async (sprint: Sprint) => {
     setIsGeneratingReport(true);
     try {
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        setIsGeneratingReport(false);
+        return;
+      }
+
       const sprintTasks = getSprintTasks(sprint.id);
       const project = projects.find(p => p.id === sprint.projectId);
       
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setIsGeneratingReport(false);
+        return;
+      }
       
       let reportType = 'Sprint Report';
       let focusPoints = '';
       
-      if (sprint.status === 'Planned') {
+      if (sprint.status === 'Not Started') {
         reportType = 'Sprint Planning Report';
         focusPoints = `
         1. Planning Summary & Objectives
@@ -79,20 +131,19 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
         3. Resource Allocation and Capacity
         4. Potential Risks and Mitigation Strategies
         5. Success Criteria for this Sprint`;
-      } else if (sprint.status === 'Active') {
+      } else if (sprint.status === 'In Progress') {
         reportType = 'Sprint Progress Report';
         focusPoints = `
         1. Current Progress Summary
         2. Completed vs. Remaining Work
-        3. Velocity and Burn-down Outlook
-        4. Emerging Blockers and Issues
-        5. Adjustments for the remainder of the sprint`;
+        3. Emerging Blockers and Issues
+        4. Adjustments for the remainder of the sprint`;
       } else {
         reportType = 'Sprint Retrospective Report';
         focusPoints = `
         1. Executive Summary
         2. Key Achievements
-        3. Velocity and Completion Rate
+        3. Completion Rate
         4. Challenges and Blockers encountered
         5. Recommendations for next sprint`;
       }
@@ -104,12 +155,17 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
       Duration: ${sprint.startDate} to ${sprint.endDate}
       
       Tasks:
-      ${sprintTasks.map(t => `- ${stripPIData(t.title)} (${t.kanbanStatus}): ${stripPIData(t.description || '')}`).join('\n')}
+      ${sprintTasks.map(t => `- ${stripPIData(t.title)} (${t.kanbanStatus}) [Owner: ${t.owner ? stripPIData(t.owner) : 'Unassigned'}]: ${stripPIData(t.description || '')}`).join('\n')}
       
       Please include:
       ${focusPoints}
       
-      Format as professional Markdown.`;
+      CRITICAL INSTRUCTIONS:
+      - ONLY use the data provided above.
+      - DO NOT invent, hallucinate, or assume any metrics like velocity, burn-down charts, story points, or capacity unless they are explicitly in the data.
+      - DO NOT mention any team members or tasks that are not listed above.
+      - Ensure the members involved and tasks completed are accurately reflected based ONLY on the provided task list.
+      - Format as professional Markdown.`;
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -179,7 +235,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
               ))}
             </select>
             <div className="flex bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl p-1 w-full sm:w-auto overflow-x-auto">
-              {(['All', 'Active', 'Completed', 'Planned'] as const).map((status) => (
+              {(['All', 'In Progress', 'Done', 'Not Started'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
@@ -214,8 +270,8 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                   <div className="flex items-center gap-2">
                     <div className={cn(
                       "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider",
-                      sprint.status === 'Active' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
-                      sprint.status === 'Completed' ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" :
+                      sprint.status === 'In Progress' ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400" :
+                      sprint.status === 'Done' ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400" :
                       "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
                     )}>
                       {sprint.status}
@@ -270,7 +326,13 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
           </AnimatePresence>
 
           {/* Add Sprint Placeholder */}
-          <button className="flex flex-col items-center justify-center gap-4 p-8 rounded-3xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group">
+          <button 
+            onClick={() => {
+              setIsAddingSprint(true);
+              setNewSprintData(prev => ({ ...prev, projectId: activeProjectId || projects[0]?.id }));
+            }}
+            className="flex flex-col items-center justify-center gap-4 p-8 rounded-3xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-all group text-left"
+          >
             <div className="p-4 bg-zinc-100 dark:bg-zinc-900 rounded-2xl text-zinc-400 group-hover:bg-indigo-100 group-hover:text-indigo-600 transition-all">
               <Plus className="w-8 h-8" />
             </div>
@@ -281,6 +343,141 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
           </button>
         </div>
       </div>
+
+      {/* Add Sprint Modal */}
+      <AnimatePresence>
+        {isAddingSprint && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-900/50">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-indigo-600 text-white rounded-2xl">
+                    <Plus className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">New Sprint</h2>
+                    <p className="text-xs text-zinc-500">Define your next delivery cycle</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsAddingSprint(false)}
+                  className="p-3 text-zinc-400 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-2xl transition-all"
+                >
+                  <Plus className="w-6 h-6 rotate-45" />
+                </button>
+              </div>
+
+              <form onSubmit={handleAddSprint} className="p-8 space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Project</label>
+                    <select
+                      required
+                      value={newSprintData.projectId}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, projectId: e.target.value })}
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Sprint Name</label>
+                    <input
+                      required
+                      type="text"
+                      value={newSprintData.name}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, name: e.target.value })}
+                      placeholder="e.g. Sprint 1: Discovery Phase"
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Sprint Goal</label>
+                    <textarea
+                      value={newSprintData.goal}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, goal: e.target.value })}
+                      placeholder="What do we want to achieve in this sprint?"
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px]"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Start Date</label>
+                    <input
+                      required
+                      type="date"
+                      value={newSprintData.startDate}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, startDate: e.target.value })}
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">End Date</label>
+                    <input
+                      required
+                      type="date"
+                      value={newSprintData.endDate}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, endDate: e.target.value })}
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Status</label>
+                    <select
+                      value={newSprintData.status}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, status: e.target.value as any })}
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="Not Started">Not Started</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Done">Done</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Stage</label>
+                    <select
+                      value={newSprintData.stage}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, stage: e.target.value as any })}
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <option value="Discover">Discover</option>
+                      <option value="Define">Define</option>
+                      <option value="Develop">Develop</option>
+                      <option value="Deliver">Deliver</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="pt-6 flex gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingSprint(false)}
+                    className="flex-1 px-8 py-4 border border-zinc-200 dark:border-zinc-800 rounded-2xl text-sm font-bold text-zinc-500 hover:bg-zinc-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-8 py-4 bg-indigo-600 text-white rounded-2xl text-sm font-bold shadow-xl hover:bg-indigo-700 transition-all"
+                  >
+                    Create Sprint
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Sprint Detail Modal */}
       <AnimatePresence>
@@ -428,7 +625,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                               onClick={() => handleGenerateReport(selectedSprint)}
                               className="mt-4 text-xs font-bold text-indigo-600 hover:underline"
                             >
-                              Generate AI {selectedSprint.status === 'Planned' ? 'Planning' : selectedSprint.status === 'Active' ? 'Progress' : 'Retrospective'} Report
+                              Generate AI {selectedSprint.status === 'Not Started' ? 'Planning' : selectedSprint.status === 'In Progress' ? 'Progress' : 'Retrospective'} Report
                             </button>
                           </div>
                         )}

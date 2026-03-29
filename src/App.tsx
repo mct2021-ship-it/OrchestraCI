@@ -467,7 +467,7 @@ function AppContent() {
   const renderContent = () => {
     switch (currentTab) {
       case 'account':
-        return <AccountSettings isDarkMode={isDarkMode} onNavigate={handleTabChange} />;
+        return <AccountSettings isDarkMode={isDarkMode} onNavigate={handleTabChange} users={users} setUsers={setUsers} projects={projects} />;
       case 'welcome':
         return <Welcome onNavigate={(tab, subTab) => {
           if (tab === 'projects' && subTab === 'new') {
@@ -506,6 +506,7 @@ function AppContent() {
           return (
             <ProjectDetail 
               project={activeProject}
+              projects={projects}
               setProjects={handleSetProjects}
               journeys={filteredJourneys}
               processMaps={filteredProcessMaps}
@@ -544,13 +545,16 @@ function AppContent() {
             journeys={journeys}
             processMaps={processMaps}
             tasks={tasks}
+            personas={personas}
+            users={users}
+            setUsers={handleSetUsers}
           />
         );
       case 'project_team':
-        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
-        return <ProjectTeam project={activeProject} setProjects={handleSetProjects} tasks={tasks} onNavigate={handleTabChange} users={users} setUsers={setUsers} currentUser={currentUser} />;
+        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} personas={personas} users={users} setUsers={handleSetUsers} />;
+        return <ProjectTeam project={activeProject} projects={projects} setProjects={handleSetProjects} tasks={tasks} onNavigate={handleTabChange} users={users} setUsers={setUsers} currentUser={currentUser} />;
       case 'stakeholder_mapping':
-        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
+        if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} personas={personas} users={users} setUsers={handleSetUsers} />;
         return (
           <StakeholderMapping 
             project={activeProject}
@@ -580,6 +584,9 @@ function AppContent() {
             journeys={journeys}
             processMaps={processMaps}
             tasks={tasks}
+            personas={personas}
+            users={users}
+            setUsers={handleSetUsers}
           />
         );
       case 'intelligence':
@@ -694,6 +701,8 @@ function AppContent() {
       case 'settings':
         return (
           <Settings 
+            projects={projects}
+            setProjects={handleSetProjects}
             products={products} 
             setProducts={setProducts} 
             services={services} 

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Wand2, Upload, Loader2, AlertCircle, Sparkles, FileText, MessageSquare } from 'lucide-react';
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from '@google/genai';
 import { JourneyMap } from '../types';
 import Markdown from 'react-markdown';
 import { stripPIData } from '../lib/piStripper';
@@ -40,10 +41,13 @@ export function JourneyAiAssistant({ isOpen, onClose, journey }: JourneyAiAssist
     setResult(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API key is missing.");
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setError('Gemini API key is missing. Please select one to enable AI features.');
+        await ensureApiKey();
+        setIsGenerating(false);
+        return;
+      }
       const journeyData = JSON.stringify(journey, null, 2);
 
       const response = await ai.models.generateContent({
@@ -81,10 +85,13 @@ export function JourneyAiAssistant({ isOpen, onClose, journey }: JourneyAiAssist
     setResult(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API key is missing.");
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setError('Gemini API key is missing. Please select one to enable AI features.');
+        await ensureApiKey();
+        setIsGenerating(false);
+        return;
+      }
       const journeyData = JSON.stringify(journey, null, 2);
 
       const response = await ai.models.generateContent({

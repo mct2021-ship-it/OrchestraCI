@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, Wand2, FileText, Loader2, AlertCircle } from 'lucide-react';
-import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from "@google/genai";
 import { ProcessMap } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -81,7 +82,13 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
     setError(null);
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setError("Gemini API key is missing. Please select one to enable AI features.");
+        await ensureApiKey();
+        setIsGenerating(false);
+        return;
+      }
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Generate a structured process map from the following SOP/Process document text. 

@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Calculator, Loader2, AlertCircle, Sparkles, HelpCircle } from 'lucide-react';
-import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
 
 interface NpsData {
@@ -40,10 +41,13 @@ export function NpsCalculator() {
     setNpsResult(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API key is missing.");
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        throw new Error("Gemini API key is required. Please select one in the settings.");
+      }
 
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = await getGeminiClient();
+      if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',

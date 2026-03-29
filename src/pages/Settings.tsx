@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Settings as SettingsIcon, Package, Layers, Building2, Users, Plus, Trash2, Save, Shield, Mail, Bell, Moon, Globe, Upload, User as UserIcon, CreditCard, CheckCircle2, ArrowUpCircle, History, Download, Edit2 } from 'lucide-react';
-import { Product, Service, User } from '../types';
+import { Product, Service, User, Project } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { CompanyProfile, YourCompany } from '../components/YourCompany';
 import { ContextualHelp } from '../components/ContextualHelp';
@@ -9,6 +9,8 @@ import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
 
 interface SettingsProps {
+  projects: Project[];
+  setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   products: Product[];
   setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
   services: Service[];
@@ -23,7 +25,7 @@ interface SettingsProps {
   onDeleteItem?: (item: any, type: any) => void;
 }
 
-export function Settings({ products, setProducts, services, setServices, isDarkMode, setIsDarkMode, companyProfile, onUpdateProfile, users, setUsers, currentUser, onDeleteItem }: SettingsProps) {
+export function Settings({ projects, setProjects, products, setProducts, services, setServices, isDarkMode, setIsDarkMode, companyProfile, onUpdateProfile, users, setUsers, currentUser, onDeleteItem }: SettingsProps) {
   const { updateUser } = useAuth();
   const [activeSection, setActiveSection] = useState<'general' | 'taxonomy' | 'company' | 'users' | 'billing'>('general');
 
@@ -39,6 +41,7 @@ export function Settings({ products, setProducts, services, setServices, isDarkM
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Viewer', password: 'password123', photoUrl: '' });
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const handleAddUser = async () => {
@@ -57,7 +60,28 @@ export function Settings({ products, setProducts, services, setServices, isDarkM
         
         const createdUser = await res.json();
         setUsers(prev => [...prev, createdUser]);
+        
+        if (selectedProjectIds.length > 0) {
+          setProjects(prev => prev.map(p => {
+            if (selectedProjectIds.includes(p.id)) {
+              return {
+                ...p,
+                team: [...(p.team || []), {
+                  id: uuidv4(),
+                  userId: createdUser.id,
+                  name: createdUser.name,
+                  jobTitle: createdUser.role || 'Team Member',
+                  projectRole: 'Member',
+                  photoUrl: createdUser.photoUrl || `https://ui-avatars.com/api/?name=${createdUser.name.replace(/\s+/g, '+')}&background=random`
+                }]
+              };
+            }
+            return p;
+          }));
+        }
+
         setNewUser({ name: '', email: '', role: 'Viewer', password: 'password123', photoUrl: '' });
+        setSelectedProjectIds([]);
         setIsAddUserModalOpen(false);
         setError(null);
       } catch (err: any) {
@@ -81,8 +105,45 @@ export function Settings({ products, setProducts, services, setServices, isDarkM
         }
         
         setUsers(prev => prev.map(u => u.id === editingUser.id ? editingUser : u));
+        
+        setProjects(prev => prev.map(p => {
+          const isSelected = selectedProjectIds.includes(p.id);
+          const isCurrentlyInTeam = (p.team || []).some(m => m.userId === editingUser.id);
+          
+          if (isSelected && !isCurrentlyInTeam) {
+            return {
+              ...p,
+              team: [...(p.team || []), {
+                id: uuidv4(),
+                userId: editingUser.id,
+                name: editingUser.name,
+                jobTitle: editingUser.role || 'Team Member',
+                projectRole: 'Member',
+                photoUrl: editingUser.photoUrl || `https://ui-avatars.com/api/?name=${editingUser.name.replace(/\s+/g, '+')}&background=random`
+              }]
+            };
+          } else if (!isSelected && isCurrentlyInTeam) {
+            return {
+              ...p,
+              team: (p.team || []).filter(m => m.userId !== editingUser.id)
+            };
+          } else if (isCurrentlyInTeam) {
+             return {
+               ...p,
+               team: (p.team || []).map(m => m.userId === editingUser.id ? { 
+                 ...m, 
+                 name: editingUser.name,
+                 jobTitle: editingUser.role || 'Team Member',
+                 photoUrl: editingUser.photoUrl || `https://ui-avatars.com/api/?name=${editingUser.name.replace(/\s+/g, '+')}&background=random`
+               } : m)
+             }
+          }
+          return p;
+        }));
+
         setIsEditUserModalOpen(false);
         setEditingUser(null);
+        setSelectedProjectIds([]);
         setError(null);
       } catch (err: any) {
         setError(err.message);
@@ -485,6 +546,7 @@ export function Settings({ products, setProducts, services, setServices, isDarkM
                         <button 
                           onClick={() => {
                             setEditingUser(user);
+                            setSelectedProjectIds(projects.filter(p => (p.team || []).some(m => m.userId === user.id)).map(p => p.id));
                             setIsEditUserModalOpen(true);
                           }}
                           className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-colors"
@@ -721,10 +783,39 @@ export function Settings({ products, setProducts, services, setServices, isDarkM
                     className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-zinc-900 dark:text-white"
                   >
                     <option value="Viewer">Viewer</option>
-                    <option value="Editor">Editor</option>
+                    <option value="User">User</option>
+                    <option value="Project Admin">Project Admin</option>
                     <option value="Admin">Admin</option>
                   </select>
                 </div>
+
+                {newUser.role !== 'Admin' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Project Access</label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar border border-zinc-200 dark:border-zinc-700 rounded-lg p-2">
+                      {projects.map(project => (
+                        <label key={project.id} className="flex items-center gap-2 p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedProjectIds.includes(project.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedProjectIds([...selectedProjectIds, project.id]);
+                              } else {
+                                setSelectedProjectIds(selectedProjectIds.filter(id => id !== project.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-indigo-600 rounded border-zinc-300 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-zinc-700 dark:text-zinc-300">{project.name}</span>
+                        </label>
+                      ))}
+                      {projects.length === 0 && (
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 p-2 text-center">No projects available</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3 pt-2">
                   <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Profile Photo</label>
@@ -827,11 +918,40 @@ export function Settings({ products, setProducts, services, setServices, isDarkM
                     onChange={(e) => setEditingUser({...editingUser, role: e.target.value})}
                     className="w-full px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none text-zinc-900 dark:text-white"
                   >
-                    <option value="Admin">Admin</option>
-                    <option value="Editor">Editor</option>
                     <option value="Viewer">Viewer</option>
+                    <option value="User">User</option>
+                    <option value="Project Admin">Project Admin</option>
+                    <option value="Admin">Admin</option>
                   </select>
                 </div>
+
+                {editingUser.role !== 'Admin' && (
+                  <div className="space-y-2">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Project Access</label>
+                    <div className="space-y-2 max-h-40 overflow-y-auto custom-scrollbar border border-zinc-200 dark:border-zinc-700 rounded-lg p-2">
+                      {projects.map(project => (
+                        <label key={project.id} className="flex items-center gap-2 p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={selectedProjectIds.includes(project.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedProjectIds([...selectedProjectIds, project.id]);
+                              } else {
+                                setSelectedProjectIds(selectedProjectIds.filter(id => id !== project.id));
+                              }
+                            }}
+                            className="w-4 h-4 text-indigo-600 rounded border-zinc-300 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-zinc-700 dark:text-zinc-300">{project.name}</span>
+                        </label>
+                      ))}
+                      {projects.length === 0 && (
+                        <p className="text-sm text-zinc-500 dark:text-zinc-400 p-2 text-center">No projects available</p>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-3 pt-2">
                   <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Profile Photo</label>

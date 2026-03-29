@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { X, Sparkles, Loader2, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { SprintSnapshot, Project } from '../types';
-import { GoogleGenAI, ThinkingLevel } from '@google/genai';
+import { ThinkingLevel } from '@google/genai';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 import Markdown from 'react-markdown';
@@ -21,12 +22,11 @@ export function SprintReportModal({ sprint, project, onClose }: SprintReportModa
   const generateReport = async () => {
     setIsGenerating(true);
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        throw new Error('Gemini API key is not configured');
+      await ensureApiKey();
+      const ai = await getGeminiClient();
+      if (!ai) {
+        throw new Error('AI client not initialized');
       }
-
-      const ai = new GoogleGenAI({ apiKey });
 
       const prompt = `
 Generate a professional, nicely formatted sprint report for "${stripPIData(project.name)}" - ${stripPIData(sprint.name)}.
@@ -35,10 +35,17 @@ Sprint Description/Goals: ${stripPIData(sprint.description || 'No specific goals
 Completed At: ${new Date(sprint.completedAt).toLocaleDateString()}
 
 Here are the tasks that were part of this sprint:
-${sprint.tasks.map(t => `- [${t.kanbanStatus}] ${stripPIData(t.title)} (${t.impact} Impact, ${t.effort} Effort)
+${sprint.tasks.map(t => `- [${t.kanbanStatus}] ${stripPIData(t.title)} (${t.impact} Impact, ${t.effort} Effort, Owner: ${t.owner ? stripPIData(t.owner) : 'Unassigned'})
   Description: ${stripPIData(t.description || 'N/A')}`).join('\n')}
 
 Please provide a summary of the work completed, highlighting key achievements, high impact items, and overall progress. Use markdown formatting.
+
+CRITICAL INSTRUCTIONS:
+- ONLY use the data provided above.
+- DO NOT invent, hallucinate, or assume any metrics like velocity, burn-down charts, story points, or capacity unless they are explicitly in the data.
+- DO NOT mention any team members or tasks that are not listed above.
+- Ensure the members involved and tasks completed are accurately reflected based ONLY on the provided task list.
+- Format the report nicely with clear headings, bullet points, and bold text for emphasis.
 `;
 
       const response = await ai.models.generateContent({

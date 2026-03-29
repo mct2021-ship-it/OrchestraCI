@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { mockJourneyMaps, mockProcessMaps, mockTasks } from '../data/mockData';
-import { Plus, Folder, Map as MapIcon, MoreVertical, Clock, GitMerge, Target, X, PlusCircle, Trash2, Info, ChevronDown, ChevronUp, Archive, Briefcase, AlertCircle } from 'lucide-react';
+import { Plus, Folder, Map as MapIcon, MoreVertical, Clock, GitMerge, Target, X, PlusCircle, Trash2, Info, ChevronDown, ChevronUp, Archive, Briefcase, AlertCircle, Sparkles, Tag, Users, UserPlus, Check } from 'lucide-react';
 import { Project, Product, Service } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -26,6 +26,9 @@ interface ProjectsProps {
   journeys?: import('../types').JourneyMap[];
   processMaps?: import('../types').ProcessMap[];
   tasks?: import('../types').Task[];
+  personas?: import('../types').Persona[];
+  users?: import('../types').User[];
+  setUsers?: React.Dispatch<React.SetStateAction<import('../types').User[]>>;
 }
 
 export function Projects({ 
@@ -44,7 +47,10 @@ export function Projects({
   onProjectCreated,
   journeys = [],
   processMaps = [],
-  tasks = []
+  tasks = [],
+  personas = [],
+  users = [],
+  setUsers
 }: ProjectsProps & { onProjectCreated?: (id: string) => void }) {
   const { plan } = usePlan();
   const { user } = useAuth();
@@ -63,6 +69,10 @@ export function Projects({
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setStep(1);
+    setShowCongrats(false);
+    setCreatedProjectId(null);
+    setSelectedPersonas([]);
     if (setOpenNewProjectModal) setOpenNewProjectModal(false);
   };
 
@@ -98,9 +108,16 @@ export function Projects({
     improvementFocus: [{ metric: '', target: '' }],
     features: {
       processMaps: true,
-      raidLog: true
-    }
+      raidLog: true,
+      sprints: true,
+      insights: true
+    },
+    useDoubleDiamond: true
   });
+  const [step, setStep] = useState(1);
+  const [selectedPersonas, setSelectedPersonas] = useState<string[]>([]);
+  const [showCongrats, setShowCongrats] = useState(false);
+  const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
 
   const [newProductName, setNewProductName] = useState('');
   const [newServiceName, setNewServiceName] = useState('');
@@ -154,8 +171,9 @@ export function Projects({
   };
 
   const handleCreateProject = () => {
+    const projectId = `proj-${Date.now()}`;
     const project: Project = {
-      id: `proj-${Date.now()}`,
+      id: projectId,
       name: newProject.name || 'Untitled Project',
       description: newProject.description || '',
       purpose: newProject.purpose || '',
@@ -167,7 +185,14 @@ export function Projects({
       status: newProject.status as any || 'Discover',
       updatedAt: new Date().toISOString(),
       improvementFocus: (newProject.improvementFocus || []).filter(f => f.metric.trim() !== ''),
-      features: newProject.features || { processMaps: true, raidLog: true },
+      features: { 
+        processMaps: true, 
+        raidLog: true,
+        sprints: true,
+        insights: true
+      },
+      useDoubleDiamond: newProject.useDoubleDiamond !== false,
+      personaIds: selectedPersonas,
       team: user ? [{
         id: `team-${Date.now()}`,
         name: user.name,
@@ -177,23 +202,29 @@ export function Projects({
       }] : []
     };
     setProjects([project, ...projects]);
-    handleCloseModal();
-    if (onProjectCreated) onProjectCreated(project.id);
-    onSelectProject(project.id);
-    setNewProject({
-      name: '',
-      description: '',
-      purpose: '',
-      goals: [''],
-      expectedOutcomes: [''],
-      taxonomy: [''],
-      status: 'Discover',
-      improvementFocus: [{ metric: '', target: '' }],
-      features: {
-        processMaps: true,
-        raidLog: true
-      }
-    });
+    setCreatedProjectId(projectId);
+    setStep(6); // Move to Personas step
+  };
+
+  const handleCompleteSetup = () => {
+    if (createdProjectId) {
+      // Update project with final persona selection and team
+      setProjects(prev => prev.map(p => p.id === createdProjectId ? { 
+        ...p, 
+        personaIds: selectedPersonas,
+        team: newProject.team || p.team
+      } : p));
+      if (onProjectCreated) onProjectCreated(createdProjectId);
+    }
+    setShowCongrats(true);
+  };
+
+  const togglePersona = (id: string) => {
+    if (selectedPersonas.includes(id)) {
+      setSelectedPersonas(selectedPersonas.filter(pId => pId !== id));
+    } else {
+      setSelectedPersonas([...selectedPersonas, id]);
+    }
   };
 
   const addField = (field: 'goals' | 'expectedOutcomes' | 'taxonomy' | 'improvementFocus') => {
@@ -505,323 +536,624 @@ export function Projects({
               exit={{ opacity: 0, scale: 0.95 }}
               className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col"
             >
-              <div className="p-6 border-b border-zinc-100 flex items-center justify-between shrink-0">
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Create New Project</h3>
-                <button onClick={handleCloseModal} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-full transition-colors">
-                  <X className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
-                </button>
-              </div>
-
-              <div className="p-6 overflow-y-auto space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Project Name</label>
-                    <input 
-                      type="text"
-                      value={newProject.name}
-                      onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                      placeholder="e.g. Mobile App Redesign"
-                      className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 flex items-center">
-                      Initial Status
-                      <HelpTooltip position="bottom" content="Select the current phase of your project. 'Discover' for research, 'Define' for scoping, 'Develop' for building, and 'Deliver' for launch." />
-                    </label>
-                    <select 
-                      value={newProject.status}
-                      onChange={(e) => setNewProject({ ...newProject, status: e.target.value as any })}
-                      className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none"
-                    >
-                      {columns.map(c => <option key={c} value={c}>{c}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Description</label>
-                  <textarea 
-                    value={newProject.description}
-                    onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                    placeholder="Brief overview of what this project is about..."
-                    rows={2}
-                    className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none resize-none"
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Purpose</label>
-                  <textarea 
-                    value={newProject.purpose}
-                    onChange={(e) => setNewProject({ ...newProject, purpose: e.target.value })}
-                    placeholder="Why are we doing this project?"
-                    rows={2}
-                    className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none resize-none"
-                  />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 flex items-center">
-                        Improvement Focus (Metrics)
-                        <HelpTooltip content="What key metrics are you trying to improve? (e.g., CSAT, NPS, Churn Rate). You can add or modify these later." />
-                      </label>
-                      <button onClick={() => addField('improvementFocus')} className="text-indigo-600 hover:text-indigo-700">
-                        <PlusCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {newProject.improvementFocus?.map((focus, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <input 
-                          type="text"
-                          value={focus.metric}
-                          onChange={(e) => updateImprovementFocus(idx, 'metric', e.target.value)}
-                          placeholder="Metric (e.g. CSAT)"
-                          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
-                        />
-                        <input 
-                          type="text"
-                          value={focus.target}
-                          onChange={(e) => updateImprovementFocus(idx, 'target', e.target.value)}
-                          placeholder="Target (e.g. +15%)"
-                          className="w-1/3 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
-                        />
-                        {idx > 0 && (
-                          <button onClick={() => removeField('improvementFocus', idx)} className="text-zinc-400 hover:text-rose-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 flex items-center">
-                        Goals
-                        <HelpTooltip content="What are the high-level objectives of this project? You can add or modify these later." />
-                      </label>
-                      <button onClick={() => addField('goals')} className="text-indigo-600 hover:text-indigo-700">
-                        <PlusCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {newProject.goals?.map((goal, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <input 
-                          type="text"
-                          value={goal}
-                          onChange={(e) => updateField('goals', idx, e.target.value)}
-                          placeholder={`Goal ${idx + 1}`}
-                          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
-                        />
-                        {idx > 0 && (
-                          <button onClick={() => removeField('goals', idx)} className="text-zinc-400 hover:text-rose-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 flex items-center">
-                        Expected Outcomes
-                        <HelpTooltip content="What tangible results do you expect to deliver? You can add or modify these later." />
-                      </label>
-                      <button onClick={() => addField('expectedOutcomes')} className="text-indigo-600 hover:text-indigo-700">
-                        <PlusCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {newProject.expectedOutcomes?.map((outcome, idx) => (
-                      <div key={idx} className="flex gap-2">
-                        <input 
-                          type="text"
-                          value={outcome}
-                          onChange={(e) => updateField('expectedOutcomes', idx, e.target.value)}
-                          placeholder={`Outcome ${idx + 1}`}
-                          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
-                        />
-                        {idx > 0 && (
-                          <button onClick={() => removeField('expectedOutcomes', idx)} className="text-zinc-400 hover:text-rose-500">
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200 flex items-center">
-                      Project Features
-                      <HelpTooltip content="Enable additional tools for this project. Process Maps align internal operations, and RAID Log tracks risks. You can toggle these on or off later from the project page." />
-                    </label>
-                    <div className="flex flex-wrap gap-4">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={newProject.features?.processMaps} 
-                          onChange={(e) => setNewProject({...newProject, features: {...newProject.features, processMaps: e.target.checked}})} 
-                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" 
-                        />
-                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">Process Maps</span>
-                      </label>
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          checked={newProject.features?.raidLog} 
-                          onChange={(e) => setNewProject({...newProject, features: {...newProject.features, raidLog: e.target.checked}})} 
-                          className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500" 
-                        />
-                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">RAID Log</span>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Products</label>
-                    <div className="flex flex-wrap gap-2">
-                      {products.map(p => {
-                        const isSelected = (newProject.products || []).some(pp => pp.id === p.id);
-                        return (
-                          <button
-                            key={p.id}
-                            onClick={() => {
-                              const currentProducts = newProject.products || [];
-                              if (isSelected) {
-                                setNewProject({ ...newProject, products: currentProducts.filter(pp => pp.id !== p.id) });
-                              } else {
-                                setNewProject({ ...newProject, products: [...currentProducts, p] });
-                              }
-                            }}
+              {!showCongrats ? (
+                <>
+                  <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-2">
+                        {[1, 2, 3, 4, 5, 6, 7].map(s => (
+                          <div 
+                            key={s} 
                             className={cn(
-                              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                              isSelected 
-                                ? "bg-indigo-600 text-white border-transparent shadow-md" 
-                                : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                              "w-2 h-2 rounded-full transition-all duration-300",
+                              s === step ? "bg-indigo-600 w-6" : s < step ? "bg-indigo-200 dark:bg-indigo-900" : "bg-zinc-200 dark:bg-zinc-800"
                             )}
-                          >
-                            {p.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {setProducts && (
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          type="text"
-                          value={newProductName}
-                          onChange={(e) => setNewProductName(e.target.value)}
-                          placeholder="Add new product to taxonomy..."
-                          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddProduct()}
-                        />
-                        <button
-                          onClick={handleAddProduct}
-                          disabled={!newProductName.trim()}
-                          className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-sm font-medium disabled:opacity-50"
-                        >
-                          Add
-                        </button>
+                          />
+                        ))}
                       </div>
-                    )}
+                      <h3 className="text-xl font-bold text-zinc-900 dark:text-white">
+                        {step === 1 && "Project Name"}
+                        {step === 2 && "Description & Purpose"}
+                        {step === 3 && "Focus, Goals & Outcomes"}
+                        {step === 4 && "Tools"}
+                        {step === 5 && "Taxonomy & Tags"}
+                        {step === 6 && "Select Personas"}
+                        {step === 7 && "Add Project Team"}
+                      </h3>
+                    </div>
+                    <button onClick={handleCloseModal} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-full transition-colors">
+                      <X className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
+                    </button>
                   </div>
 
-                  <div className="space-y-3">
-                    <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Services</label>
-                    <div className="flex flex-wrap gap-2">
-                      {services.map(s => {
-                        const isSelected = (newProject.services || []).some(ss => ss.id === s.id);
-                        return (
-                          <button
-                            key={s.id}
-                            onClick={() => {
-                              const currentServices = newProject.services || [];
-                              if (isSelected) {
-                                setNewProject({ ...newProject, services: currentServices.filter(ss => ss.id !== s.id) });
-                              } else {
-                                setNewProject({ ...newProject, services: [...currentServices, s] });
-                              }
-                            }}
-                            className={cn(
-                              "px-3 py-1.5 rounded-lg text-xs font-bold transition-all border",
-                              isSelected 
-                                ? "bg-indigo-600 text-white border-transparent shadow-md" 
-                                : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                            )}
-                          >
-                            {s.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    {setServices && (
-                      <div className="flex gap-2 mt-2">
-                        <input
-                          type="text"
-                          value={newServiceName}
-                          onChange={(e) => setNewServiceName(e.target.value)}
-                          placeholder="Add new service to taxonomy..."
-                          className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-zinc-200 dark:border-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
-                          onKeyDown={(e) => e.key === 'Enter' && handleAddService()}
-                        />
-                        <button
-                          onClick={handleAddService}
-                          disabled={!newServiceName.trim()}
-                          className="px-3 py-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg text-sm font-medium disabled:opacity-50"
-                        >
-                          Add
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Custom Tags</label>
-                      <button onClick={() => addField('taxonomy')} className="text-indigo-600 hover:text-indigo-700">
-                        <PlusCircle className="w-4 h-4" />
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {newProject.taxonomy?.map((tag, idx) => (
-                        <div key={idx} className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-2 py-1">
+                  <div className="p-8 overflow-y-auto space-y-6">
+                    {step === 1 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="text-center py-4">
+                          <div className="w-20 h-20 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                            <Sparkles className="w-10 h-10" />
+                          </div>
+                          <h4 className="text-2xl font-black text-zinc-900 dark:text-white mb-2 tracking-tight">Name your project</h4>
+                          <p className="text-zinc-500 dark:text-zinc-400">Give your new project a clear, descriptive name to kick things off.</p>
+                        </div>
+                        <div className="space-y-2 max-w-md mx-auto">
+                          <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Project Name</label>
                           <input 
                             type="text"
-                            value={tag}
-                            onChange={(e) => updateField('taxonomy', idx, e.target.value)}
-                            placeholder="Tag"
-                            className="bg-transparent text-xs font-medium outline-none w-20"
+                            value={newProject.name}
+                            onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                            placeholder="e.g. Mobile App Redesign"
+                            className="w-full px-6 py-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none text-xl font-bold shadow-sm"
+                            autoFocus
                           />
-                          <button onClick={() => removeField('taxonomy', idx)} className="text-zinc-400 hover:text-rose-500">
-                            <X className="w-3 h-3" />
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 2 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="space-y-6">
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Description</label>
+                            <textarea 
+                              value={newProject.description}
+                              onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                              placeholder="Brief overview of what this project is about..."
+                              rows={4}
+                              className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none resize-none text-sm leading-relaxed"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Purpose</label>
+                            <textarea 
+                              value={newProject.purpose}
+                              onChange={(e) => setNewProject({ ...newProject, purpose: e.target.value })}
+                              placeholder="Why are we doing this project? What is the core problem we are solving?"
+                              rows={4}
+                              className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:ring-2 focus:ring-indigo-600 outline-none resize-none text-sm leading-relaxed"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 3 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 rounded-2xl flex items-start gap-3">
+                          <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                          <p className="text-sm text-amber-800 dark:text-amber-300">
+                            Don't worry if you don't have all these details yet. You can <span className="font-bold">skip</span> this step and add them later in the Project Charter.
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-8">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                Improvement Focus (Metrics)
+                                <HelpTooltip content="What key metrics are you trying to improve? (e.g., CSAT, NPS, Churn Rate)." />
+                              </label>
+                              <button onClick={() => addField('improvementFocus')} className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1 text-xs font-bold">
+                                <PlusCircle className="w-4 h-4" />
+                                Add Metric
+                              </button>
+                            </div>
+                            <div className="space-y-3">
+                              {newProject.improvementFocus?.map((focus, idx) => (
+                                <div key={idx} className="flex gap-3">
+                                  <input 
+                                    type="text"
+                                    value={focus.metric}
+                                    onChange={(e) => updateImprovementFocus(idx, 'metric', e.target.value)}
+                                    placeholder="Metric (e.g. CSAT)"
+                                    className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
+                                  />
+                                  <input 
+                                    type="text"
+                                    value={focus.target}
+                                    onChange={(e) => updateImprovementFocus(idx, 'target', e.target.value)}
+                                    placeholder="Target (e.g. +15%)"
+                                    className="w-1/3 px-4 py-2.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
+                                  />
+                                  {idx > 0 && (
+                                    <button onClick={() => removeField('improvementFocus', idx)} className="text-zinc-400 hover:text-rose-500 p-2">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                Goals
+                                <HelpTooltip content="What are the high-level objectives of this project?" />
+                              </label>
+                              <button onClick={() => addField('goals')} className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1 text-xs font-bold">
+                                <PlusCircle className="w-4 h-4" />
+                                Add Goal
+                              </button>
+                            </div>
+                            <div className="space-y-3">
+                              {newProject.goals?.map((goal, idx) => (
+                                <div key={idx} className="flex gap-3">
+                                  <input 
+                                    type="text"
+                                    value={goal}
+                                    onChange={(e) => updateField('goals', idx, e.target.value)}
+                                    placeholder={`Goal ${idx + 1}`}
+                                    className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
+                                  />
+                                  {idx > 0 && (
+                                    <button onClick={() => removeField('goals', idx)} className="text-zinc-400 hover:text-rose-500 p-2">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                Expected Outcomes
+                                <HelpTooltip content="What tangible results do you expect to deliver?" />
+                              </label>
+                              <button onClick={() => addField('expectedOutcomes')} className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1 text-xs font-bold">
+                                <PlusCircle className="w-4 h-4" />
+                                Add Outcome
+                              </button>
+                            </div>
+                            <div className="space-y-3">
+                              {newProject.expectedOutcomes?.map((outcome, idx) => (
+                                <div key={idx} className="flex gap-3">
+                                  <input 
+                                    type="text"
+                                    value={outcome}
+                                    onChange={(e) => updateField('expectedOutcomes', idx, e.target.value)}
+                                    placeholder={`Outcome ${idx + 1}`}
+                                    className="flex-1 px-4 py-2.5 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
+                                  />
+                                  {idx > 0 && (
+                                    <button onClick={() => removeField('expectedOutcomes', idx)} className="text-zinc-400 hover:text-rose-500 p-2">
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 4 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="p-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-3xl border border-indigo-100 dark:border-indigo-800/30">
+                          <div className="flex items-start gap-4">
+                            <div className="mt-1">
+                              <input 
+                                type="checkbox" 
+                                id="useDoubleDiamond"
+                                checked={newProject.useDoubleDiamond !== false} 
+                                onChange={(e) => setNewProject({...newProject, useDoubleDiamond: e.target.checked})} 
+                                className="w-6 h-6 rounded-lg border-indigo-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer" 
+                              />
+                            </div>
+                            <div>
+                              <label htmlFor="useDoubleDiamond" className="text-lg font-bold text-indigo-900 dark:text-indigo-300 cursor-pointer">
+                                Use Double Diamond Stages
+                              </label>
+                              <p className="text-sm text-indigo-700 dark:text-indigo-400 mt-1 leading-relaxed">
+                                Organize your project using the Discover, Define, Develop, and Deliver stages. This provides a structured framework for your improvement journey.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {newProject.useDoubleDiamond !== false && (
+                          <div className="space-y-3">
+                            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                              Initial Status
+                              <HelpTooltip position="bottom" content="Select the current phase of your project. 'Discover' for research, 'Define' for scoping, 'Develop' for building, and 'Deliver' for launch." />
+                            </label>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                              {columns.map(c => (
+                                <button
+                                  key={c}
+                                  onClick={() => setNewProject({ ...newProject, status: c as any })}
+                                  className={cn(
+                                    "px-4 py-3 rounded-2xl text-sm font-bold border transition-all",
+                                    newProject.status === c
+                                      ? "bg-indigo-600 text-white border-transparent shadow-lg shadow-indigo-500/20"
+                                      : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300"
+                                  )}
+                                >
+                                  {c}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {step === 5 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="text-center py-4">
+                          <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <Tag className="w-10 h-10" />
+                          </div>
+                          <h4 className="text-2xl font-black text-zinc-900 dark:text-white mb-2 tracking-tight">Taxonomy & Tags</h4>
+                          <p className="text-zinc-500 dark:text-zinc-400">Categorize your project to help with reporting and cross-project analysis.</p>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="space-y-4">
+                            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                              Products
+                              <HelpTooltip content="Which products does this project impact? Select from your global taxonomy or add new ones." />
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {products.map(p => {
+                                const isSelected = (newProject.products || []).some(pp => pp.id === p.id);
+                                return (
+                                  <button
+                                    key={p.id}
+                                    onClick={() => {
+                                      const currentProducts = newProject.products || [];
+                                      if (isSelected) {
+                                        setNewProject({ ...newProject, products: currentProducts.filter(pp => pp.id !== p.id) });
+                                      } else {
+                                        setNewProject({ ...newProject, products: [...currentProducts, p] });
+                                      }
+                                    }}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                                      isSelected 
+                                        ? "bg-indigo-600 text-white border-transparent shadow-md" 
+                                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                                    )}
+                                  >
+                                    {p.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {setProducts && (
+                              <div className="flex gap-2 mt-2">
+                                <input
+                                  type="text"
+                                  value={newProductName}
+                                  onChange={(e) => setNewProductName(e.target.value)}
+                                  placeholder="Add new product..."
+                                  className="flex-1 px-4 py-2 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAddProduct()}
+                                />
+                                <button
+                                  onClick={handleAddProduct}
+                                  disabled={!newProductName.trim()}
+                                  className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-sm font-bold disabled:opacity-50"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-4">
+                            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                              Services
+                              <HelpTooltip content="Which services are involved in this project?" />
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {services.map(s => {
+                                const isSelected = (newProject.services || []).some(ss => ss.id === s.id);
+                                return (
+                                  <button
+                                    key={s.id}
+                                    onClick={() => {
+                                      const currentServices = newProject.services || [];
+                                      if (isSelected) {
+                                        setNewProject({ ...newProject, services: currentServices.filter(ss => ss.id !== s.id) });
+                                      } else {
+                                        setNewProject({ ...newProject, services: [...currentServices, s] });
+                                      }
+                                    }}
+                                    className={cn(
+                                      "px-3 py-1.5 rounded-xl text-xs font-bold transition-all border",
+                                      isSelected 
+                                        ? "bg-indigo-600 text-white border-transparent shadow-md" 
+                                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                                    )}
+                                  >
+                                    {s.name}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            {setServices && (
+                              <div className="flex gap-2 mt-2">
+                                <input
+                                  type="text"
+                                  value={newServiceName}
+                                  onChange={(e) => setNewServiceName(e.target.value)}
+                                  placeholder="Add new service..."
+                                  className="flex-1 px-4 py-2 text-sm rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-800 focus:ring-2 focus:ring-indigo-600 outline-none"
+                                  onKeyDown={(e) => e.key === 'Enter' && handleAddService()}
+                                />
+                                <button
+                                  onClick={handleAddService}
+                                  disabled={!newServiceName.trim()}
+                                  className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-sm font-bold disabled:opacity-50"
+                                >
+                                  Add
+                                </button>
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="space-y-4 md:col-span-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                                Custom Tags
+                                <HelpTooltip content="Add any other tags that are relevant to this project for filtering and reporting." />
+                              </label>
+                              <button onClick={() => addField('taxonomy')} className="text-indigo-600 hover:text-indigo-700 flex items-center gap-1 text-xs font-bold">
+                                <PlusCircle className="w-4 h-4" />
+                                Add Tag
+                              </button>
+                            </div>
+                            <div className="flex flex-wrap gap-3">
+                              {newProject.taxonomy?.map((tag, idx) => (
+                                <div key={idx} className="flex items-center gap-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-2 shadow-sm">
+                                  <input 
+                                    type="text"
+                                    value={tag}
+                                    onChange={(e) => updateField('taxonomy', idx, e.target.value)}
+                                    placeholder="Tag"
+                                    className="bg-transparent text-sm font-bold outline-none w-24"
+                                  />
+                                  <button onClick={() => removeField('taxonomy', idx)} className="text-zinc-400 hover:text-rose-500">
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 6 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="text-center py-4">
+                          <div className="w-20 h-20 bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <Users className="w-10 h-10" />
+                          </div>
+                          <h4 className="text-2xl font-black text-zinc-900 dark:text-white mb-2 tracking-tight">Select Personas</h4>
+                          <p className="text-zinc-500 dark:text-zinc-400">Which personas are relevant to this project?</p>
+                        </div>
+
+                        <div className="flex justify-center gap-4 mb-6">
+                          <button className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
+                            <Briefcase className="w-4 h-4" />
+                            Persona Library
+                          </button>
+                          <button className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors">
+                            <PlusCircle className="w-4 h-4" />
+                            Create New Persona
                           </button>
                         </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-h-[300px] overflow-y-auto p-2">
+                          {personas.map(p => (
+                            <button
+                              key={p.id}
+                              onClick={() => togglePersona(p.id)}
+                              className={cn(
+                                "p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center gap-3 relative",
+                                selectedPersonas.includes(p.id)
+                                  ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
+                                  : "border-zinc-100 hover:border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
+                              )}
+                            >
+                              <img src={p.imageUrl} alt={p.name} className="w-16 h-16 rounded-full object-cover" referrerPolicy="no-referrer" />
+                              <div>
+                                <p className="text-sm font-bold text-zinc-900 dark:text-white truncate w-full">{p.name}</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate w-full">{p.role}</p>
+                              </div>
+                              {selectedPersonas.includes(p.id) && (
+                                <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center">
+                                  <Check className="w-3 h-3" />
+                                </div>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {step === 7 && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-right-4">
+                        <div className="text-center py-4">
+                          <div className="w-20 h-20 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                            <UserPlus className="w-10 h-10" />
+                          </div>
+                          <h4 className="text-2xl font-black text-zinc-900 dark:text-white mb-2 tracking-tight">Add Project Team</h4>
+                          <p className="text-zinc-500 dark:text-zinc-400">Select existing users or create new ones for your team.</p>
+                        </div>
+
+                        <div className="flex justify-center mb-6">
+                          <button className="px-6 py-3 bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-bold flex items-center gap-2 transition-colors">
+                            <Plus className="w-5 h-5" />
+                            Create New User
+                          </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-h-[300px] overflow-y-auto p-2">
+                          {/* List of available users */}
+                          {users.map(user => {
+                            const isSelected = (newProject.team || []).some(m => m.userId === user.id);
+                            return (
+                              <button
+                                key={user.id}
+                                onClick={() => {
+                                  const currentTeam = newProject.team || [];
+                                  if (isSelected) {
+                                    setNewProject({ ...newProject, team: currentTeam.filter(m => m.userId !== user.id) });
+                                  } else {
+                                    setNewProject({ 
+                                      ...newProject, 
+                                      team: [...currentTeam, {
+                                        id: `tm_${Date.now()}`,
+                                        userId: user.id,
+                                        name: user.name,
+                                        photoUrl: user.photoUrl,
+                                        jobTitle: user.role,
+                                        projectRole: 'Member'
+                                      }] 
+                                    });
+                                  }
+                                }}
+                                className={cn(
+                                  "p-4 rounded-2xl border transition-all flex items-center gap-4 text-left group",
+                                  isSelected 
+                                    ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20" 
+                                    : "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-indigo-500"
+                                )}
+                              >
+                                <img 
+                                  src={user.photoUrl} 
+                                  alt={user.name} 
+                                  className="w-12 h-12 rounded-full bg-zinc-100 dark:bg-zinc-800 object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-bold text-zinc-900 dark:text-white truncate">{user.name}</p>
+                                  <p className="text-xs text-zinc-500 truncate">{user.email}</p>
+                                </div>
+                                <div className={cn(
+                                  "p-2 rounded-full transition-colors",
+                                  isSelected ? "bg-indigo-600 text-white" : "bg-zinc-50 dark:bg-zinc-800 text-zinc-400"
+                                )}>
+                                  {isSelected ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                                </div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 flex justify-between items-center shrink-0">
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5, 6, 7].map(i => (
+                        <div key={i} className={cn("h-2 rounded-full transition-all", step === i ? "w-8 bg-indigo-600" : "w-2 bg-zinc-200 dark:bg-zinc-700")} />
                       ))}
                     </div>
+                    <div className="flex gap-3">
+                      {step > 1 ? (
+                        <button 
+                          onClick={() => setStep(step - 1)}
+                          className="px-4 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
+                        >
+                          Back
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={handleCloseModal}
+                          className="px-4 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                      
+                      {step < 5 ? (
+                        <>
+                          <button 
+                            onClick={() => setStep(step + 1)}
+                            className="px-4 py-2 text-sm font-semibold text-zinc-400 hover:text-zinc-600 transition-colors"
+                          >
+                            Skip
+                          </button>
+                          <button 
+                            onClick={() => setStep(step + 1)}
+                            disabled={step === 1 && !newProject.name}
+                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors shadow-md"
+                          >
+                            Next
+                          </button>
+                        </>
+                      ) : step === 5 ? (
+                        <>
+                          <button 
+                            onClick={handleCreateProject}
+                            className="px-4 py-2 text-sm font-semibold text-zinc-400 hover:text-zinc-600 transition-colors"
+                          >
+                            Skip
+                          </button>
+                          <button 
+                            onClick={handleCreateProject}
+                            disabled={!newProject.name}
+                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors shadow-md"
+                          >
+                            Next
+                          </button>
+                        </>
+                      ) : step < 7 ? (
+                        <>
+                          <button 
+                            onClick={() => setStep(step + 1)}
+                            className="px-4 py-2 text-sm font-semibold text-zinc-400 hover:text-zinc-600 transition-colors"
+                          >
+                            Skip
+                          </button>
+                          <button 
+                            onClick={() => setStep(step + 1)}
+                            className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors shadow-md"
+                          >
+                            Next
+                          </button>
+                        </>
+                      ) : (
+                        <button 
+                          onClick={handleCompleteSetup}
+                          className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold rounded-lg transition-colors shadow-md"
+                        >
+                          Complete Setup
+                        </button>
+                      )}
+                    </div>
                   </div>
+                </>
+              ) : (
+                <div className="p-12 text-center space-y-8 animate-in zoom-in-95 duration-500">
+                  <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20">
+                    <Sparkles className="w-12 h-12" />
+                  </div>
+                  <div className="space-y-4">
+                    <h2 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight">Congratulations!</h2>
+                    <p className="text-xl text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
+                      You have now set-up your project. Your journey to improvement starts here.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      if (createdProjectId) onSelectProject(createdProjectId);
+                      handleCloseModal();
+                    }}
+                    className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black text-xl shadow-xl shadow-indigo-500/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Let's get started
+                  </button>
                 </div>
-              </div>
-
-              <div className="p-6 border-t border-zinc-100 flex justify-end gap-3 shrink-0">
-                <button 
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm font-semibold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={handleCreateProject}
-                  disabled={!newProject.name}
-                  className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-sm font-bold rounded-lg transition-colors shadow-md"
-                >
-                  Create Project
-                </button>
-              </div>
+              )}
             </motion.div>
           </div>
         )}

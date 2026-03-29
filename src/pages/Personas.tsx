@@ -17,7 +17,8 @@ import { usePlan } from '../context/PlanContext';
 import { useToast } from '../context/ToastContext';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { usePermissions } from '../hooks/usePermissions';
-import { GoogleGenAI, ThinkingLevel } from "@google/genai";
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 
 interface PersonasProps {
@@ -241,7 +242,13 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     addToast('Generating user stories...', 'info');
 
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        addToast('Gemini API key is missing. Please select one to enable AI features.', 'error');
+        await ensureApiKey();
+        setIsGeneratingStories(false);
+        return;
+      }
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Generate 5-7 user stories for the following customer persona:

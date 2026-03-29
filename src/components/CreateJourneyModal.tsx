@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type, ThinkingLevel } from '@google/genai';
 import { X, Wand2, Loader2, Mic, FilePlus, Upload, FileText } from 'lucide-react';
 import { JourneyMap, Swimlane, JourneyStage, Product, Service } from '../types';
 import { defaultSwimlanes } from '../data/mockData';
@@ -38,11 +39,11 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
       },
       swimlanes: defaultSwimlanes,
       stages: [
-        { id: uuidv4(), name: 'Awareness', emotion: 3, laneData: {}, icon: 'Eye' },
-        { id: uuidv4(), name: 'Consideration', emotion: 3, laneData: {}, icon: 'Search' },
-        { id: uuidv4(), name: 'Purchase', emotion: 3, laneData: {}, icon: 'ShoppingBag' },
-        { id: uuidv4(), name: 'Retention', emotion: 3, laneData: {}, icon: 'RefreshCw' },
-        { id: uuidv4(), name: 'Advocacy', emotion: 3, laneData: {}, icon: 'Star' }
+        { id: uuidv4(), name: 'Discover', emotion: 3, laneData: {}, icon: 'Search' },
+        { id: uuidv4(), name: 'Define', emotion: 3, laneData: {}, icon: 'Target' },
+        { id: uuidv4(), name: 'Develop', emotion: 3, laneData: {}, icon: 'Lightbulb' },
+        { id: uuidv4(), name: 'Deliver', emotion: 3, laneData: {}, icon: 'Flag' },
+        { id: uuidv4(), name: 'Done', emotion: 3, laneData: {}, icon: 'CheckCircle2' }
       ]
     };
     onSave(newJourney);
@@ -97,10 +98,13 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
     setError(null);
 
     try {
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) throw new Error("Gemini API key is missing.");
-
-      const ai = new GoogleGenAI({ apiKey });
+      const ai = await getGeminiClient();
+      if (!ai) {
+        setError("Gemini API key is missing. Please select one to enable AI features.");
+        await ensureApiKey();
+        setIsGenerating(false);
+        return;
+      }
 
       let contentPrompt = `You are an expert Customer Experience (CX) designer. Create a customer journey map based on the following input.`;
       
@@ -112,7 +116,7 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
         contentPrompt += `\n\nSOP/Document Content:\n${stripPIData(fileContent).substring(0, 20000)}`; // Limit content length to avoid token limits if necessary, though Gemini handles large context well.
       }
 
-      contentPrompt += `\n\nThe journey map should have 5 stages: Awareness, Consideration, Purchase/Decision, Retention, and Advocacy.
+      contentPrompt += `\n\nThe journey map should have 5 stages: Discover, Define, Develop, Deliver, and Done.
         For each stage, provide data for these specific swimlanes:
         - lane_touchpoints: What the customer interacts with (e.g., Website, Email, Store)
         - lane_friction: Pain points or frustrations the customer experiences
@@ -169,19 +173,30 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
           value: 0
         },
         swimlanes: defaultSwimlanes,
-        stages: (data.stages || []).map((s: any) => ({
-          id: uuidv4(),
-          name: s.name,
-          emotion: s.emotion,
-          laneData: {
-            'lane_touchpoints': s.lane_touchpoints || [],
-            'lane_friction': s.lane_friction || [],
-            'lane_opportunities': s.lane_opportunities || [],
-            'lane_backoffice': s.lane_backoffice || [],
-            'lane_teams': s.lane_teams || [],
-            'lane_systems': s.lane_systems || []
-          }
-        }))
+        stages: (data.stages || []).map((s: any) => {
+          let icon = 'Target';
+          const name = s.name.toLowerCase();
+          if (name.includes('discover') || name.includes('awareness')) icon = 'Eye';
+          if (name.includes('define') || name.includes('consideration') || name.includes('search')) icon = 'Search';
+          if (name.includes('develop') || name.includes('decision') || name.includes('purchase')) icon = 'ShoppingBag';
+          if (name.includes('deliver') || name.includes('retention') || name.includes('use')) icon = 'RefreshCw';
+          if (name.includes('done') || name.includes('advocacy') || name.includes('loyalty')) icon = 'Star';
+
+          return {
+            id: uuidv4(),
+            name: s.name,
+            emotion: s.emotion,
+            icon,
+            laneData: {
+              'lane_touchpoints': s.lane_touchpoints || [],
+              'lane_friction': s.lane_friction || [],
+              'lane_opportunities': s.lane_opportunities || [],
+              'lane_backoffice': s.lane_backoffice || [],
+              'lane_teams': s.lane_teams || [],
+              'lane_systems': s.lane_systems || []
+            }
+          };
+        })
       };
 
       onSave(newJourney);
