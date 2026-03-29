@@ -173,7 +173,38 @@ function saveState() {
 
 app.use(express.json());
 
-// Auth Routes
+// Proxy for Gemini API calls from the frontend SDK
+app.all('/gemini-api-proxy/*', async (req, res) => {
+  try {
+    const targetPath = req.url.replace('/gemini-api-proxy', '');
+    const targetUrl = `https://generativelanguage.googleapis.com${targetPath}`;
+    const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
+    
+    const headers: Record<string, string> = {
+      'x-goog-api-key': apiKey,
+    };
+    
+    if (req.headers['content-type']) {
+      headers['Content-Type'] = req.headers['content-type'];
+    }
+
+    const fetchOptions: RequestInit = {
+      method: req.method,
+      headers
+    };
+
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      fetchOptions.body = JSON.stringify(req.body);
+    }
+
+    const apiRes = await fetch(targetUrl, fetchOptions);
+    const data = await apiRes.json();
+    res.status(apiRes.status).json(data);
+  } catch (error) {
+    console.error('Gemini proxy error:', error);
+    res.status(500).json({ error: 'Failed to proxy request to Gemini API' });
+  }
+});
 app.post('/api/auth/register', (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
