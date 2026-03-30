@@ -1,0 +1,120 @@
+﻿{
+  "artifacts": {
+    "images": [
+      "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci:latest"
+    ]
+  },
+  "createTime": "2026-03-22T21:06:59.703868553Z",
+  "finishTime": "2026-03-22T21:09:47.296690Z",
+  "id": "c93dbc71-559e-44a3-874e-174df741e7be",
+  "images": [
+    "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci:latest"
+  ],
+  "logUrl": "https://console.cloud.google.com/cloud-build/builds;region=us-central1/c93dbc71-559e-44a3-874e-174df741e7be?project=408893706409",
+  "name": "projects/408893706409/locations/us-central1/builds/c93dbc71-559e-44a3-874e-174df741e7be",
+  "options": {
+    "logStreamingOption": "STREAM_OFF",
+    "logging": "CLOUD_LOGGING_ONLY",
+    "pool": {}
+  },
+  "projectId": "gen-lang-client-0647332810",
+  "queueTtl": "360s",
+  "results": {
+    "buildStepImages": [
+      "sha256:a4cffc2aa873ac215d44a7f4765951a202897d0aec6c89e8cb1d191dff4c6415"
+    ],
+    "buildStepOutputs": [
+      ""
+    ]
+  },
+  "serviceAccount": "projects/gen-lang-client-0647332810/serviceAccounts/408893706409-compute@developer.gserviceaccount.com",
+  "source": {
+    "storageSource": {
+      "bucket": "run-sources-gen-lang-client-0647332810-us-central1",
+      "generation": "1774213618849595",
+      "object": "services/orchestra-ci/1774213617.104562-e1fbebef99db4acd87932c5c8d3dec1d.zip"
+    }
+  },
+  "sourceProvenance": {
+    "fileHashes": {
+      "gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774213617.104562-e1fbebef99db4acd87932c5c8d3dec1d.zip#1774213618849595": {
+        "fileHash": [
+          {
+            "type": "MD5",
+            "value": "piN3iEIrHiqWP7u59k8vXw=="
+          },
+          {
+            "type": "SHA256",
+            "value": "oUTv2P5mYH3sDPOI3m9dB-zlArN66yXtH6FwCwzM2X0="
+          }
+        ]
+      }
+    },
+    "resolvedStorageSource": {
+      "bucket": "run-sources-gen-lang-client-0647332810-us-central1",
+      "generation": "1774213618849595",
+      "object": "services/orchestra-ci/1774213617.104562-e1fbebef99db4acd87932c5c8d3dec1d.zip"
+    }
+  },
+  "startTime": "2026-03-22T21:07:00.308528553Z",
+  "status": "FAILURE",
+  "steps": [
+    {
+      "args": [
+        "build",
+        "--network",
+        "cloudbuild",
+        "--no-cache",
+        "-t",
+        "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci:latest",
+        ".",
+        "--label",
+        "google.build_id=c93dbc71-559e-44a3-874e-174df741e7be",
+        "--label",
+        "google.source=gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774213617.104562-e1fbebef99db4acd87932c5c8d3dec1d.zip#1774213618849595"
+      ],
+      "id": "run-docker-build",
+      "name": "gcr.io/cloud-builders/docker",
+      "pullTiming": {
+        "endTime": "2026-03-22T21:07:05.330042423Z",
+        "startTime": "2026-03-22T21:07:05.324801042Z"
+      },
+      "status": "SUCCESS",
+      "timing": {
+        "endTime": "2026-03-22T21:09:06.787680691Z",
+        "startTime": "2026-03-22T21:07:05.324801042Z"
+      }
+    }
+  ],
+  "tags": [
+    "p-run",
+    "r-docker",
+    "bt-DOCKER",
+    "service_orchestra-ci"
+  ],
+  "timeout": "1800s",
+  "timing": {
+    "BUILD": {
+      "endTime": "2026-03-22T21:09:06.811199092Z",
+      "startTime": "2026-03-22T21:07:04.844324459Z"
+    },
+    "FETCHSOURCE": {
+      "endTime": "2026-03-22T21:07:04.844246838Z",
+      "startTime": "2026-03-22T21:07:02.714566161Z"
+    },
+    "PUSH": {
+      "endTime": "2026-03-22T21:09:36.618454748Z",
+      "startTime": "2026-03-22T21:09:06.811294452Z"
+    },
+    "STORAGE_SOURCE": {
+      "endTime": "2026-03-22T21:07:04.844246838Z",
+      "startTime": "2026-03-22T21:07:02.714566161Z"
+    }
+  },
+  "warnings": [
+    {
+      "priority": "INFO",
+      "text": "The service account running this build projects/gen-lang-client-0647332810/serviceAccounts/408893706409-compute@developer.gserviceaccount.com does not have permission to write logs to Cloud Logging. To fix this, grant the Logs Writer (roles/logging.logWriter) role to the service account."
+    }
+  ]
+}

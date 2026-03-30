@@ -1,0 +1,116 @@
+﻿{
+    "artifacts":  {
+                      "images":  [
+                                     "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci:latest"
+                                 ]
+                  },
+    "createTime":  "2026-03-22T21:12:33.746382953Z",
+    "finishTime":  "2026-03-22T21:16:03.179742Z",
+    "id":  "8db00abc-8609-492a-af1d-d7e88d2081f9",
+    "images":  [
+                   "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci:latest"
+               ],
+    "logUrl":  "https://console.cloud.google.com/cloud-build/builds;region=us-central1/8db00abc-8609-492a-af1d-d7e88d2081f9?project=408893706409",
+    "name":  "projects/408893706409/locations/us-central1/builds/8db00abc-8609-492a-af1d-d7e88d2081f9",
+    "options":  {
+                    "logStreamingOption":  "STREAM_OFF",
+                    "logging":  "CLOUD_LOGGING_ONLY",
+                    "pool":  {
+
+                             }
+                },
+    "projectId":  "gen-lang-client-0647332810",
+    "queueTtl":  "360s",
+    "results":  {
+                    "buildStepImages":  [
+                                            "sha256:a4cffc2aa873ac215d44a7f4765951a202897d0aec6c89e8cb1d191dff4c6415"
+                                        ],
+                    "buildStepOutputs":  [
+                                             ""
+                                         ]
+                },
+    "serviceAccount":  "projects/gen-lang-client-0647332810/serviceAccounts/408893706409-compute@developer.gserviceaccount.com",
+    "source":  {
+                   "storageSource":  {
+                                         "bucket":  "run-sources-gen-lang-client-0647332810-us-central1",
+                                         "generation":  "1774213952854770",
+                                         "object":  "services/orchestra-ci/1774213951.081341-bf1f8133924048308c8aa45529eca5f8.zip"
+                                     }
+               },
+    "sourceProvenance":  {
+                             "fileHashes":  {
+                                                "gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774213951.081341-bf1f8133924048308c8aa45529eca5f8.zip#1774213952854770":  {
+                                                                                                                                                                                                              "fileHash":  [
+                                                                                                                                                                                                                               {
+                                                                                                                                                                                                                                   "type":  "MD5",
+                                                                                                                                                                                                                                   "value":  "FzP3FievBQ-wnoaxLaxvQA=="
+                                                                                                                                                                                                                               },
+                                                                                                                                                                                                                               {
+                                                                                                                                                                                                                                   "type":  "SHA256",
+                                                                                                                                                                                                                                   "value":  "td751kn2NGpnhbYPdKAOujbQ_19ZmdLsG0DN0NjF-Fw="
+                                                                                                                                                                                                                               }
+                                                                                                                                                                                                                           ]
+                                                                                                                                                                                                          }
+                                            },
+                             "resolvedStorageSource":  {
+                                                           "bucket":  "run-sources-gen-lang-client-0647332810-us-central1",
+                                                           "generation":  "1774213952854770",
+                                                           "object":  "services/orchestra-ci/1774213951.081341-bf1f8133924048308c8aa45529eca5f8.zip"
+                                                       }
+                         },
+    "startTime":  "2026-03-22T21:12:34.281296183Z",
+    "status":  "FAILURE",
+    "steps":  [
+                  {
+                      "args":  [
+                                   "build",
+                                   "--network",
+                                   "cloudbuild",
+                                   "--no-cache",
+                                   "-t",
+                                   "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci:latest",
+                                   ".",
+                                   "--label",
+                                   "google.build_id=8db00abc-8609-492a-af1d-d7e88d2081f9",
+                                   "--label",
+                                   "google.source=gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774213951.081341-bf1f8133924048308c8aa45529eca5f8.zip#1774213952854770"
+                               ],
+                      "id":  "run-docker-build",
+                      "name":  "gcr.io/cloud-builders/docker",
+                      "pullTiming":  {
+                                         "endTime":  "2026-03-22T21:12:39.279328170Z",
+                                         "startTime":  "2026-03-22T21:12:39.273841525Z"
+                                     },
+                      "status":  "SUCCESS",
+                      "timing":  {
+                                     "endTime":  "2026-03-22T21:15:18.235691732Z",
+                                     "startTime":  "2026-03-22T21:12:39.273841525Z"
+                                 }
+                  }
+              ],
+    "tags":  [
+                 "p-run",
+                 "r-docker",
+                 "bt-DOCKER",
+                 "service_orchestra-ci"
+             ],
+    "timeout":  "1800s",
+    "timing":  {
+                   "BUILD":  {
+                                 "endTime":  "2026-03-22T21:15:18.268977335Z",
+                                 "startTime":  "2026-03-22T21:12:38.612267687Z"
+                             },
+                   "FETCHSOURCE":  {
+                                       "endTime":  "2026-03-22T21:12:38.612150760Z",
+                                       "startTime":  "2026-03-22T21:12:35.598909386Z"
+                                   },
+                   "PUSH":  {
+                                "endTime":  "2026-03-22T21:15:52.489500193Z",
+                                "startTime":  "2026-03-22T21:15:18.269061136Z"
+                            },
+                   "STORAGE_SOURCE":  {
+                                          "endTime":  "2026-03-22T21:12:38.612150760Z",
+                                          "startTime":  "2026-03-22T21:12:35.598909386Z"
+                                      }
+               }
+}

@@ -121,8 +121,8 @@ if (stateRow) {
         email: 'robert@example.com',
         isGlobal: true,
         projectId: 'proj_test',
-        power: 90,
-        interest: 85,
+        power: 9,
+        interest: 9,
         sentiment: 'Positive',
         sentimentHistory: [
           { date: new Date(Date.now() - 86400000 * 7).toISOString(), sentiment: 'Neutral', note: 'Initial briefing' },
@@ -138,8 +138,8 @@ if (stateRow) {
         organization: 'ExampleCorp',
         isGlobal: true,
         projectId: 'proj_test',
-        power: 70,
-        interest: 40,
+        power: 7,
+        interest: 4,
         sentiment: 'Neutral',
         sentimentHistory: [
           { date: new Date().toISOString(), sentiment: 'Neutral' }
@@ -153,8 +153,8 @@ if (stateRow) {
         category: 'Community Group',
         projectId: 'proj_test',
         isGlobal: false,
-        power: 40,
-        interest: 95,
+        power: 4,
+        interest: 10,
         sentiment: 'Negative',
         sentimentHistory: [
           { date: new Date().toISOString(), sentiment: 'Negative', note: 'Concerned about noise and disruption' }

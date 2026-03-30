@@ -800,8 +800,8 @@ export const mockProjectStakeholders: ProjectStakeholder[] = [
     category: 'Community Group',
     projectId: 'proj_test',
     isGlobal: false,
-    power: 40,
-    interest: 95,
+    power: 4,
+    interest: 10,
     sentiment: 'Negative',
     sentimentHistory: [
       { date: new Date().toISOString(), sentiment: 'Negative', note: 'Concerned about noise and disruption' }

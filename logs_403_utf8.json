@@ -1,0 +1,1000 @@
+﻿[
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "1029",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/favicon.ico",
+      "serverIp": "34.143.72.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c4124a000bd3753e51de10",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:50:19.007774002Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "368dda60d7132521",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:50:18.773058Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/534371c2d5c2c5c8bc4d6c316cd060ab"
+  },
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "1071",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "serverIp": "34.143.72.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c4124a00093cef51d7b944",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:50:18.673431108Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "e1945412db75a492",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:50:18.523647Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/9913f8536ed4261bbc4d6c316cd06094"
+  },
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "822",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/favicon.ico",
+      "serverIp": "34.143.72.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c41243000632d4d772251f",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:50:11.680285116Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "8dc6be1dd54259df",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:50:11.389176Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/cae466aa262d343a7fe96515129a1dca"
+  },
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "880",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "serverIp": "34.143.72.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c41243000019e484e6589b",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:50:11.014406381Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "c47eecca47fe3fe8",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:50:10.902605Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/f41de66a853551b67fe96515129a11f5",
+    "traceSampled": true
+  },
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "780",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/favicon.ico",
+      "serverIp": "34.143.79.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c40c95000dda1fa33a32a3",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:25:58.083964243Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "93f9d144ba6e3549",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:25:57.802727Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/742f7bbeb978f4f6e5395dcba62ee219"
+  },
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "835",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "serverIp": "34.143.79.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c40c9500063bcc6001ce93",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:25:57.417059216Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "3130bd3d0b773a2d",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:25:57.307837Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/318cabb295707401e5395dcba62ee8bc",
+    "traceSampled": true
+  },
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "referer": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "1030",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/favicon.ico",
+      "serverIp": "34.143.78.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c40a4f0007c44a054d6106",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:16:15.556639733Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "861018585b2adf58",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:16:15.488465Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/fdeefd03c39f935c0da4f5170687228d"
+  },
+  {
+    "httpRequest": {
+      "latency": "0s",
+      "protocol": "HTTP/1.1",
+      "remoteIp": "82.17.132.249",
+      "requestMethod": "GET",
+      "requestSize": "1072",
+      "requestUrl": "https://orchestra-ci-408893706409.us-central1.run.app/",
+      "serverIp": "34.143.78.2",
+      "status": 403,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36"
+    },
+    "insertId": "69c40a4f0003466e50925e94",
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Frequests",
+    "receiveTimestamp": "2026-03-25T16:16:15.223078697Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "WARNING",
+    "spanId": "05afa5c1f47e120b",
+    "textPayload": "The request was not authenticated. Either allow unauthenticated invocations or set the proper Authorization header. Read more at https://cloud.google.com/run/docs/securing/authenticating Additional troubleshooting documentation can be found at: https://cloud.google.com/run/docs/troubleshooting#unauthorized-client",
+    "timestamp": "2026-03-25T16:16:15.168727Z",
+    "trace": "projects/gen-lang-client-0647332810/traces/4e3bae817bc807590da4f517068722bf",
+    "traceSampled": true
+  },
+  {
+    "insertId": "-27r7nid6seu",
+    "logName": "projects/gen-lang-client-0647332810/logs/cloudaudit.googleapis.com%2Fsystem_event",
+    "protoPayload": {
+      "@type": "type.googleapis.com/google.cloud.audit.AuditLog",
+      "methodName": "/Services.ReplaceService",
+      "resourceName": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+      "response": {
+        "@type": "type.googleapis.com/google.cloud.run.v1.Service",
+        "apiVersion": "serving.knative.dev/v1",
+        "kind": "Service",
+        "metadata": {
+          "annotations": {
+            "run.googleapis.com/build-enable-automatic-updates": "false",
+            "run.googleapis.com/build-id": "1c6ebe67-e02d-482c-b986-26777192646d",
+            "run.googleapis.com/build-image-uri": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci",
+            "run.googleapis.com/build-name": "projects/408893706409/locations/us-central1/builds/1c6ebe67-e02d-482c-b986-26777192646d",
+            "run.googleapis.com/build-source-location": "gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774455011.40556-b8efb75b22d44043b9691c740046e9fe.zip#1774455013410205",
+            "run.googleapis.com/client-name": "gcloud",
+            "run.googleapis.com/client-version": "561.0.0",
+            "run.googleapis.com/ingress": "all",
+            "run.googleapis.com/ingress-status": "all",
+            "run.googleapis.com/maxScale": "20",
+            "run.googleapis.com/operation-id": "4846a454-b161-4241-bce2-989ea6058a1c",
+            "run.googleapis.com/urls": "[\"https://orchestra-ci-408893706409.us-central1.run.app\",\"https://orchestra-ci-nhyxqgubtq-uc.a.run.app\"]",
+            "serving.knative.dev/creator": "miles@customerstart.com",
+            "serving.knative.dev/lastModifier": "miles@customerstart.com"
+          },
+          "creationTimestamp": "2026-03-23T08:05:15.803304Z",
+          "generation": 6,
+          "labels": {
+            "cloud.googleapis.com/location": "us-central1"
+          },
+          "name": "orchestra-ci",
+          "namespace": "408893706409",
+          "resourceVersion": "AAZN25ShHcc",
+          "selfLink": "/apis/serving.knative.dev/v1/namespaces/408893706409/services/orchestra-ci",
+          "uid": "020bff1f-8e0b-4d28-9244-b899b9d1e267"
+        },
+        "spec": {
+          "template": {
+            "metadata": {
+              "annotations": {
+                "autoscaling.knative.dev/maxScale": "20",
+                "run.googleapis.com/client-name": "gcloud",
+                "run.googleapis.com/client-version": "561.0.0",
+                "run.googleapis.com/startup-cpu-boost": "true"
+              },
+              "labels": {
+                "client.knative.dev/nonce": "tzrvjxrtbf",
+                "run.googleapis.com/startupProbeType": "Default"
+              }
+            },
+            "spec": {
+              "containerConcurrency": 80,
+              "containers": [
+                {
+                  "image": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci@sha256:e950035a29fb6f52819cffeff256474584a88d18df05ac26f63785bac3cf8c24",
+                  "ports": [
+                    {
+                      "containerPort": 8080,
+                      "name": "http1"
+                    }
+                  ],
+                  "resources": {
+                    "limits": {
+                      "cpu": "1000m",
+                      "memory": "512Mi"
+                    }
+                  },
+                  "startupProbe": {
+                    "failureThreshold": 1,
+                    "periodSeconds": 240,
+                    "tcpSocket": {
+                      "port": 8080
+                    },
+                    "timeoutSeconds": 240
+                  }
+                }
+              ],
+              "serviceAccountName": "408893706409-compute@developer.gserviceaccount.com",
+              "timeoutSeconds": 300
+            }
+          },
+          "traffic": [
+            {
+              "latestRevision": true,
+              "percent": 100
+            }
+          ]
+        },
+        "status": {
+          "address": {
+            "url": "https://orchestra-ci-nhyxqgubtq-uc.a.run.app"
+          },
+          "conditions": [
+            {
+              "lastTransitionTime": "2026-03-25T16:15:47.027399Z",
+              "status": "True",
+              "type": "Ready"
+            },
+            {
+              "lastTransitionTime": "2026-03-25T16:15:41.359737Z",
+              "status": "True",
+              "type": "ConfigurationsReady"
+            },
+            {
+              "lastTransitionTime": "2026-03-25T16:15:46.980554Z",
+              "status": "True",
+              "type": "RoutesReady"
+            }
+          ],
+          "latestCreatedRevisionName": "orchestra-ci-00006-9cl",
+          "latestReadyRevisionName": "orchestra-ci-00006-9cl",
+          "observedGeneration": 6,
+          "traffic": [
+            {
+              "latestRevision": true,
+              "percent": 100,
+              "revisionName": "orchestra-ci-00006-9cl"
+            }
+          ],
+          "url": "https://orchestra-ci-nhyxqgubtq-uc.a.run.app"
+        }
+      },
+      "serviceName": "run.googleapis.com",
+      "status": {
+        "message": "Ready condition status changed to True for Service orchestra-ci."
+      }
+    },
+    "receiveTimestamp": "2026-03-25T16:15:47.479294629Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-03-25T16:15:47.044486Z"
+  },
+  {
+    "insertId": "-25v1phd7dzy",
+    "logName": "projects/gen-lang-client-0647332810/logs/cloudaudit.googleapis.com%2Fsystem_event",
+    "protoPayload": {
+      "@type": "type.googleapis.com/google.cloud.audit.AuditLog",
+      "methodName": "/Services.ReplaceService",
+      "resourceName": "namespaces/gen-lang-client-0647332810/revisions/orchestra-ci-00006-9cl",
+      "response": {
+        "@type": "type.googleapis.com/google.cloud.run.v1.Revision",
+        "apiVersion": "serving.knative.dev/v1",
+        "kind": "Revision",
+        "metadata": {
+          "annotations": {
+            "autoscaling.knative.dev/maxScale": "20",
+            "run.googleapis.com/build-source-location": "{\"orchestra-ci-1\":\"gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774455011.40556-b8efb75b22d44043b9691c740046e9fe.zip#1774455013410205\"}",
+            "run.googleapis.com/client-name": "gcloud",
+            "run.googleapis.com/client-version": "561.0.0",
+            "run.googleapis.com/operation-id": "4846a454-b161-4241-bce2-989ea6058a1c",
+            "run.googleapis.com/startup-cpu-boost": "true",
+            "serving.knative.dev/creator": "miles@customerstart.com"
+          },
+          "creationTimestamp": "2026-03-25T16:14:40.767435Z",
+          "generation": 1,
+          "labels": {
+            "client.knative.dev/nonce": "tzrvjxrtbf",
+            "cloud.googleapis.com/location": "us-central1",
+            "run.googleapis.com/startupProbeType": "Default",
+            "serving.knative.dev/configuration": "orchestra-ci",
+            "serving.knative.dev/configurationGeneration": "6",
+            "serving.knative.dev/route": "orchestra-ci",
+            "serving.knative.dev/service": "orchestra-ci",
+            "serving.knative.dev/serviceUid": "020bff1f-8e0b-4d28-9244-b899b9d1e267"
+          },
+          "name": "orchestra-ci-00006-9cl",
+          "namespace": "408893706409",
+          "ownerReferences": [
+            {
+              "apiVersion": "serving.knative.dev/v1",
+              "blockOwnerDeletion": true,
+              "controller": true,
+              "kind": "Configuration",
+              "name": "orchestra-ci",
+              "uid": "fffa1dc0-019f-4c7a-a63f-409c0191a78c"
+            }
+          ],
+          "resourceVersion": "AAZN25SMoQA",
+          "selfLink": "/apis/serving.knative.dev/v1/namespaces/408893706409/revisions/orchestra-ci-00006-9cl",
+          "uid": "b3a54040-b062-44c9-aa09-6e24d124546b"
+        },
+        "spec": {
+          "containerConcurrency": 80,
+          "containers": [
+            {
+              "image": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci@sha256:e950035a29fb6f52819cffeff256474584a88d18df05ac26f63785bac3cf8c24",
+              "name": "orchestra-ci-1",
+              "ports": [
+                {
+                  "containerPort": 8080,
+                  "name": "http1"
+                }
+              ],
+              "resources": {
+                "limits": {
+                  "cpu": "1000m",
+                  "memory": "512Mi"
+                }
+              },
+              "startupProbe": {
+                "failureThreshold": 1,
+                "periodSeconds": 240,
+                "tcpSocket": {
+                  "port": 8080
+                },
+                "timeoutSeconds": 240
+              }
+            }
+          ],
+          "serviceAccountName": "408893706409-compute@developer.gserviceaccount.com",
+          "timeoutSeconds": 300
+        },
+        "status": {
+          "conditions": [
+            {
+              "lastTransitionTime": "2026-03-25T16:15:45.684736Z",
+              "message": "Deploying revision succeeded in 1m4.92s.",
+              "status": "True",
+              "type": "Ready"
+            },
+            {
+              "lastTransitionTime": "2026-03-25T16:15:45.638561Z",
+              "message": "Containers became healthy in 2.51s.",
+              "status": "True",
+              "type": "ContainerHealthy"
+            },
+            {
+              "lastTransitionTime": "2026-03-25T16:15:41.257234Z",
+              "message": "Container image import completed in 59.76s.",
+              "status": "True",
+              "type": "ContainerReady"
+            },
+            {
+              "lastTransitionTime": "2026-03-25T16:15:42.832387Z",
+              "message": "Provisioning imported containers completed in 1.57s. Checking container health. This will wait for up to 4m for the configured startup probe, including an initial delay of 0s.",
+              "status": "True",
+              "type": "ResourcesAvailable"
+            }
+          ],
+          "containerStatuses": [
+            {
+              "imageDigest": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci@sha256:e950035a29fb6f52819cffeff256474584a88d18df05ac26f63785bac3cf8c24",
+              "name": "orchestra-ci-1"
+            }
+          ],
+          "imageDigest": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci@sha256:e950035a29fb6f52819cffeff256474584a88d18df05ac26f63785bac3cf8c24",
+          "logUrl": "https://console.cloud.google.com/logs/viewer?project=gen-lang-client-0647332810&resource=cloud_run_revision/service_name/orchestra-ci/revision_name/orchestra-ci-00006-9cl&advancedFilter=resource.type%3D%22cloud_run_revision%22%0Aresource.labels.service_name%3D%22orchestra-ci%22%0Aresource.labels.revision_name%3D%22orchestra-ci-00006-9cl%22",
+          "observedGeneration": 1
+        }
+      },
+      "serviceName": "run.googleapis.com",
+      "status": {
+        "message": "Ready condition status changed to True for Revision orchestra-ci-00006-9cl with message: Deploying revision succeeded in 1m4.92s."
+      }
+    },
+    "receiveTimestamp": "2026-03-25T16:15:46.611789434Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "timestamp": "2026-03-25T16:15:45.695875Z"
+  },
+  {
+    "insertId": "69c40a3100097bc2831bb8e8",
+    "labels": {
+      "instanceId": "00da6cd2c4f4b1d0cd2dceede6acb962658bb28e3bd492d3ed3aa2e87071ce4ed1cf58dde988a9eb91f5790acffb0d3a2a61e0482d8f73ed28b5b19f91da8cc71379cf9d9a0cf0540d703d6649"
+    },
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-03-25T16:15:45.666049083Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "textPayload": "GEMINI_API_KEY: missing",
+    "timestamp": "2026-03-25T16:15:45.621506Z"
+  },
+  {
+    "insertId": "69c40a31000979515b23c412",
+    "labels": {
+      "instanceId": "00da6cd2c4f4b1d0cd2dceede6acb962658bb28e3bd492d3ed3aa2e87071ce4ed1cf58dde988a9eb91f5790acffb0d3a2a61e0482d8f73ed28b5b19f91da8cc71379cf9d9a0cf0540d703d6649"
+    },
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Fvarlog%2Fsystem",
+    "receiveTimestamp": "2026-03-25T16:15:45.940747486Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "textPayload": "Default STARTUP TCP probe succeeded after 1 attempt for container \"orchestra-ci-1\" on port 8080.",
+    "timestamp": "2026-03-25T16:15:45.620881Z"
+  },
+  {
+    "insertId": "69c40a3100097943b99599e5",
+    "labels": {
+      "instanceId": "00da6cd2c4f4b1d0cd2dceede6acb962658bb28e3bd492d3ed3aa2e87071ce4ed1cf58dde988a9eb91f5790acffb0d3a2a61e0482d8f73ed28b5b19f91da8cc71379cf9d9a0cf0540d703d6649"
+    },
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-03-25T16:15:45.666049083Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "textPayload": "Server running on http://localhost:8080",
+    "timestamp": "2026-03-25T16:15:45.620867Z"
+  },
+  {
+    "insertId": "69c40a2f000f31ba1b394387",
+    "labels": {
+      "instanceId": "00da6cd2c4f4b1d0cd2dceede6acb962658bb28e3bd492d3ed3aa2e87071ce4ed1cf58dde988a9eb91f5790acffb0d3a2a61e0482d8f73ed28b5b19f91da8cc71379cf9d9a0cf0540d703d6649"
+    },
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-03-25T16:15:44.002262947Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "textPayload": "> tsx server.ts",
+    "timestamp": "2026-03-25T16:15:43.995770Z"
+  },
+  {
+    "insertId": "69c40a2f000f31a9011dede4",
+    "labels": {
+      "instanceId": "00da6cd2c4f4b1d0cd2dceede6acb962658bb28e3bd492d3ed3aa2e87071ce4ed1cf58dde988a9eb91f5790acffb0d3a2a61e0482d8f73ed28b5b19f91da8cc71379cf9d9a0cf0540d703d6649"
+    },
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2026-03-25T16:15:44.002262947Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "textPayload": "> react-example@0.0.0 start",
+    "timestamp": "2026-03-25T16:15:43.995753Z"
+  },
+  {
+    "insertId": "69c40a2e000e40a0d10a225c",
+    "labels": {
+      "instanceId": "00da6cd2c4f4b1d0cd2dceede6acb962658bb28e3bd492d3ed3aa2e87071ce4ed1cf58dde988a9eb91f5790acffb0d3a2a61e0482d8f73ed28b5b19f91da8cc71379cf9d9a0cf0540d703d6649",
+      "scaling_reason": "DEPLOYMENT_ROLLOUT"
+    },
+    "logName": "projects/gen-lang-client-0647332810/logs/run.googleapis.com%2Fvarlog%2Fsystem",
+    "receiveTimestamp": "2026-03-25T16:15:42.946198546Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "orchestra-ci",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "orchestra-ci-00006-9cl",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "INFO",
+    "textPayload": "Starting new instance. Reason: DEPLOYMENT_ROLLOUT - Instance started due to traffic shifting between revisions due to deployment, traffic split adjustment, or deployment health check.",
+    "timestamp": "2026-03-25T16:15:42.934048Z"
+  },
+  {
+    "insertId": "pkpy2adabru",
+    "logName": "projects/gen-lang-client-0647332810/logs/cloudaudit.googleapis.com%2Factivity",
+    "protoPayload": {
+      "@type": "type.googleapis.com/google.cloud.audit.AuditLog",
+      "authenticationInfo": {
+        "oauthInfo": {
+          "oauthClientId": "32555940559.apps.googleusercontent.com"
+        },
+        "principalEmail": "miles@customerstart.com",
+        "principalSubject": "user:miles@customerstart.com"
+      },
+      "authorizationInfo": [
+        {
+          "granted": true,
+          "permission": "run.services.update",
+          "permissionType": "ADMIN_WRITE",
+          "resource": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+          "resourceAttributes": {}
+        },
+        {
+          "granted": true,
+          "permission": "run.services.update",
+          "permissionType": "ADMIN_WRITE",
+          "resource": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+          "resourceAttributes": {
+            "name": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+            "service": "run.googleapis.com/",
+            "type": "run.googleapis.com/Service"
+          }
+        }
+      ],
+      "methodName": "google.cloud.run.v1.Services.ReplaceService",
+      "request": {
+        "@type": "type.googleapis.com/google.cloud.run.v1.ReplaceServiceRequest",
+        "name": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+        "service": {
+          "apiVersion": "serving.knative.dev/v1",
+          "kind": "Service",
+          "metadata": {
+            "annotations": {
+              "run.googleapis.com/build-enable-automatic-updates": "false",
+              "run.googleapis.com/build-id": "1c6ebe67-e02d-482c-b986-26777192646d",
+              "run.googleapis.com/build-image-uri": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci",
+              "run.googleapis.com/build-name": "projects/408893706409/locations/us-central1/builds/1c6ebe67-e02d-482c-b986-26777192646d",
+              "run.googleapis.com/build-source-location": "gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774455011.40556-b8efb75b22d44043b9691c740046e9fe.zip#1774455013410205",
+              "run.googleapis.com/client-name": "gcloud",
+              "run.googleapis.com/client-version": "561.0.0",
+              "run.googleapis.com/ingress": "all",
+              "run.googleapis.com/ingress-status": "all",
+              "run.googleapis.com/maxScale": "20",
+              "run.googleapis.com/operation-id": "11464a08-1e02-4751-9b8a-69209db01e54",
+              "run.googleapis.com/urls": "[\"https://orchestra-ci-408893706409.us-central1.run.app\",\"https://orchestra-ci-nhyxqgubtq-uc.a.run.app\"]",
+              "serving.knative.dev/creator": "miles@customerstart.com",
+              "serving.knative.dev/lastModifier": "miles@customerstart.com"
+            },
+            "creationTimestamp": "2026-03-23T08:05:15.803304Z",
+            "generation": 5,
+            "labels": {
+              "cloud.googleapis.com/location": "us-central1"
+            },
+            "name": "orchestra-ci",
+            "namespace": "408893706409",
+            "resourceVersion": "AAZNtfIq0YE",
+            "selfLink": "/apis/serving.knative.dev/v1/namespaces/408893706409/services/orchestra-ci",
+            "uid": "020bff1f-8e0b-4d28-9244-b899b9d1e267"
+          },
+          "spec": {
+            "template": {
+              "metadata": {
+                "annotations": {
+                  "autoscaling.knative.dev/maxScale": "20",
+                  "run.googleapis.com/client-name": "gcloud",
+                  "run.googleapis.com/client-version": "561.0.0",
+                  "run.googleapis.com/startup-cpu-boost": "true"
+                },
+                "labels": {
+                  "client.knative.dev/nonce": "tzrvjxrtbf",
+                  "run.googleapis.com/startupProbeType": "Default"
+                }
+              },
+              "spec": {
+                "containerConcurrency": 80,
+                "containers": [
+                  {
+                    "image": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci@sha256:e950035a29fb6f52819cffeff256474584a88d18df05ac26f63785bac3cf8c24",
+                    "resources": {
+                      "limits": {
+                        "cpu": "1000m",
+                        "memory": "512Mi"
+                      }
+                    }
+                  }
+                ],
+                "serviceAccountName": "408893706409-compute@developer.gserviceaccount.com",
+                "timeoutSeconds": 300
+              }
+            },
+            "traffic": [
+              {
+                "latestRevision": true,
+                "percent": 100
+              }
+            ]
+          },
+          "status": {
+            "conditions": [
+              {
+                "lastTransitionTime": "2026-03-23T19:21:47.575681Z",
+                "status": "True",
+                "type": "Ready"
+              },
+              {
+                "lastTransitionTime": "2026-03-23T19:21:34.182948Z",
+                "status": "True",
+                "type": "ConfigurationsReady"
+              },
+              {
+                "lastTransitionTime": "2026-03-23T19:21:47.543738Z",
+                "status": "True",
+                "type": "RoutesReady"
+              }
+            ],
+            "latestCreatedRevisionName": "orchestra-ci-00005-qld",
+            "latestReadyRevisionName": "orchestra-ci-00005-qld",
+            "observedGeneration": 5,
+            "traffic": [
+              {
+                "latestRevision": true,
+                "percent": 100,
+                "revisionName": "orchestra-ci-00005-qld"
+              }
+            ],
+            "url": "https://orchestra-ci-nhyxqgubtq-uc.a.run.app"
+          }
+        }
+      },
+      "requestMetadata": {
+        "callerIp": "82.17.132.249",
+        "callerSuppliedUserAgent": "google-cloud-sdk gcloud/561.0.0 command/gcloud.run.deploy invocation-id/871958eefa124ce0b92e10f980d85678 environment/None environment-version/None client-os/WINDOWS client-os-ver/10.0.26200 client-pltf-arch/x86_64 interactive/False from-script/False python/3.13.8 term/  (Windows NT 10.0.26200),gzip(gfe)",
+        "destinationAttributes": {},
+        "requestAttributes": {
+          "auth": {},
+          "time": "2026-03-25T16:14:40.664685Z"
+        }
+      },
+      "resourceLocation": {
+        "currentLocations": [
+          "us-central1"
+        ]
+      },
+      "resourceName": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+      "serviceName": "run.googleapis.com",
+      "status": {}
+    },
+    "receiveTimestamp": "2026-03-25T16:14:41.033841852Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "NOTICE",
+    "timestamp": "2026-03-25T16:14:40.427125Z"
+  },
+  {
+    "insertId": "1hlwuwudca53",
+    "logName": "projects/gen-lang-client-0647332810/logs/cloudaudit.googleapis.com%2Factivity",
+    "protoPayload": {
+      "@type": "type.googleapis.com/google.cloud.audit.AuditLog",
+      "authenticationInfo": {
+        "oauthInfo": {
+          "oauthClientId": "32555940559.apps.googleusercontent.com"
+        },
+        "principalEmail": "miles@customerstart.com",
+        "principalSubject": "user:miles@customerstart.com"
+      },
+      "authorizationInfo": [
+        {
+          "granted": true,
+          "permission": "run.services.update",
+          "permissionType": "ADMIN_WRITE",
+          "resource": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+          "resourceAttributes": {}
+        },
+        {
+          "granted": true,
+          "permission": "run.services.update",
+          "permissionType": "ADMIN_WRITE",
+          "resource": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+          "resourceAttributes": {
+            "name": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+            "service": "run.googleapis.com/",
+            "type": "run.googleapis.com/Service"
+          }
+        }
+      ],
+      "methodName": "google.cloud.run.v1.Services.ReplaceService",
+      "request": {
+        "@type": "type.googleapis.com/google.cloud.run.v1.ReplaceServiceRequest",
+        "dryRun": "all",
+        "name": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+        "service": {
+          "apiVersion": "serving.knative.dev/v1",
+          "kind": "Service",
+          "metadata": {
+            "annotations": {
+              "run.googleapis.com/build-enable-automatic-updates": "false",
+              "run.googleapis.com/build-id": "03e1598a-d4f5-465d-9ea7-57a82c324be6",
+              "run.googleapis.com/build-image-uri": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci",
+              "run.googleapis.com/build-name": "projects/408893706409/locations/us-central1/builds/03e1598a-d4f5-465d-9ea7-57a82c324be6",
+              "run.googleapis.com/build-source-location": "gs://run-sources-gen-lang-client-0647332810-us-central1/services/orchestra-ci/1774293404.900388-6d5b201dc51e4affbf03e4011d210a3f.zip#1774293406006941",
+              "run.googleapis.com/client-name": "gcloud",
+              "run.googleapis.com/client-version": "561.0.0",
+              "run.googleapis.com/ingress": "all",
+              "run.googleapis.com/ingress-status": "all",
+              "run.googleapis.com/maxScale": "20",
+              "run.googleapis.com/operation-id": "11464a08-1e02-4751-9b8a-69209db01e54",
+              "run.googleapis.com/urls": "[\"https://orchestra-ci-408893706409.us-central1.run.app\",\"https://orchestra-ci-nhyxqgubtq-uc.a.run.app\"]",
+              "serving.knative.dev/creator": "miles@customerstart.com",
+              "serving.knative.dev/lastModifier": "miles@customerstart.com"
+            },
+            "creationTimestamp": "2026-03-23T08:05:15.803304Z",
+            "generation": 5,
+            "labels": {
+              "cloud.googleapis.com/location": "us-central1"
+            },
+            "name": "orchestra-ci",
+            "namespace": "408893706409",
+            "resourceVersion": "AAZNtfIq0YE",
+            "selfLink": "/apis/serving.knative.dev/v1/namespaces/408893706409/services/orchestra-ci",
+            "uid": "020bff1f-8e0b-4d28-9244-b899b9d1e267"
+          },
+          "spec": {
+            "template": {
+              "metadata": {
+                "annotations": {
+                  "autoscaling.knative.dev/maxScale": "20",
+                  "run.googleapis.com/client-name": "gcloud",
+                  "run.googleapis.com/client-version": "561.0.0",
+                  "run.googleapis.com/startup-cpu-boost": "true"
+                },
+                "labels": {
+                  "client.knative.dev/nonce": "nmbfqwdoos",
+                  "run.googleapis.com/startupProbeType": "Default"
+                }
+              },
+              "spec": {
+                "containerConcurrency": 80,
+                "containers": [
+                  {
+                    "image": "us-central1-docker.pkg.dev/gen-lang-client-0647332810/cloud-run-source-deploy/orchestra-ci",
+                    "resources": {
+                      "limits": {
+                        "cpu": "1000m",
+                        "memory": "512Mi"
+                      }
+                    }
+                  }
+                ],
+                "serviceAccountName": "408893706409-compute@developer.gserviceaccount.com",
+                "timeoutSeconds": 300
+              }
+            },
+            "traffic": [
+              {
+                "latestRevision": true,
+                "percent": 100
+              }
+            ]
+          },
+          "status": {
+            "conditions": [
+              {
+                "lastTransitionTime": "2026-03-23T19:21:47.575681Z",
+                "status": "True",
+                "type": "Ready"
+              },
+              {
+                "lastTransitionTime": "2026-03-23T19:21:34.182948Z",
+                "status": "True",
+                "type": "ConfigurationsReady"
+              },
+              {
+                "lastTransitionTime": "2026-03-23T19:21:47.543738Z",
+                "status": "True",
+                "type": "RoutesReady"
+              }
+            ],
+            "latestCreatedRevisionName": "orchestra-ci-00005-qld",
+            "latestReadyRevisionName": "orchestra-ci-00005-qld",
+            "observedGeneration": 5,
+            "traffic": [
+              {
+                "latestRevision": true,
+                "percent": 100,
+                "revisionName": "orchestra-ci-00005-qld"
+              }
+            ],
+            "url": "https://orchestra-ci-nhyxqgubtq-uc.a.run.app"
+          }
+        }
+      },
+      "requestMetadata": {
+        "callerIp": "82.17.132.249",
+        "callerSuppliedUserAgent": "google-cloud-sdk gcloud/561.0.0 command/gcloud.run.deploy invocation-id/871958eefa124ce0b92e10f980d85678 environment/None environment-version/None client-os/WINDOWS client-os-ver/10.0.26200 client-pltf-arch/x86_64 interactive/False from-script/False python/3.13.8 term/  (Windows NT 10.0.26200),gzip(gfe)",
+        "destinationAttributes": {},
+        "requestAttributes": {
+          "auth": {},
+          "time": "2026-03-25T16:10:10.414823Z"
+        }
+      },
+      "resourceLocation": {
+        "currentLocations": [
+          "us-central1"
+        ]
+      },
+      "resourceName": "namespaces/gen-lang-client-0647332810/services/orchestra-ci",
+      "serviceName": "run.googleapis.com",
+      "status": {}
+    },
+    "receiveTimestamp": "2026-03-25T16:10:10.732366979Z",
+    "resource": {
+      "labels": {
+        "configuration_name": "",
+        "location": "us-central1",
+        "project_id": "gen-lang-client-0647332810",
+        "revision_name": "",
+        "service_name": "orchestra-ci"
+      },
+      "type": "cloud_run_revision"
+    },
+    "severity": "NOTICE",
+    "timestamp": "2026-03-25T16:10:10.165065Z"
+  }
+]
