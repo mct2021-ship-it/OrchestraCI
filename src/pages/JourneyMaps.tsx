@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { defaultSwimlanes } from '../data/mockData';
 import { ContextualHelp } from '../components/ContextualHelp';
-import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, GitMerge, Package, Layers, Printer, Map, Eye, EyeOff, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal } from 'lucide-react';
+import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, ChevronRight, GitMerge, Package, Layers, Printer, Map, Eye, EyeOff, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal } from 'lucide-react';
 
 const STAGE_ICONS = [
   { name: 'Target', icon: Target },
@@ -1626,13 +1626,6 @@ export function JourneyMaps({
                       >
                         <FileText className="w-4 h-4 text-zinc-400" /> Export to Word
                       </button>
-                      <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
-                      <button 
-                        onClick={() => { handleExport(); setIsExportMenuOpen(false); }}
-                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <Share2 className="w-4 h-4 text-zinc-400" /> Export JSON
-                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -1780,15 +1773,14 @@ export function JourneyMaps({
                 )}
 
                 {/* Render the actual swimlane */}
-                {!lane.isHidden && (
-                  <div 
-                    className={cn(
-                      "flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300 transition-all",
-                      draggedLaneIndex === index ? "opacity-50 bg-zinc-100 dark:bg-zinc-800" : ""
-                    )}
-                    draggable={canEdit}
-                    onDragStart={(e) => {
-                      setDraggedLaneIndex(index);
+                <div 
+                  className={cn(
+                    "flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300 transition-all",
+                    draggedLaneIndex === index ? "opacity-50 bg-zinc-100 dark:bg-zinc-800" : ""
+                  )}
+                  draggable={canEdit}
+                  onDragStart={(e) => {
+                    setDraggedLaneIndex(index);
                       e.dataTransfer.effectAllowed = 'move';
                     }}
                     onDragOver={(e) => {
@@ -1843,13 +1835,13 @@ export function JourneyMaps({
                         </div>
                         <EditableText value={lane.name} onChange={(val) => updateLaneName(lane.id, val)} className="text-sm font-bold" disabled={!canEdit} />
                       </div>
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden no-export">
+                      <div className="flex items-center gap-1 opacity-30 group-hover:opacity-100 transition-opacity print:hidden no-export">
                         <button 
                           onClick={() => toggleSwimlaneVisibility(lane.id)} 
                           className="p-1 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-all"
-                          title="Hide Swimlane"
+                          title={lane.isHidden ? "Expand Swimlane" : "Collapse Swimlane"}
                         >
-                          <EyeOff className="w-3.5 h-3.5" />
+                          {lane.isHidden ? <ChevronRight className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                         </button>
                         {canEdit && (
                           <button 
@@ -1865,7 +1857,7 @@ export function JourneyMaps({
                     
                     {/* Reorder controls */}
                     {canEdit && (
-                      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity print:hidden no-export">
+                      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col opacity-30 group-hover:opacity-100 transition-opacity print:hidden no-export">
                         <button 
                           onClick={() => moveSwimlane(index, 'up')}
                           disabled={index === 0}
@@ -1885,14 +1877,19 @@ export function JourneyMaps({
                   </div>
                   
                   {activeJourney.stages.map(stage => {
+                    if (lane.isHidden) {
+                      return (
+                        <div key={stage.id} className={`p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 flex-1 min-w-[200px] print:bg-white dark:bg-zinc-900 print:border-zinc-300`} />
+                      );
+                    }
                     const items = stage.laneData[lane.id] || [];
                     return (
-                      <div key={stage.id} className={`p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-${lane.colorTheme}-50/10 flex-1 min-w-[200px] print:bg-white dark:bg-zinc-900 print:border-zinc-300`}>
+                      <div key={stage.id} className={`p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-${lane.colorTheme}-50/30 dark:bg-${lane.colorTheme}-900/10 flex-1 min-w-[200px] print:bg-white dark:bg-zinc-900 print:border-zinc-300`}>
                         <div className="flex flex-col gap-2">
                           {items.map((item, i) => {
                             const carbonValue = stage.carbonData?.[lane.id]?.[i] || 0;
                             return (
-                            <div key={i} className={`group/item relative flex flex-col gap-1 bg-white dark:bg-zinc-900 p-2 rounded border border-${lane.colorTheme}-100 shadow-sm print:shadow-none print:border-zinc-200 dark:border-zinc-800`}>
+                            <div key={i} className={`group/item relative flex flex-col gap-1 bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-${lane.colorTheme}-100 dark:border-zinc-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 print:shadow-none print:border-zinc-200`}>
                               <div className="flex items-start gap-2">
                                 <div className={`w-1.5 h-1.5 rounded-full bg-${lane.colorTheme}-400 mt-1.5 shrink-0`} />
                                 <div className="flex-1 flex flex-col gap-1">
@@ -2032,7 +2029,6 @@ export function JourneyMaps({
                   })}
                   <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
                 </div>
-                )}
               </React.Fragment>
             ))}
 
