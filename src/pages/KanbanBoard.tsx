@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Project, Task, KanbanColumn, Sprint } from '../types';
+import { Project, Task, KanbanColumn, Sprint, SprintSnapshot } from '../types';
 import { Target, Plus, Clock, TrendingUp, Zap, GripVertical, CheckCircle2, MoreVertical, Printer, LayoutList, LayoutGrid, Settings, Palette, Trash2, X, ChevronUp, ChevronDown, Download, FileText, Image as ImageIcon, ArrowRight, MessageSquare, AlertCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -56,6 +56,8 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isInitialSprintModalOpen, setIsInitialSprintModalOpen] = useState(false);
+  const [isFinishSprintModalOpen, setIsFinishSprintModalOpen] = useState(false);
+  const [generateReportOnFinish, setGenerateReportOnFinish] = useState(true);
   const [initialSprintDescription, setInitialSprintDescription] = useState('');
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const [animationStep, setAnimationStep] = useState(0);
@@ -419,6 +421,54 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
     }
   };
 
+  const incompleteTasks = useMemo(() => {
+    return filteredTasks.filter(t => t.kanbanStatus !== 'Done' && t.kanbanStatus !== 'Completed' && t.kanbanStatus !== 'Archived' && t.kanbanStatus !== 'Blocked' && t.kanbanStatus !== 'Backlog');
+  }, [filteredTasks]);
+
+  const handleFinishSprint = () => {
+    // move incomplete tasks to Backlog
+    const updatedTasks = tasks.map(t => {
+      if (t.projectId === project.id && incompleteTasks.find(it => it.id === t.id)) {
+        return { ...t, kanbanStatus: 'Backlog', status: 'Discover', sprint: undefined };
+      }
+      return t;
+    });
+    setTasks(updatedTasks);
+    
+    // save sprint snapshot
+    const completedTasks = tasks.filter(t => t.projectId === project.id && (!incompleteTasks.find(it => it.id === t.id)) && !t.archived && t.kanbanStatus !== 'Backlog');
+    const newSnapshot: SprintSnapshot = {
+      sprintNumber: project.currentSprint || 1,
+      name: `Sprint ${project.currentSprint || 1}`,
+      description: project.currentSprintDescription,
+      tasks: completedTasks,
+      completedAt: new Date().toISOString()
+    };
+    
+    setProjects(prev => prev.map(p => {
+      if (p.id === project.id) {
+        return {
+          ...p,
+          sprintSnapshots: [...(p.sprintSnapshots || []), newSnapshot],
+          currentSprint: (p.currentSprint || 1) + 1,
+          currentSprintDescription: '',
+          sprints: [] // clear active sprint definition
+        };
+      }
+      return p;
+    }));
+
+    setIsFinishSprintModalOpen(false);
+    addToast(`Sprint ${project.currentSprint || 1} finished successfully`, 'success');
+    
+    if (generateReportOnFinish) {
+      setTimeout(() => {
+        setSelectedSprintId(newSnapshot.sprintNumber);
+        setIsReportModalOpen(true);
+      }, 500); // small delay to allow state changes to settle
+    }
+  };
+
   const onDragEnd = (result: DropResult) => {
     const { source, destination, draggableId } = result;
 
@@ -620,6 +670,16 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
             <Target className="w-4 h-4" />
             <span className="hidden sm:inline">Manage Sprints</span>
           </button>
+
+          {!isReadOnly && project.sprints && project.sprints.length > 0 && (
+            <button 
+              onClick={() => setIsFinishSprintModalOpen(true)}
+              className="bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
+            >
+              <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+              <span className="hidden sm:inline">Finish Sprint</span>
+            </button>
+          )}
 
           {!isReadOnly && (
             <button 
@@ -1012,6 +1072,79 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           onClose={() => setIsReportModalOpen(false)}
         />
       )}
+
+      {/* Finish Sprint Modal */}
+      <AnimatePresence>
+        {isFinishSprintModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-xl">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Finish Sprint {project.currentSprint || 1}</h2>
+                </div>
+                <button 
+                  onClick={() => setIsFinishSprintModalOpen(false)}
+                  className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="p-6 space-y-6">
+                <div>
+                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-2">Sprint Summary</h3>
+                  <div className="flex flex-col gap-2 p-4 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-800 rounded-xl">
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                      <strong className="text-zinc-900 dark:text-white">{filteredTasks.length - incompleteTasks.length}</strong> tasks are completed.
+                    </p>
+                    {incompleteTasks.length > 0 && (
+                      <p className="text-sm text-amber-600 dark:text-amber-500 font-medium flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {incompleteTasks.length} tasks are incomplete and will be moved to the Backlog.
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <label className="flex items-center gap-3 p-4 border border-zinc-200 dark:border-zinc-800 rounded-xl cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
+                    <input 
+                      type="checkbox" 
+                      className="w-5 h-5 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      checked={generateReportOnFinish}
+                      onChange={(e) => setGenerateReportOnFinish(e.target.checked)}
+                    />
+                    <div>
+                      <h4 className="text-sm font-bold text-zinc-900 dark:text-white">Generate AI Sprint Report</h4>
+                      <p className="text-xs text-zinc-500">Automatically analyze tasks and create a summary</p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+              <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end gap-3">
+                <button
+                  onClick={() => setIsFinishSprintModalOpen(false)}
+                  className="px-4 py-2 text-zinc-600 dark:text-zinc-400 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleFinishSprint}
+                  className="px-6 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-lg shadow-emerald-200 dark:shadow-none transition-all"
+                >
+                  Finish Sprint
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {isInitialSprintModalOpen && (

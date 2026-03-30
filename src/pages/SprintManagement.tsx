@@ -18,7 +18,7 @@ import {
   MoreVertical
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
-import { cn } from '../lib/utils';
+import Markdown from 'react-markdown';import { cn } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
@@ -46,7 +46,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     status: 'Not Started',
-    stage: 'Discover',
+    stage: activeProjectId && projects.find(p => p.id === activeProjectId)?.status ? projects.find(p => p.id === activeProjectId)!.status : 'Discover',
     tasks: []
   });
 
@@ -75,7 +75,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'Not Started',
-      stage: 'Discover',
+      stage: activeProjectId && projects.find(p => p.id === activeProjectId)?.status ? projects.find(p => p.id === activeProjectId)!.status : 'Discover',
       tasks: []
     });
   };
@@ -296,10 +296,16 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                   </h3>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
-                  <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{sprint.startDate} - {sprint.endDate}</span>
+                <div className="flex items-start gap-4 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" />
+                      <span>Start Date: {new Date(sprint.startDate).toLocaleDateString()}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 opacity-70">
+                      <Clock className="w-3.5 h-3.5 invisible" />
+                      <span>Expected end date: {new Date(sprint.endDate).toLocaleDateString()}</span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Target className="w-3.5 h-3.5" />
@@ -308,13 +314,11 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                  <div className="flex -space-x-2">
-                    {/* Placeholder for team members */}
-                    {[1, 2, 3].map(i => (
-                      <div key={i} className="w-7 h-7 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
-                        U
-                      </div>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center justify-center px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold text-zinc-500 gap-1 border border-zinc-200 dark:border-zinc-700">
+                      <Users className="w-3 h-3" />
+                      {projects.find(p => p.id === sprint.projectId)?.team?.length || 0} Members
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
                     View Details
@@ -613,8 +617,8 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                           </div>
                         ) : selectedSprint.report ? (
                           <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <div className="whitespace-pre-wrap text-sm text-zinc-600 dark:text-zinc-400">
-                              {selectedSprint.report}
+                            <div className="markdown-body text-sm text-zinc-600 dark:text-zinc-400">
+                              <Markdown>{selectedSprint.report}</Markdown>
                             </div>
                           </div>
                         ) : (
@@ -647,11 +651,11 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-zinc-400" />
-                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">8 Members Involved</span>
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{getProjectName(selectedSprint.projectId) ? (projects.find(p => p.id === selectedSprint.projectId)?.team?.length || 0) : 0} Members Involved</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">12 Tasks Completed</span>
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{getSprintTasks(selectedSprint.id).filter(t => t.kanbanStatus === 'Done' || t.kanbanStatus === 'Completed').length} Tasks Completed</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
