@@ -55,12 +55,18 @@ export interface Swimlane {
   isHidden?: boolean;
 }
 
+export interface JourneyItem {
+  id: string;
+  title: string;
+  description?: string;
+}
+
 export interface JourneyStage {
   id: string;
   name: string;
   icon?: string;
   emotion: number; // 1 to 5
-  laneData: Record<string, string[]>; // Maps swimlane.id to an array of text items
+  laneData: Record<string, JourneyItem[]>; // Maps swimlane.id to an array of items
   carbonData?: Record<string, number[]>; // Maps swimlane.id to an array of carbon values (kg CO2e)
 }
 

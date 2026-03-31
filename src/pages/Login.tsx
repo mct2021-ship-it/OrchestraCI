@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Sparkles, Mail, Lock, User as UserIcon } from 'lucide-react';
 import { motion } from 'motion/react';
+import { Logo } from '../components/Logo';
 
 export function Login() {
   console.log('Login: Rendering...');
@@ -46,9 +47,7 @@ export function Login() {
     <div className="min-h-screen bg-zinc-50 dark:bg-[#09090b] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <div className="flex justify-center">
-          <div className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/30">
-            <Sparkles className="w-8 h-8 text-white" />
-          </div>
+          <Logo className="w-16 h-16" />
         </div>
         <h2 className="mt-6 text-center text-3xl font-extrabold text-zinc-900 dark:text-white">
           {isLogin ? 'Sign in to your account' : 'Create your account'}

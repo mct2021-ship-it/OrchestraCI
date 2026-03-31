@@ -15,7 +15,8 @@ import {
   Target,
   ArrowRight,
   Download,
-  MoreVertical
+  MoreVertical,
+  ChevronDown
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
 import Markdown from 'react-markdown';import { cn } from '../lib/utils';
@@ -276,11 +277,29 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                     )}>
                       {sprint.status}
                     </div>
-                    {sprint.stage && (
-                      <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
-                        {sprint.stage}
-                      </div>
-                    )}
+                    <div className="relative group/stage">
+                      <select
+                        value={sprint.stage || ''}
+                        onChange={(e) => {
+                          const newStage = e.target.value as any;
+                          setSprints(prev => prev.map(s => 
+                            s.id === sprint.id ? { ...s, stage: newStage } : s
+                          ));
+                        }}
+                        className={cn(
+                          "appearance-none px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer outline-none transition-all",
+                          sprint.status === 'In Progress' 
+                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200" 
+                            : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200"
+                        )}
+                      >
+                        <option value="">Select Stage</option>
+                        {['Discover', 'Define', 'Develop', 'Deliver', 'Done', 'Archived'].map(stage => (
+                          <option key={stage} value={stage}>{stage}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="w-2.5 h-2.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 group-hover/stage:opacity-100 transition-opacity" />
+                    </div>
                   </div>
                   <button className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-lg transition-colors">
                     <MoreVertical className="w-4 h-4" />
@@ -296,28 +315,38 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                   </h3>
                 </div>
 
-                <div className="flex items-start gap-4 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
-                  <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>Start Date: {new Date(sprint.startDate).toLocaleDateString()}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 opacity-70">
-                      <Clock className="w-3.5 h-3.5 invisible" />
-                      <span>Expected end date: {new Date(sprint.endDate).toLocaleDateString()}</span>
-                    </div>
+                <div className="flex flex-col gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
+                    <span className="font-bold">Start Date:</span>
+                    <span>{new Date(sprint.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Target className="w-3.5 h-3.5" />
-                    <span>{sprint.tasks?.length || 0} Tasks</span>
+                    <Calendar className="w-3.5 h-3.5 text-amber-500" />
+                    <span className="font-bold">Expected End Date:</span>
+                    <span>{new Date(sprint.endDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800">
                   <div className="flex items-center gap-2">
-                    <div className="flex items-center justify-center px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold text-zinc-500 gap-1 border border-zinc-200 dark:border-zinc-700">
-                      <Users className="w-3 h-3" />
-                      {projects.find(p => p.id === sprint.projectId)?.team?.length || 0} Members
+                    <div className="flex items-center justify-center px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold text-zinc-500 gap-2 border border-zinc-200 dark:border-zinc-700">
+                      <div className="flex -space-x-1">
+                        {projects.find(p => p.id === sprint.projectId)?.team?.slice(0, 3).map((m, i) => (
+                          <div key={i} className="w-4 h-4 rounded-full bg-indigo-100 border border-white dark:border-zinc-800 flex items-center justify-center text-[6px] text-indigo-600">
+                            {m.photoUrl ? (
+                              <img src={m.photoUrl} className="w-full h-full rounded-full object-cover" />
+                            ) : (
+                              m.name.charAt(0)
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <span>{projects.find(p => p.id === sprint.projectId)?.team?.length || 0} Members Involved</span>
+                    </div>
+                    <div className="flex items-center justify-center px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-[10px] font-bold text-emerald-600 gap-1 border border-emerald-100 dark:border-emerald-800/30">
+                      <Target className="w-3 h-3" />
+                      {sprint.tasks?.length || 0} Tasks
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">

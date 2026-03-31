@@ -403,12 +403,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'Sign Up',
         emotion: 4,
         laneData: {
-          'lane_touchpoints': ['Website Homepage', 'Registration Form'],
-          'lane_friction': ['Password requirements too strict'],
-          'lane_opportunities': ['Add SSO options'],
-          'lane_backoffice': ['User account creation'],
-          'lane_teams': ['Product'],
-          'lane_systems': ['Auth0']
+          'lane_touchpoints': [{ id: 'j_t_s1_t1', title: 'Website Homepage' }, { id: 'j_t_s1_t2', title: 'Registration Form' }],
+          'lane_friction': [{ id: 'j_t_s1_f1', title: 'Password requirements too strict' }],
+          'lane_opportunities': [{ id: 'j_t_s1_o1', title: 'Add SSO options' }],
+          'lane_backoffice': [{ id: 'j_t_s1_b1', title: 'User account creation' }],
+          'lane_teams': [{ id: 'j_t_s1_tm1', title: 'Product' }],
+          'lane_systems': [{ id: 'j_t_s1_sy1', title: 'Auth0' }]
         }
       },
       {
@@ -416,12 +416,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'First Login',
         emotion: 2,
         laneData: {
-          'lane_touchpoints': ['Welcome Dashboard'],
-          'lane_friction': ['Empty state is confusing', 'Not sure what to do first'],
-          'lane_opportunities': ['Add a guided tour', 'Show template options'],
-          'lane_backoffice': ['Telemetry tracking'],
-          'lane_teams': ['Customer Success'],
-          'lane_systems': ['Mixpanel']
+          'lane_touchpoints': [{ id: 'j_t_s2_t1', title: 'Welcome Dashboard' }],
+          'lane_friction': [{ id: 'j_t_s2_f1', title: 'Empty state is confusing' }, { id: 'j_t_s2_f2', title: 'Not sure what to do first' }],
+          'lane_opportunities': [{ id: 'j_t_s2_o1', title: 'Add a guided tour' }, { id: 'j_t_s2_o2', title: 'Show template options' }],
+          'lane_backoffice': [{ id: 'j_t_s2_b1', title: 'Telemetry tracking' }],
+          'lane_teams': [{ id: 'j_t_s2_tm1', title: 'Customer Success' }],
+          'lane_systems': [{ id: 'j_t_s2_sy1', title: 'Mixpanel' }]
         }
       },
       {
@@ -429,12 +429,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'First Success',
         emotion: 5,
         laneData: {
-          'lane_touchpoints': ['Success Modal', 'Email Confirmation'],
+          'lane_touchpoints': [{ id: 'j_t_s3_t1', title: 'Success Modal' }, { id: 'j_t_s3_t2', title: 'Email Confirmation' }],
           'lane_friction': [],
-          'lane_opportunities': ['Prompt for review/feedback'],
-          'lane_backoffice': ['Milestone recorded'],
-          'lane_teams': ['Marketing'],
-          'lane_systems': ['HubSpot']
+          'lane_opportunities': [{ id: 'j_t_s3_o1', title: 'Prompt for review/feedback' }],
+          'lane_backoffice': [{ id: 'j_t_s3_b1', title: 'Milestone recorded' }],
+          'lane_teams': [{ id: 'j_t_s3_tm1', title: 'Marketing' }],
+          'lane_systems': [{ id: 'j_t_s3_sy1', title: 'HubSpot' }]
         }
       }
     ]
@@ -457,12 +457,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'Sign Up',
         emotion: 5,
         laneData: {
-          'lane_touchpoints': ['One-Click Signup', 'SSO Options'],
+          'lane_touchpoints': [{ id: 'j_p_s1_t1', title: 'One-Click Signup' }, { id: 'j_p_s1_t2', title: 'SSO Options' }],
           'lane_friction': [],
-          'lane_opportunities': ['Personalized welcome message'],
-          'lane_backoffice': ['Instant account provisioning'],
-          'lane_teams': ['Product'],
-          'lane_systems': ['Auth0', 'Google/GitHub SSO']
+          'lane_opportunities': [{ id: 'j_p_s1_o1', title: 'Personalized welcome message' }],
+          'lane_backoffice': [{ id: 'j_p_s1_b1', title: 'Instant account provisioning' }],
+          'lane_teams': [{ id: 'j_p_s1_tm1', title: 'Product' }],
+          'lane_systems': [{ id: 'j_p_s1_sy1', title: 'Auth0' }, { id: 'j_p_s1_sy2', title: 'Google/GitHub SSO' }]
         }
       },
       {
@@ -470,12 +470,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'First Login',
         emotion: 5,
         laneData: {
-          'lane_touchpoints': ['Interactive Onboarding Tour'],
+          'lane_touchpoints': [{ id: 'j_p_s2_t1', title: 'Interactive Onboarding Tour' }],
           'lane_friction': [],
-          'lane_opportunities': ['AI-driven next steps'],
-          'lane_backoffice': ['Progress tracking'],
-          'lane_teams': ['Customer Success'],
-          'lane_systems': ['Appcues']
+          'lane_opportunities': [{ id: 'j_p_s2_o1', title: 'AI-driven next steps' }],
+          'lane_backoffice': [{ id: 'j_p_s2_b1', title: 'Progress tracking' }],
+          'lane_teams': [{ id: 'j_p_s2_tm1', title: 'Customer Success' }],
+          'lane_systems': [{ id: 'j_p_s2_sy1', title: 'Appcues' }]
         }
       },
       {
@@ -483,12 +483,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'First Success',
         emotion: 5,
         laneData: {
-          'lane_touchpoints': ['Celebration Animation', 'Value Report'],
+          'lane_touchpoints': [{ id: 'j_p_s3_t1', title: 'Celebration Animation' }, { id: 'j_p_s3_t2', title: 'Value Report' }],
           'lane_friction': [],
-          'lane_opportunities': ['Referral link generation'],
-          'lane_backoffice': ['Impact analysis'],
-          'lane_teams': ['Marketing'],
-          'lane_systems': ['HubSpot']
+          'lane_opportunities': [{ id: 'j_p_s3_o1', title: 'Referral link generation' }],
+          'lane_backoffice': [{ id: 'j_p_s3_b1', title: 'Impact analysis' }],
+          'lane_teams': [{ id: 'j_p_s3_tm1', title: 'Marketing' }],
+          'lane_systems': [{ id: 'j_p_s3_sy1', title: 'HubSpot' }]
         }
       }
     ]
@@ -512,12 +512,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'Awareness',
         emotion: 3,
         laneData: {
-          'lane_touchpoints': ['Social Media Ad', 'Blog Post'],
-          'lane_friction': ['Hard to find pricing'],
-          'lane_opportunities': ['Make pricing transparent on landing page'],
-          'lane_backoffice': ['Marketing campaign tracking'],
-          'lane_teams': ['Marketing'],
-          'lane_systems': ['HubSpot', 'Google Ads']
+          'lane_touchpoints': [{ id: 'j1_s1_t1', title: 'Social Media Ad' }, { id: 'j1_s1_t2', title: 'Blog Post' }],
+          'lane_friction': [{ id: 'j1_s1_f1', title: 'Hard to find pricing' }],
+          'lane_opportunities': [{ id: 'j1_s1_o1', title: 'Make pricing transparent on landing page' }],
+          'lane_backoffice': [{ id: 'j1_s1_b1', title: 'Marketing campaign tracking' }],
+          'lane_teams': [{ id: 'j1_s1_tm1', title: 'Marketing' }],
+          'lane_systems': [{ id: 'j1_s1_sy1', title: 'HubSpot' }, { id: 'j1_s1_sy2', title: 'Google Ads' }]
         }
       },
       {
@@ -525,12 +525,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'Consideration',
         emotion: 4,
         laneData: {
-          'lane_touchpoints': ['Webinar', 'Case Studies'],
-          'lane_friction': ['Too many emails after webinar'],
-          'lane_opportunities': ['Consolidate follow-up emails'],
-          'lane_backoffice': ['Lead scoring', 'Sales routing'],
-          'lane_teams': ['Marketing', 'Sales Development'],
-          'lane_systems': ['Salesforce', 'Marketo']
+          'lane_touchpoints': [{ id: 'j1_s2_t1', title: 'Webinar' }, { id: 'j1_s2_t2', title: 'Case Studies' }],
+          'lane_friction': [{ id: 'j1_s2_f1', title: 'Too many emails after webinar' }],
+          'lane_opportunities': [{ id: 'j1_s2_o1', title: 'Consolidate follow-up emails' }],
+          'lane_backoffice': [{ id: 'j1_s2_b1', title: 'Lead scoring' }, { id: 'j1_s2_b2', title: 'Sales routing' }],
+          'lane_teams': [{ id: 'j1_s2_tm1', title: 'Marketing' }, { id: 'j1_s2_tm2', title: 'Sales Development' }],
+          'lane_systems': [{ id: 'j1_s2_sy1', title: 'Salesforce' }, { id: 'j1_s2_sy2', title: 'Marketo' }]
         }
       },
       {
@@ -538,12 +538,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'Purchase/Decision',
         emotion: 2,
         laneData: {
-          'lane_touchpoints': ['Checkout Page', 'Sales Call'],
-          'lane_friction': ['Checkout process is too long', 'Payment failed once'],
-          'lane_opportunities': ['Implement one-click checkout', 'Add more payment options'],
-          'lane_backoffice': ['Contract generation', 'Payment processing'],
-          'lane_teams': ['Sales', 'Finance'],
-          'lane_systems': ['Stripe', 'DocuSign']
+          'lane_touchpoints': [{ id: 'j1_s3_t1', title: 'Checkout Page' }, { id: 'j1_s3_t2', title: 'Sales Call' }],
+          'lane_friction': [{ id: 'j1_s3_f1', title: 'Checkout process is too long' }, { id: 'j1_s3_f2', title: 'Payment failed once' }],
+          'lane_opportunities': [{ id: 'j1_s3_o1', title: 'Implement one-click checkout' }, { id: 'j1_s3_o2', title: 'Add more payment options' }],
+          'lane_backoffice': [{ id: 'j1_s3_b1', title: 'Contract generation' }, { id: 'j1_s3_b2', title: 'Payment processing' }],
+          'lane_teams': [{ id: 'j1_s3_tm1', title: 'Sales' }, { id: 'j1_s3_tm2', title: 'Finance' }],
+          'lane_systems': [{ id: 'j1_s3_sy1', title: 'Stripe' }, { id: 'j1_s3_sy2', title: 'DocuSign' }]
         }
       },
       {
@@ -551,12 +551,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'Retention',
         emotion: 5,
         laneData: {
-          'lane_touchpoints': ['Welcome Email', 'In-app Tutorial', 'QBR'],
-          'lane_friction': ['Overwhelming initial setup'],
-          'lane_opportunities': ['Add video tutorials', 'Guided in-app tours'],
-          'lane_backoffice': ['Account provisioning', 'Welcome sequence trigger'],
-          'lane_teams': ['Customer Success', 'Support'],
-          'lane_systems': ['Auth0', 'Intercom', 'Zendesk']
+          'lane_touchpoints': [{ id: 'j1_s4_t1', title: 'Welcome Email' }, { id: 'j1_s4_t2', title: 'In-app Tutorial' }, { id: 'j1_s4_t3', title: 'QBR' }],
+          'lane_friction': [{ id: 'j1_s4_f1', title: 'Overwhelming initial setup' }],
+          'lane_opportunities': [{ id: 'j1_s4_o1', title: 'Add video tutorials' }, { id: 'j1_s4_o2', title: 'Guided in-app tours' }],
+          'lane_backoffice': [{ id: 'j1_s4_b1', title: 'Account provisioning' }, { id: 'j1_s4_b2', title: 'Welcome sequence trigger' }],
+          'lane_teams': [{ id: 'j1_s4_tm1', title: 'Customer Success' }, { id: 'j1_s4_tm2', title: 'Support' }],
+          'lane_systems': [{ id: 'j1_s4_sy1', title: 'Auth0' }, { id: 'j1_s4_sy2', title: 'Intercom' }, { id: 'j1_s4_sy3', title: 'Zendesk' }]
         }
       },
       {
@@ -564,12 +564,12 @@ export const mockJourneyMaps: JourneyMap[] = [
         name: 'Advocacy',
         emotion: 4,
         laneData: {
-          'lane_touchpoints': ['Referral Program', 'Case Study Interview'],
-          'lane_friction': ['No clear incentive for referring'],
-          'lane_opportunities': ['Create automated referral rewards'],
-          'lane_backoffice': ['NPS survey sending', 'Referral tracking'],
-          'lane_teams': ['Customer Marketing'],
-          'lane_systems': ['Delighted', 'Ambassador']
+          'lane_touchpoints': [{ id: 'j1_s5_t1', title: 'Referral Program' }, { id: 'j1_s5_t2', title: 'Case Study Interview' }],
+          'lane_friction': [{ id: 'j1_s5_f1', title: 'No clear incentive for referring' }],
+          'lane_opportunities': [{ id: 'j1_s5_o1', title: 'Create automated referral rewards' }],
+          'lane_backoffice': [{ id: 'j1_s5_b1', title: 'NPS survey sending' }, { id: 'j1_s5_b2', title: 'Referral tracking' }],
+          'lane_teams': [{ id: 'j1_s5_tm1', title: 'Customer Marketing' }],
+          'lane_systems': [{ id: 'j1_s5_sy1', title: 'Delighted' }, { id: 'j1_s5_sy2', title: 'Ambassador' }]
         }
       }
     ]

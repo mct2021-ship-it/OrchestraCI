@@ -91,7 +91,7 @@ const getSwimlaneIconComponent = (iconName?: string) => {
   const icon = SWIMLANE_ICONS.find(i => i.name === iconName);
   return icon ? icon.icon : Layers;
 };
-import { JourneyStage, Swimlane, JourneyMap, Product, Service, Persona, Task, Project, ProcessMap, Comment, User, RecycleBinItem } from '../types';
+import { JourneyStage, JourneyItem, Swimlane, JourneyMap, Product, Service, Persona, Task, Project, ProcessMap, Comment, User, RecycleBinItem } from '../types';
 import { EditableText } from '../components/EditableText';
 import { CreateJourneyModal } from '../components/CreateJourneyModal';
 import { JourneyAiAssistant } from '../components/JourneyAiAssistant';
@@ -187,6 +187,7 @@ export function JourneyMaps({
   const [isCalculatingCarbon, setIsCalculatingCarbon] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [activeCarbonTarget, setActiveCarbonTarget] = useState<{ stageId: string; laneId: string; itemIndex: number } | null>(null);
+  const [selectedItemDetail, setSelectedItemDetail] = useState<{ stageId: string; laneId: string; itemIndex: number; item: JourneyItem } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const moreActionsMenuRef = useRef<HTMLDivElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
@@ -306,6 +307,7 @@ export function JourneyMaps({
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
+        allowTaint: true,
         logging: false,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
         ignoreElements: (element) => element.classList.contains('no-export')
@@ -418,7 +420,7 @@ export function JourneyMaps({
         Current Journey: ${JSON.stringify(currentMap.stages.map(s => ({ 
           name: stripPIData(s.name), 
           emotion: s.emotion, 
-          friction: stripPIData(s.laneData['lane_friction']?.join(', ') || ''),
+          friction: stripPIData(s.laneData['lane_friction']?.map(i => i.title).join(', ') || ''),
           carbon: s.carbonData?.['lane_touchpoints']?.reduce((a, b) => a + b, 0) || 0
         })))}
         Total Current Carbon: ${currentMap.carbonFootprint || 0} kg CO2e
@@ -426,7 +428,7 @@ export function JourneyMaps({
         Proposed Journey: ${JSON.stringify(proposedMap.stages.map(s => ({ 
           name: stripPIData(s.name), 
           emotion: s.emotion, 
-          friction: stripPIData(s.laneData['lane_friction']?.join(', ') || ''),
+          friction: stripPIData(s.laneData['lane_friction']?.map(i => i.title).join(', ') || ''),
           carbon: s.carbonData?.['lane_touchpoints']?.reduce((a, b) => a + b, 0) || 0
         })))}
         Total Proposed Carbon: ${proposedMap.carbonFootprint || 0} kg CO2e
@@ -591,7 +593,7 @@ export function JourneyMaps({
                       swimlanes: defaultSwimlanes,
                       stages: ['Awareness', 'Consideration', 'Purchase/Decision', 'Retention', 'Advocacy'].map(name => {
                         const stageId = uuidv4();
-                        const laneData: Record<string, string[]> = {};
+                        const laneData: Record<string, JourneyItem[]> = {};
                         defaultSwimlanes.forEach(lane => {
                           laneData[lane.id] = [];
                         });
@@ -1008,7 +1010,7 @@ export function JourneyMaps({
     ));
   };
 
-  const updateLaneItem = (stageId: string, laneId: string, itemIndex: number, newValue: string) => {
+  const updateLaneItem = (stageId: string, laneId: string, itemIndex: number, newValue: string | Partial<JourneyItem>) => {
     setJourneys(journeys.map(j => {
       if (j.id === activeJourneyId) {
         return {
@@ -1016,14 +1018,10 @@ export function JourneyMaps({
           stages: j.stages.map(s => {
             if (s.id === stageId) {
               const newItems = [...(s.laneData[laneId] || [])];
-              newItems[itemIndex] = newValue;
-              
-              // If we change the text, we might want to reset the carbon data for that item
-              const newCarbonData = { ...(s.carbonData || {}) };
-              if (newCarbonData[laneId]) {
-                const updatedCarbon = [...newCarbonData[laneId]];
-                // We keep it for now, but AI estimation will overwrite it if triggered
-                return { ...s, laneData: { ...s.laneData, [laneId]: newItems }, carbonData: newCarbonData };
+              if (typeof newValue === 'string') {
+                newItems[itemIndex] = { ...newItems[itemIndex], title: newValue };
+              } else {
+                newItems[itemIndex] = { ...newItems[itemIndex], ...newValue };
               }
               
               return { ...s, laneData: { ...s.laneData, [laneId]: newItems } };
@@ -1076,7 +1074,7 @@ export function JourneyMaps({
       // Prepare data for AI
       const touchpoints = activeJourney.stages.flatMap(stage => 
         Object.entries(stage.laneData).flatMap(([laneId, items]) => 
-          items.map((item, index) => ({ stageId: stage.id, laneId, item, index }))
+          items.map((item, index) => ({ stageId: stage.id, laneId, item: item.title, index }))
         )
       );
 
@@ -1146,7 +1144,8 @@ export function JourneyMaps({
           ...j,
           stages: j.stages.map(s => {
             if (s.id === stageId) {
-              const newItems = [...(s.laneData[laneId] || []), 'New Item'];
+              const newItem: JourneyItem = { id: uuidv4(), title: 'New Item', description: '' };
+              const newItems = [...(s.laneData[laneId] || []), newItem];
               return { ...s, laneData: { ...s.laneData, [laneId]: newItems } };
             }
             return s;
@@ -1341,7 +1340,7 @@ export function JourneyMaps({
                     swimlanes: defaultSwimlanes,
                     stages: ['Awareness', 'Consideration', 'Purchase/Decision', 'Retention', 'Advocacy'].map(name => {
                       const stageId = uuidv4();
-                      const laneData: Record<string, string[]> = {};
+                      const laneData: Record<string, JourneyItem[]> = {};
                       defaultSwimlanes.forEach(lane => {
                         laneData[lane.id] = [];
                       });
@@ -1899,21 +1898,26 @@ export function JourneyMaps({
                                 <div className="flex-1 flex flex-col gap-1">
                                   {lane.type === 'pictures' ? (
                                     <img 
-                                      src={item} 
+                                      src={typeof item === 'string' ? item : item.title} 
                                       alt="Journey step" 
                                       className="w-full h-auto rounded object-cover cursor-pointer hover:opacity-90 transition-opacity" 
                                       referrerPolicy="no-referrer" 
-                                      onClick={() => setSelectedImage(item)}
+                                      onClick={() => setSelectedImage(typeof item === 'string' ? item : item.title)}
                                     />
                                   ) : (
-                                    <EditableText 
-                                      value={item} 
-                                      onChange={(val) => updateLaneItem(stage.id, lane.id, i, val)} 
-                                      multiline 
-                                      className="text-sm text-zinc-700 dark:text-zinc-200"
-                                      disabled={!canEdit}
-                                      showConfirmTick={true}
-                                    />
+                                    <div className="flex flex-col gap-1">
+                                      <div 
+                                        className="text-sm font-medium text-zinc-900 dark:text-zinc-100 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                                        onClick={() => setSelectedItemDetail({ stageId: stage.id, laneId: lane.id, itemIndex: i, item: (typeof item === 'string' ? { id: uuidv4(), title: item, description: '' } : item) })}
+                                      >
+                                        {typeof item === 'string' ? item : item.title}
+                                      </div>
+                                      {typeof item !== 'string' && item.description && (
+                                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 italic">
+                                          {item.description}
+                                        </p>
+                                      )}
+                                    </div>
                                   )}
                                   {showCarbon && (
                                     <div className="flex items-center gap-1.5 mt-1">
@@ -1960,44 +1964,45 @@ export function JourneyMaps({
                                   </button>
                                 )}
                               </div>
-                              {lane.id === 'lane_backoffice' && (
-                                (() => {
-                                  const existingMap = processMaps?.find(pm => pm.title.toLowerCase() === item.toLowerCase());
-                                  if (!existingMap && !canEdit) return null;
-                                  return (
+                                  {lane.id === 'lane_backoffice' && (
+                                    (() => {
+                                      const itemTitle = typeof item === 'string' ? item : item.title;
+                                      const existingMap = processMaps?.find(pm => pm.title.toLowerCase() === itemTitle.toLowerCase());
+                                      if (!existingMap && !canEdit) return null;
+                                      return (
+                                        <button 
+                                          onClick={() => {
+                                            if (existingMap) {
+                                              onNavigateToProcessMap?.(existingMap.id);
+                                            } else {
+                                              if (setProcessMaps && activeProjectId) {
+                                                const newMap: ProcessMap = {
+                                                  id: `pm_${Date.now()}`,
+                                                  projectId: activeProjectId,
+                                                  title: itemTitle,
+                                                  nodes: [],
+                                                  edges: []
+                                                };
+                                                setProcessMaps(prev => [...prev, newMap]);
+                                                onNavigateToProcessMap?.(newMap.id);
+                                              } else {
+                                                onNavigateToProcessMap?.();
+                                              }
+                                            }
+                                          }}
+                                          className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-indigo-600 transition-colors ml-3.5 mt-1 w-fit print:hidden no-export"
+                                        >
+                                          <GitMerge className="w-3 h-3" />
+                                          {existingMap ? 'View Process Map' : 'Create Process Map'}
+                                        </button>
+                                      );
+                                    })()
+                                  )}
+                                  {lane.id === 'lane_opportunities' && onAddTask && canEdit && (
                                     <button 
-                                      onClick={() => {
-                                        if (existingMap) {
-                                          onNavigateToProcessMap?.(existingMap.id);
-                                        } else {
-                                          if (setProcessMaps && activeProjectId) {
-                                            const newMap: ProcessMap = {
-                                              id: `pm_${Date.now()}`,
-                                              projectId: activeProjectId,
-                                              title: item,
-                                              nodes: [],
-                                              edges: []
-                                            };
-                                            setProcessMaps(prev => [...prev, newMap]);
-                                            onNavigateToProcessMap?.(newMap.id);
-                                          } else {
-                                            onNavigateToProcessMap?.();
-                                          }
-                                        }
-                                      }}
+                                      onClick={() => setPendingTaskData({ item: (typeof item === 'string' ? item : item.title), stageName: stage.name })}
                                       className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-indigo-600 transition-colors ml-3.5 mt-1 w-fit print:hidden no-export"
                                     >
-                                      <GitMerge className="w-3 h-3" />
-                                      {existingMap ? 'View Process Map' : 'Create Process Map'}
-                                    </button>
-                                  );
-                                })()
-                              )}
-                              {lane.id === 'lane_opportunities' && onAddTask && canEdit && (
-                                <button 
-                                  onClick={() => setPendingTaskData({ item, stageName: stage.name })}
-                                  className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-indigo-600 transition-colors ml-3.5 mt-1 w-fit print:hidden no-export"
-                                >
                                   <Target className="w-3 h-3" />
                                   Create Task
                                 </button>
@@ -2308,6 +2313,79 @@ export function JourneyMaps({
                 className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl" 
                 referrerPolicy="no-referrer"
               />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      
+      {/* Item Detail Modal */}
+      <AnimatePresence>
+        {selectedItemDetail && (
+          <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-lg border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50/50 dark:bg-zinc-800/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
+                    <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Item Details</h3>
+                </div>
+                <button 
+                  onClick={() => setSelectedItemDetail(null)} 
+                  className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-full transition-colors group"
+                >
+                  <X className="w-5 h-5 text-zinc-500 group-hover:text-zinc-700 dark:group-hover:text-zinc-300" />
+                </button>
+              </div>
+              
+              <div className="p-8 space-y-8">
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Title</label>
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      value={selectedItemDetail.item.title}
+                      onChange={(e) => {
+                        const newTitle = e.target.value;
+                        setSelectedItemDetail({ ...selectedItemDetail, item: { ...selectedItemDetail.item, title: newTitle } });
+                        updateLaneItem(selectedItemDetail.stageId, selectedItemDetail.laneId, selectedItemDetail.itemIndex, { title: newTitle });
+                      }}
+                      className="w-full bg-zinc-50 dark:bg-zinc-800/50 border-2 border-transparent focus:border-indigo-500 dark:focus:border-indigo-500/50 rounded-2xl p-4 text-zinc-900 dark:text-white transition-all font-semibold outline-none text-lg"
+                      placeholder="What is happening here?"
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-3">
+                  <label className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest ml-1">Description</label>
+                  <textarea 
+                    value={selectedItemDetail.item.description || ''}
+                    onChange={(e) => {
+                      const newDesc = e.target.value;
+                      setSelectedItemDetail({ ...selectedItemDetail, item: { ...selectedItemDetail.item, description: newDesc } });
+                      updateLaneItem(selectedItemDetail.stageId, selectedItemDetail.laneId, selectedItemDetail.itemIndex, { description: newDesc });
+                    }}
+                    rows={6}
+                    className="w-full bg-zinc-50 dark:bg-zinc-800/50 border-2 border-transparent focus:border-indigo-500 dark:focus:border-indigo-500/50 rounded-2xl p-4 text-zinc-900 dark:text-white transition-all resize-none outline-none leading-relaxed"
+                    placeholder="Add more context, notes, or specific details for this step..."
+                  />
+                </div>
+              </div>
+              
+              <div className="p-6 bg-zinc-50/50 dark:bg-zinc-800/50 border-t border-zinc-100 dark:border-zinc-800 flex justify-end">
+                <button 
+                  onClick={() => setSelectedItemDetail(null)}
+                  className="px-8 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-zinc-900/20 dark:shadow-white/10"
+                >
+                  Save & Close
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

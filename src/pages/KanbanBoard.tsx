@@ -426,21 +426,34 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   }, [filteredTasks]);
 
   const handleFinishSprint = () => {
-    // move incomplete tasks to Backlog
+    const currentSprintNum = project.currentSprint || 1;
+    const currentSprintTasks = tasks.filter(t => t.projectId === project.id && (t.sprint === `Sprint ${currentSprintNum}` || !t.sprint)); // Fallback to current project tasks if no sprint
+    
+    const completedTasks = currentSprintTasks.filter(t => t.kanbanStatus === 'Done' || t.kanbanStatus === 'Completed' || t.kanbanStatus === 'Archived');
+    const incompleteTasksInSprint = currentSprintTasks.filter(t => t.kanbanStatus !== 'Done' && t.kanbanStatus !== 'Completed' && t.kanbanStatus !== 'Archived' && t.kanbanStatus !== 'Backlog');
+
+    // Move incomplete tasks to Backlog and clear their sprint
     const updatedTasks = tasks.map(t => {
-      if (t.projectId === project.id && incompleteTasks.find(it => it.id === t.id)) {
-        return { ...t, kanbanStatus: 'Backlog', status: 'Discover', sprint: undefined };
+      // Check if task is one of the incomplete tasks in this sprint
+      if (incompleteTasksInSprint.some(it => it.id === t.id)) {
+        return { 
+          ...t, 
+          kanbanStatus: 'Backlog', 
+          status: 'Discover' as const, 
+          sprint: undefined,
+          stageHistory: [...(t.stageHistory || []), { stage: 'Backlog (Moved from Finished Sprint)', enteredAt: new Date().toISOString() }]
+        };
       }
       return t;
     });
+
     setTasks(updatedTasks);
     
-    // save sprint snapshot
-    const completedTasks = tasks.filter(t => t.projectId === project.id && (!incompleteTasks.find(it => it.id === t.id)) && !t.archived && t.kanbanStatus !== 'Backlog');
+    // Save sprint snapshot
     const newSnapshot: SprintSnapshot = {
-      sprintNumber: project.currentSprint || 1,
-      name: `Sprint ${project.currentSprint || 1}`,
-      description: project.currentSprintDescription,
+      sprintNumber: currentSprintNum,
+      name: `Sprint ${currentSprintNum}`,
+      description: project.currentSprintDescription || '',
       tasks: completedTasks,
       completedAt: new Date().toISOString()
     };
@@ -450,22 +463,22 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
         return {
           ...p,
           sprintSnapshots: [...(p.sprintSnapshots || []), newSnapshot],
-          currentSprint: (p.currentSprint || 1) + 1,
+          currentSprint: currentSprintNum + 1,
           currentSprintDescription: '',
-          sprints: [] // clear active sprint definition
+          // If the user wants a new sprint started immediately, they can do it via 'Add Task' or 'Manage Sprints'
         };
       }
       return p;
     }));
 
     setIsFinishSprintModalOpen(false);
-    addToast(`Sprint ${project.currentSprint || 1} finished successfully`, 'success');
+    addToast(`Sprint ${currentSprintNum} finished successfully. ${completedTasks.length} tasks completed.`, 'success');
     
     if (generateReportOnFinish) {
       setTimeout(() => {
-        setSelectedSprintId(newSnapshot.sprintNumber);
+        setSelectedSprintId(currentSprintNum);
         setIsReportModalOpen(true);
-      }, 500); // small delay to allow state changes to settle
+      }, 500); 
     }
   };
 
