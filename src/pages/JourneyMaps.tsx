@@ -1833,9 +1833,11 @@ export function JourneyMaps({
                             </div>
                           )}
                         </div>
-                        <EditableText value={lane.name} onChange={(val) => updateLaneName(lane.id, val)} className="text-sm font-bold" disabled={!canEdit} />
+                        <div className="flex-1 min-w-0 pr-10">
+                          <EditableText value={lane.name} onChange={(val) => updateLaneName(lane.id, val)} className="text-sm font-bold truncate block w-full" disabled={!canEdit} />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 opacity-30 group-hover:opacity-100 transition-opacity print:hidden no-export">
+                      <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 print:hidden no-export bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-zinc-200/50 dark:border-zinc-700/50 z-10">
                         <button 
                           onClick={() => toggleSwimlaneVisibility(lane.id)} 
                           className="p-1 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-all"
@@ -1857,18 +1859,20 @@ export function JourneyMaps({
                     
                     {/* Reorder controls */}
                     {canEdit && (
-                      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col opacity-30 group-hover:opacity-100 transition-opacity print:hidden no-export">
+                      <div className="absolute left-1 top-1/2 -translate-y-1/2 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-all duration-200 print:hidden no-export bg-white/80 dark:bg-zinc-800/80 backdrop-blur-sm rounded-md border border-zinc-200/50 dark:border-zinc-700/50 py-1 z-10">
                         <button 
                           onClick={() => moveSwimlane(index, 'up')}
                           disabled={index === 0}
-                          className="text-zinc-400 hover:text-zinc-700 dark:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-400 p-0.5"
+                          className="text-zinc-400 hover:text-indigo-600 disabled:opacity-20 p-0.5"
+                          title="Move Up"
                         >
                           <ChevronUp className="w-3 h-3" />
                         </button>
                         <button 
                           onClick={() => moveSwimlane(index, 'down')}
                           disabled={index === activeJourney.swimlanes.length - 1}
-                          className="text-zinc-400 hover:text-zinc-700 dark:text-zinc-200 disabled:opacity-30 disabled:hover:text-zinc-400 p-0.5"
+                          className="text-zinc-400 hover:text-indigo-600 disabled:opacity-20 p-0.5"
+                          title="Move Down"
                         >
                           <ChevronDown className="w-3 h-3" />
                         </button>
