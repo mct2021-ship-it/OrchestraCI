@@ -8,7 +8,7 @@ interface LogoProps {
 
 export function Logo({ className = "h-8", svgClassName = "h-full w-auto" }: LogoProps) {
   return (
-    <div className={cn("bg-[#050B14] rounded-xl flex items-center justify-center px-3 py-1", className)}>
+    <div className={cn("flex items-center justify-center", className)}>
       <svg viewBox="0 0 240 60" className={svgClassName} xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="logo-gradient" x1="0%" y1="0%" x2="100%" y2="100%">

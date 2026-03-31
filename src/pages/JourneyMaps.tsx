@@ -275,9 +275,11 @@ export function JourneyMaps({
       addToast('Generating PDF...', 'info');
       const canvas = await html2canvas(element, {
         useCORS: true,
+        allowTaint: false,
         scale: 2,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
-        ignoreElements: (element) => element.classList.contains('no-export')
+        ignoreElements: (element) => element.classList.contains('no-export'),
+        logging: false
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -307,7 +309,7 @@ export function JourneyMaps({
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
-        allowTaint: true,
+        allowTaint: false,
         logging: false,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
         ignoreElements: (element) => element.classList.contains('no-export')
@@ -370,6 +372,7 @@ export function JourneyMaps({
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
+      allowTaint: false,
       logging: false,
       backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
     });
@@ -930,11 +933,17 @@ export function JourneyMaps({
                   ...j,
                   stages: j.stages.map(s => {
                     if (s.id === stageId) {
+                      const newItem: JourneyItem = { 
+                        id: uuidv4(), 
+                        title: 'Picture Item', 
+                        imageUrl: base64String,
+                        showImageOnMap: true 
+                      };
                       return {
                         ...s,
                         laneData: {
                           ...s.laneData,
-                          [laneId]: [...(s.laneData[laneId] || []), base64String]
+                          [laneId]: [...(s.laneData[laneId] || []), newItem]
                         }
                       };
                     }
@@ -1144,7 +1153,13 @@ export function JourneyMaps({
           ...j,
           stages: j.stages.map(s => {
             if (s.id === stageId) {
-              const newItem: JourneyItem = { id: uuidv4(), title: 'New Item', description: '' };
+              const newItem: JourneyItem = { 
+                id: uuidv4(), 
+                title: 'New Item', 
+                description: '',
+                imageUrl: undefined,
+                showImageOnMap: false
+              };
               const newItems = [...(s.laneData[laneId] || []), newItem];
               return { ...s, laneData: { ...s.laneData, [laneId]: newItems } };
             }
@@ -1498,7 +1513,12 @@ export function JourneyMaps({
                   return (
                     <>
                       {persona?.imageUrl ? (
-                        <img src={persona.imageUrl} alt={persona.name} className="w-8 h-8 rounded-full object-cover" />
+                        <img 
+                          src={persona.imageUrl} 
+                          alt={persona.name} 
+                          className="w-8 h-8 rounded-full object-cover" 
+                          crossOrigin="anonymous"
+                        />
                       ) : (
                         <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-xs font-bold">
                           {persona?.name?.charAt(0) || '?'}
@@ -1897,11 +1917,12 @@ export function JourneyMaps({
                                 <div className={`w-1.5 h-1.5 rounded-full bg-${lane.colorTheme}-400 mt-1.5 shrink-0`} />
                                 <div className="flex-1 flex flex-col gap-1">
                                   {lane.type === 'pictures' ? (
-                                    <img 
-                                      src={typeof item === 'string' ? item : item.title} 
+                                      <img 
+                                        src={typeof item === 'string' ? item : (item.imageUrl || item.title)} 
                                       alt="Journey step" 
                                       className="w-full h-auto rounded object-cover cursor-pointer hover:opacity-90 transition-opacity" 
                                       referrerPolicy="no-referrer" 
+                                      crossOrigin="anonymous"
                                       onClick={() => setSelectedImage(typeof item === 'string' ? item : item.title)}
                                     />
                                   ) : (
@@ -1912,10 +1933,16 @@ export function JourneyMaps({
                                       >
                                         {typeof item === 'string' ? item : item.title}
                                       </div>
-                                      {typeof item !== 'string' && item.description && (
-                                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-2 italic">
-                                          {item.description}
-                                        </p>
+                                      {typeof item !== 'string' && item.imageUrl && item.showImageOnMap && (
+                                        <div className="mt-1 rounded-md overflow-hidden border border-zinc-200 dark:border-zinc-700">
+                                          <img 
+                                            src={item.imageUrl} 
+                                            alt={item.title} 
+                                            className="w-full h-auto max-h-24 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                                            onClick={(e) => { e.stopPropagation(); setSelectedImage(item.imageUrl || null); }}
+                                            crossOrigin="anonymous"
+                                          />
+                                        </div>
                                       )}
                                     </div>
                                   )}
@@ -2371,10 +2398,85 @@ export function JourneyMaps({
                       setSelectedItemDetail({ ...selectedItemDetail, item: { ...selectedItemDetail.item, description: newDesc } });
                       updateLaneItem(selectedItemDetail.stageId, selectedItemDetail.laneId, selectedItemDetail.itemIndex, { description: newDesc });
                     }}
-                    rows={6}
+                    rows={4}
                     className="w-full bg-zinc-50 dark:bg-zinc-800/50 border-2 border-transparent focus:border-indigo-500 dark:focus:border-indigo-500/50 rounded-2xl p-4 text-zinc-900 dark:text-white transition-all resize-none outline-none leading-relaxed"
                     placeholder="Add more context, notes, or specific details for this step..."
                   />
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between px-1">
+                    <label className="text-xs font-bold text-zinc-400 dark:text-zinc-500 uppercase tracking-widest">Image Reference</label>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-zinc-500">Show on map</span>
+                      <button 
+                        onClick={() => {
+                          const newVal = !selectedItemDetail.item.showImageOnMap;
+                          setSelectedItemDetail({ ...selectedItemDetail, item: { ...selectedItemDetail.item, showImageOnMap: newVal } });
+                          updateLaneItem(selectedItemDetail.stageId, selectedItemDetail.laneId, selectedItemDetail.itemIndex, { showImageOnMap: newVal });
+                        }}
+                        className={`w-8 h-4 rounded-full transition-colors relative cursor-pointer ${selectedItemDetail.item.showImageOnMap ? 'bg-indigo-600' : 'bg-zinc-200 dark:bg-zinc-700'}`}
+                      >
+                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${selectedItemDetail.item.showImageOnMap ? 'left-4.5' : 'left-0.5'}`} />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {selectedItemDetail.item.imageUrl ? (
+                    <div className="relative group rounded-2xl overflow-hidden border-2 border-zinc-100 dark:border-zinc-800">
+                      <img src={selectedItemDetail.item.imageUrl} alt="Item" className="w-full h-auto max-h-48 object-cover" />
+                      <button 
+                        onClick={() => {
+                          setSelectedItemDetail({ ...selectedItemDetail, item: { ...selectedItemDetail.item, imageUrl: undefined } });
+                          updateLaneItem(selectedItemDetail.stageId, selectedItemDetail.laneId, selectedItemDetail.itemIndex, { imageUrl: undefined });
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-rose-600 text-white rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full aspect-video bg-zinc-50 dark:bg-zinc-800/50 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all group">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <ImageIcon className="w-8 h-8 text-zinc-300 group-hover:text-indigo-400 mb-2 transition-colors" />
+                        <p className="text-xs text-zinc-500 font-medium tracking-tight">Click to upload image</p>
+                      </div>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              const img = new Image();
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                const MAX_WIDTH = 800;
+                                const MAX_HEIGHT = 800;
+                                let width = img.width;
+                                let height = img.height;
+                                if (width > height) {
+                                  if (width > MAX_WIDTH) { height *= MAX_WIDTH / width; width = MAX_WIDTH; }
+                                } else if (height > MAX_HEIGHT) { width *= MAX_HEIGHT / height; height = MAX_HEIGHT; }
+                                canvas.width = width; canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                if (ctx) {
+                                  ctx.drawImage(img, 0, 0, width, height);
+                                  const base64String = canvas.toDataURL('image/jpeg', 0.7);
+                                  setSelectedItemDetail({ ...selectedItemDetail, item: { ...selectedItemDetail.item, imageUrl: base64String } });
+                                  updateLaneItem(selectedItemDetail.stageId, selectedItemDetail.laneId, selectedItemDetail.itemIndex, { imageUrl: base64String });
+                                }
+                              };
+                              img.src = reader.result as string;
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
               

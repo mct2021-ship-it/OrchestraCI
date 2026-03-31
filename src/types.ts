@@ -59,6 +59,8 @@ export interface JourneyItem {
   id: string;
   title: string;
   description?: string;
+  imageUrl?: string;
+  showImageOnMap?: boolean;
 }
 
 export interface JourneyStage {
