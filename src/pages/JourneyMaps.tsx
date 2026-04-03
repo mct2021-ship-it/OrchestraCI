@@ -94,6 +94,7 @@ const getSwimlaneIconComponent = (iconName?: string) => {
 import { JourneyStage, JourneyItem, Swimlane, JourneyMap, Product, Service, Persona, Task, Project, ProcessMap, Comment, User, RecycleBinItem } from '../types';
 import { EditableText } from '../components/EditableText';
 import { CreateJourneyModal } from '../components/CreateJourneyModal';
+import { PersonaDetailModal } from '../components/PersonaDetailModal';
 import { JourneyAiAssistant } from '../components/JourneyAiAssistant';
 import { CarbonLibraryModal } from '../components/CarbonLibraryModal';
 import { carbonLibrary } from '../data/carbonLibrary';
@@ -180,18 +181,18 @@ export function JourneyMaps({
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isMoreActionsOpen, setIsMoreActionsOpen] = useState(false);
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
-  const [isAddSwimlaneMenuOpen, setIsAddSwimlaneMenuOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [showCarbon, setShowCarbon] = useState(false);
   const [isCalculatingCarbon, setIsCalculatingCarbon] = useState(false);
+  const [isPersonaExpanded, setIsPersonaExpanded] = useState(false);
+  const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [activeCarbonTarget, setActiveCarbonTarget] = useState<{ stageId: string; laneId: string; itemIndex: number } | null>(null);
   const [selectedItemDetail, setSelectedItemDetail] = useState<{ stageId: string; laneId: string; itemIndex: number; item: JourneyItem } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const moreActionsMenuRef = useRef<HTMLDivElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
-  const addSwimlaneMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -203,9 +204,6 @@ export function JourneyMaps({
       }
       if (viewMenuRef.current && !viewMenuRef.current.contains(event.target as Node)) {
         setIsViewMenuOpen(false);
-      }
-      if (addSwimlaneMenuRef.current && !addSwimlaneMenuRef.current.contains(event.target as Node)) {
-        setIsAddSwimlaneMenuOpen(false);
       }
     };
 
@@ -587,7 +585,7 @@ export function JourneyMaps({
                       id: uuidv4(),
                       projectId: activeProjectId || 'proj1',
                       title: 'New Journey Map',
-                      personaId: 'p1',
+                      personaIds: ['p1'],
                       state: 'Proposed',
                       satisfaction: {
                         metric: 'NPS',
@@ -819,6 +817,7 @@ export function JourneyMaps({
         {isAiModalOpen && (
           <CreateJourneyModal 
             projectId={activeProjectId || 'proj1'} 
+            personas={personas}
             onClose={handleCloseCreateModal} 
             onSave={(newJourney) => {
               setJourneys([...journeys, newJourney]);
@@ -861,11 +860,11 @@ export function JourneyMaps({
     ));
   };
 
-  const handleAddSwimlane = (type: 'text-list' | 'pictures') => {
+  const handleAddSwimlane = (type: 'text-list') => {
     const newLaneId = `lane_${Date.now()}`;
     const newLane: Swimlane = {
       id: newLaneId,
-      name: type === 'pictures' ? 'Pictures' : 'New Swimlane',
+      name: 'New Swimlane',
       type,
       colorTheme: 'zinc'
     };
@@ -883,7 +882,6 @@ export function JourneyMaps({
       }
       return j;
     }));
-    setIsAddSwimlaneMenuOpen(false);
   };
 
   const toggleSwimlaneVisibility = (laneId: string) => {
@@ -893,74 +891,6 @@ export function JourneyMaps({
         swimlanes: j.swimlanes.map(l => l.id === laneId ? { ...l, isHidden: !l.isHidden } : l)
       } : j
     ));
-  };
-
-  const handleImageUpload = (stageId: string, laneId: string, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const MAX_WIDTH = 800;
-          const MAX_HEIGHT = 800;
-          let width = img.width;
-          let height = img.height;
-
-          if (width > height) {
-            if (width > MAX_WIDTH) {
-              height *= MAX_WIDTH / width;
-              width = MAX_WIDTH;
-            }
-          } else {
-            if (height > MAX_HEIGHT) {
-              width *= MAX_HEIGHT / height;
-              height = MAX_HEIGHT;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(img, 0, 0, width, height);
-            const base64String = canvas.toDataURL('image/jpeg', 0.7);
-            
-            setJourneys(journeys.map(j => {
-              if (j.id === activeJourneyId) {
-                return {
-                  ...j,
-                  stages: j.stages.map(s => {
-                    if (s.id === stageId) {
-                      const newItem: JourneyItem = { 
-                        id: uuidv4(), 
-                        title: 'Picture Item', 
-                        imageUrl: base64String,
-                        showImageOnMap: true 
-                      };
-                      return {
-                        ...s,
-                        laneData: {
-                          ...s.laneData,
-                          [laneId]: [...(s.laneData[laneId] || []), newItem]
-                        }
-                      };
-                    }
-                    return s;
-                  })
-                };
-              }
-              return j;
-            }));
-          }
-        };
-        img.src = reader.result as string;
-      };
-      reader.readAsDataURL(file);
-      // Reset the input value so the same file can be uploaded again
-      e.target.value = '';
-    }
   };
 
   const moveSwimlane = (index: number, direction: 'up' | 'down') => {
@@ -1346,7 +1276,7 @@ export function JourneyMaps({
                     id: uuidv4(),
                     projectId: 'proj1',
                     title: 'New Journey Map',
-                    personaId: 'p1',
+                    personaIds: ['p1'],
                     state: 'Proposed',
                     satisfaction: {
                       metric: 'NPS',
@@ -1401,6 +1331,7 @@ export function JourneyMaps({
       {isAiModalOpen && (
         <CreateJourneyModal 
           projectId={activeProjectId || 'proj1'} 
+          personas={personas}
           onClose={handleCloseCreateModal} 
           onSave={(newJourney) => {
             setJourneys([...journeys, newJourney]);
@@ -1410,7 +1341,14 @@ export function JourneyMaps({
         />
       )}
 
-      <div className="flex gap-2 mb-8 overflow-x-auto pb-2">
+      {selectedPersona && (
+        <PersonaDetailModal 
+          persona={selectedPersona} 
+          onClose={() => setSelectedPersona(null)} 
+        />
+      )}
+
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
         {journeys.map(j => (
           <button
             key={j.id}
@@ -1425,6 +1363,69 @@ export function JourneyMaps({
           </button>
         ))}
       </div>
+
+      {/* Persona Details Section */}
+      {activeJourney.personaIds && activeJourney.personaIds.length > 0 && (
+        <div className="mb-8 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+          <button 
+            onClick={() => setIsPersonaExpanded(!isPersonaExpanded)}
+            className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <span>Personas ({activeJourney.personaIds.length})</span>
+              <div className="flex -space-x-2 ml-2">
+                {activeJourney.personaIds.map(id => {
+                  const p = personas.find(p => p.id === id);
+                  if (!p) return null;
+                  return (
+                    <img 
+                      key={p.id}
+                      src={p.imageUrl} 
+                      alt={p.name} 
+                      className="w-6 h-6 rounded-full border-2 border-white dark:border-zinc-900 object-cover"
+                      crossOrigin="anonymous"
+                    />
+                  );
+                })}
+              </div>
+            </div>
+            {isPersonaExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+          </button>
+          
+          <AnimatePresence>
+            {isPersonaExpanded && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 border-t border-zinc-200 dark:border-zinc-800">
+                  {activeJourney.personaIds.map(id => {
+                    const p = personas.find(p => p.id === id);
+                    if (!p) return null;
+                    return (
+                      <div 
+                        key={p.id} 
+                        className="bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 shadow-sm flex gap-4 cursor-pointer hover:border-indigo-500 hover:shadow-md transition-all"
+                        onClick={() => setSelectedPersona(p)}
+                      >
+                        <img src={p.imageUrl} alt={p.name} className="w-16 h-16 rounded-full object-cover shrink-0" crossOrigin="anonymous" />
+                        <div>
+                          <h4 className="font-bold text-zinc-900 dark:text-white group-hover:text-indigo-600 transition-colors">{p.name}</h4>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-2">{p.role} • {p.age} yrs</p>
+                          <p className="text-xs text-zinc-600 dark:text-zinc-300 italic line-clamp-2">"{p.quote}"</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
 
       <div id="journey-map-content" className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
         <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
@@ -1504,48 +1505,6 @@ export function JourneyMaps({
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
-            </div>
-            <div className="hidden sm:block h-4 w-px bg-zinc-300"></div>
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-full pl-1 pr-3 py-1 shadow-sm">
-                {(() => {
-                  const persona = personas.find(p => p.id === activeJourney.personaId);
-                  return (
-                    <>
-                      {persona?.imageUrl ? (
-                        <img 
-                          src={persona.imageUrl} 
-                          alt={persona.name} 
-                          className="w-8 h-8 rounded-full object-cover" 
-                          crossOrigin="anonymous"
-                        />
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400 text-xs font-bold">
-                          {persona?.name?.charAt(0) || '?'}
-                        </div>
-                      )}
-                      <div className="flex flex-col">
-                        <span className="text-[10px] text-zinc-400 uppercase tracking-widest font-bold leading-none mb-0.5">Persona</span>
-                        <select 
-                          value={activeJourney.personaId || ''}
-                          onChange={(e) => {
-                            if (e.target.value === 'CREATE_NEW') {
-                              onNavigateToPersonas?.();
-                            } else {
-                              setJourneys(journeys.map(j => j.id === activeJourneyId ? { ...j, personaId: e.target.value } : j));
-                            }
-                          }}
-                          className="text-xs font-bold text-zinc-900 dark:text-white bg-transparent outline-none cursor-pointer p-0 border-none focus:ring-0 w-full"
-                        >
-                          <option value="">Select Persona...</option>
-                          {personas.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                          <option value="CREATE_NEW" className="font-bold text-indigo-600">+ Create New</option>
-                        </select>
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
             </div>
           </div>
 
@@ -1728,10 +1687,16 @@ export function JourneyMaps({
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center justify-center gap-2">
-                      <EditableText value={stage.name} onChange={(val) => updateStageName(stage.id, val)} disabled={!canEdit} />
+                    <div className="flex items-center justify-center gap-2 w-full">
+                      <EditableText 
+                        value={stage.name} 
+                        onChange={(val) => updateStageName(stage.id, val)} 
+                        disabled={!canEdit} 
+                        hideEditIcon 
+                        className="text-center whitespace-normal break-words w-full"
+                      />
                       {canEdit && (
-                        <button onClick={() => removeStage(stage.id)} className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-rose-500 transition-opacity no-export">
+                        <button onClick={() => removeStage(stage.id)} className="opacity-0 group-hover:opacity-100 text-zinc-300 hover:text-rose-500 transition-opacity no-export shrink-0">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       )}
@@ -1853,7 +1818,7 @@ export function JourneyMaps({
                           )}
                         </div>
                         <div className="flex-1 min-w-0 pr-10">
-                          <EditableText value={lane.name} onChange={(val) => updateLaneName(lane.id, val)} className="text-sm font-bold truncate block w-full" disabled={!canEdit} />
+                          <EditableText value={lane.name} onChange={(val) => updateLaneName(lane.id, val)} className="text-sm font-bold whitespace-normal break-words w-full" disabled={!canEdit} />
                         </div>
                       </div>
                       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 print:hidden no-export bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-zinc-200/50 dark:border-zinc-700/50 z-10">
@@ -1916,17 +1881,7 @@ export function JourneyMaps({
                               <div className="flex items-start gap-2">
                                 <div className={`w-1.5 h-1.5 rounded-full bg-${lane.colorTheme}-400 mt-1.5 shrink-0`} />
                                 <div className="flex-1 flex flex-col gap-1">
-                                  {lane.type === 'pictures' ? (
-                                      <img 
-                                        src={typeof item === 'string' ? item : (item.imageUrl || item.title)} 
-                                      alt="Journey step" 
-                                      className="w-full h-auto rounded object-cover cursor-pointer hover:opacity-90 transition-opacity" 
-                                      referrerPolicy="no-referrer" 
-                                      crossOrigin="anonymous"
-                                      onClick={() => setSelectedImage(typeof item === 'string' ? item : item.title)}
-                                    />
-                                  ) : (
-                                    <div className="flex flex-col gap-1">
+                                  <div className="flex flex-col gap-1">
                                       <div 
                                         className="text-sm font-medium text-zinc-900 dark:text-zinc-100 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                         onClick={() => setSelectedItemDetail({ stageId: stage.id, laneId: lane.id, itemIndex: i, item: (typeof item === 'string' ? { id: uuidv4(), title: item, description: '' } : item) })}
@@ -1945,7 +1900,6 @@ export function JourneyMaps({
                                         </div>
                                       )}
                                     </div>
-                                  )}
                                   {showCarbon && (
                                     <div className="flex items-center gap-1.5 mt-1">
                                       <div className={cn(
@@ -2039,24 +1993,12 @@ export function JourneyMaps({
                           })}
                           {canEdit && (
                             <div className="mt-1">
-                              {lane.type === 'pictures' ? (
-                                <label className={`text-xs text-${lane.colorTheme}-500 hover:text-${lane.colorTheme}-700 text-left font-medium print:hidden no-export cursor-pointer flex items-center gap-1`}>
-                                  <ImageIcon className="w-3 h-3" /> Add picture
-                                  <input 
-                                    type="file" 
-                                    accept="image/*" 
-                                    className="hidden" 
-                                    onChange={(e) => handleImageUpload(stage.id, lane.id, e)}
-                                  />
-                                </label>
-                              ) : (
                                 <button 
                                   onClick={() => addLaneItem(stage.id, lane.id)}
                                   className={`text-xs text-${lane.colorTheme}-500 hover:text-${lane.colorTheme}-700 text-left font-medium print:hidden no-export`}
                                 >
                                   + Add item
                                 </button>
-                              )}
                             </div>
                           )}
                         </div>
@@ -2108,37 +2050,13 @@ export function JourneyMaps({
             {/* Add Swimlane Row */}
             {canEdit && (
               <div className="flex print:hidden no-export">
-                <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center relative" ref={addSwimlaneMenuRef}>
+                <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center relative">
                   <button 
-                    onClick={() => setIsAddSwimlaneMenuOpen(!isAddSwimlaneMenuOpen)} 
+                    onClick={() => handleAddSwimlane('text-list')} 
                     className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:text-white flex items-center gap-1 text-sm font-medium transition-colors"
                   >
                     <Plus className="w-4 h-4" /> Add Swimlane
                   </button>
-                  <AnimatePresence>
-                    {isAddSwimlaneMenuOpen && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                        transition={{ duration: 0.15 }}
-                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 py-2 z-50"
-                      >
-                        <button 
-                          onClick={() => handleAddSwimlane('text-list')}
-                          className="w-full px-4 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                        >
-                          <FileText className="w-4 h-4 text-zinc-400" /> Text List
-                        </button>
-                        <button 
-                          onClick={() => handleAddSwimlane('pictures')}
-                          className="w-full px-4 py-2 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                        >
-                          <ImageIcon className="w-4 h-4 text-zinc-400" /> Pictures
-                        </button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
                 {activeJourney.stages.map(stage => (
                   <div key={stage.id} className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 flex-1 min-w-[200px]"></div>

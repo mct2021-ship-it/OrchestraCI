@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { mockPersonas, personaTemplates } from '../data/mockData';
-import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock } from 'lucide-react';
+import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List } from 'lucide-react';
 import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { AiPersonaGenerator } from '../components/AiPersonaGenerator';
@@ -52,6 +52,8 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isGeneratingStories, setIsGeneratingStories] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
+  const [isAddSectionMenuOpen, setIsAddSectionMenuOpen] = useState(false);
+  const addSectionMenuRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -72,6 +74,9 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     const handleClickOutside = (event: MouseEvent) => {
       if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
         setIsExportMenuOpen(false);
+      }
+      if (addSectionMenuRef.current && !addSectionMenuRef.current.contains(event.target as Node)) {
+        setIsAddSectionMenuOpen(false);
       }
     };
 
@@ -337,6 +342,37 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       }
       return p;
     }));
+  };
+
+  const handleAddSection = (type: 'images' | 'sliders' | 'list') => {
+    if (!selectedPersona) return;
+    const currentSections = selectedPersona.additionalSections || [];
+    if (currentSections.length >= 3) return;
+
+    const newSection: any = {
+      id: uuidv4(),
+      title: type === 'images' ? 'Image Gallery' : type === 'sliders' ? 'Metrics' : 'Custom List',
+      type,
+      images: type === 'images' ? [] : undefined,
+      sliders: type === 'sliders' ? [] : undefined,
+      list: type === 'list' ? [] : undefined,
+    };
+
+    updatePersonaField(selectedPersona.id, 'additionalSections', [...currentSections, newSection]);
+    setIsAddSectionMenuOpen(false);
+  };
+
+  const handleUpdateSection = (sectionId: string, updates: any) => {
+    if (!selectedPersona) return;
+    const currentSections = selectedPersona.additionalSections || [];
+    const updatedSections = currentSections.map(s => s.id === sectionId ? { ...s, ...updates } : s);
+    updatePersonaField(selectedPersona.id, 'additionalSections', updatedSections);
+  };
+
+  const handleRemoveSection = (sectionId: string) => {
+    if (!selectedPersona) return;
+    const currentSections = selectedPersona.additionalSections || [];
+    updatePersonaField(selectedPersona.id, 'additionalSections', currentSections.filter(s => s.id !== sectionId));
   };
 
   const saveAsTemplate = (persona: Persona) => {
@@ -1132,37 +1168,203 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                 </ul>
               </div>
 
-              {/* Custom Section */}
-              <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                <div className="flex items-center gap-2 mb-4">
-                  <LayoutTemplate className="w-6 h-6 text-indigo-500" />
-                  <EditableText
-                    value={selectedPersona!.customSection?.title || 'Custom Section'}
-                    onChange={(val) => {
-                      updatePersonaField(selectedPersona!.id, 'customSection', {
-                        title: val,
-                        text: selectedPersona!.customSection?.text || 'Add your custom content here...'
-                      });
-                    }}
-                    className="text-lg font-bold text-zinc-900 dark:text-white"
-                    disabled={!canEdit}
-                  />
+              {/* Additional Sections */}
+              {(selectedPersona!.additionalSections || []).map((section) => (
+                <div key={section.id} className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800 relative group">
+                  {canEdit && (
+                    <button 
+                      onClick={() => handleRemoveSection(section.id)}
+                      className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-colors opacity-0 group-hover:opacity-100 no-export"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div className="flex items-center gap-2 mb-4">
+                    <LayoutTemplate className="w-6 h-6 text-indigo-500" />
+                    <EditableText
+                      value={section.title}
+                      onChange={(val) => handleUpdateSection(section.id, { title: val })}
+                      className="text-lg font-bold text-zinc-900 dark:text-white pr-8"
+                      disabled={!canEdit}
+                    />
+                  </div>
+                  
+                  {section.type === 'images' && (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {(section.images || []).map((img, i) => (
+                        <div key={i} className="relative group/img aspect-video bg-zinc-200 dark:bg-zinc-800 rounded-xl overflow-hidden">
+                          <img src={img} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                          {canEdit && (
+                            <button 
+                              onClick={() => {
+                                const newImages = [...(section.images || [])];
+                                newImages.splice(i, 1);
+                                handleUpdateSection(section.id, { images: newImages });
+                              }}
+                              className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-lg opacity-0 group-hover/img:opacity-100 transition-opacity hover:bg-rose-500"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {canEdit && (section.images || []).length < 3 && (
+                        <button 
+                          onClick={() => {
+                            const url = prompt('Enter image URL:');
+                            if (url) {
+                              handleUpdateSection(section.id, { images: [...(section.images || []), url] });
+                            }
+                          }}
+                          className="aspect-video flex flex-col items-center justify-center gap-2 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+                        >
+                          <ImageIcon className="w-6 h-6" />
+                          <span className="text-xs font-medium">Add Image</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {section.type === 'sliders' && (
+                    <div className="space-y-4">
+                      {(section.sliders || []).map((slider) => (
+                        <div key={slider.id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative group/slider">
+                          <div className="flex justify-between items-center mb-2">
+                            <EditableText
+                              value={slider.label}
+                              onChange={(val) => {
+                                const newSliders = (section.sliders || []).map(s => s.id === slider.id ? { ...s, label: val } : s);
+                                handleUpdateSection(section.id, { sliders: newSliders });
+                              }}
+                              className="text-sm font-bold text-zinc-700 dark:text-zinc-200"
+                              disabled={!canEdit}
+                            />
+                            <span className="text-xs font-medium text-zinc-500">{slider.value}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0"
+                            max="100"
+                            value={slider.value}
+                            onChange={(e) => {
+                              const newSliders = (section.sliders || []).map(s => s.id === slider.id ? { ...s, value: Number(e.target.value) } : s);
+                              handleUpdateSection(section.id, { sliders: newSliders });
+                            }}
+                            disabled={!canEdit}
+                            className="w-full accent-indigo-600"
+                          />
+                          {canEdit && (
+                            <button 
+                              onClick={() => {
+                                const newSliders = (section.sliders || []).filter(s => s.id !== slider.id);
+                                handleUpdateSection(section.id, { sliders: newSliders });
+                              }}
+                              className="absolute -right-2 -top-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/slider:opacity-100 transition-opacity shadow-sm no-export"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {canEdit && (
+                        <button 
+                          onClick={() => {
+                            const newSliders = [...(section.sliders || []), { id: uuidv4(), label: 'New Metric', value: 50 }];
+                            handleUpdateSection(section.id, { sliders: newSliders });
+                          }}
+                          className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 mt-2 no-export"
+                        >
+                          <Plus className="w-4 h-4" /> Add Metric
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {section.type === 'list' && (
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {(section.list || []).map((item, i) => (
+                        <li key={i} className="flex items-start gap-3 text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm relative group/item">
+                          <span className="w-2 h-2 rounded-full bg-indigo-400 mt-2 shrink-0" />
+                          <EditableText 
+                            value={item} 
+                            onChange={(val) => {
+                              const newList = [...(section.list || [])];
+                              newList[i] = val;
+                              handleUpdateSection(section.id, { list: newList });
+                            }}
+                            className="text-sm font-medium flex-1"
+                            disabled={!canEdit}
+                          />
+                          {canEdit && (
+                            <button 
+                              onClick={() => {
+                                const newList = (section.list || []).filter((_, idx) => idx !== i);
+                                handleUpdateSection(section.id, { list: newList });
+                              }}
+                              className="absolute -right-2 -top-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity shadow-sm no-export"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                      {canEdit && (
+                        <button 
+                          onClick={() => {
+                            const newList = [...(section.list || []), 'New Item'];
+                            handleUpdateSection(section.id, { list: newList });
+                          }}
+                          className="flex items-center gap-2 text-sm font-bold text-indigo-600 hover:text-indigo-700 mt-2 no-export"
+                        >
+                          <Plus className="w-4 h-4" /> Add Item
+                        </button>
+                      )}
+                    </ul>
+                  )}
                 </div>
-                <div className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-                  <EditableText
-                    value={selectedPersona!.customSection?.text || 'Add your custom content here...'}
-                    onChange={(val) => {
-                      updatePersonaField(selectedPersona!.id, 'customSection', {
-                        title: selectedPersona!.customSection?.title || 'Custom Section',
-                        text: val
-                      });
-                    }}
-                    multiline
-                    className="text-zinc-700 dark:text-zinc-200 leading-relaxed"
-                    disabled={!canEdit}
-                  />
+              ))}
+
+              {/* Add Section Button */}
+              {canEdit && (selectedPersona!.additionalSections || []).length < 3 && (
+                <div className="relative" ref={addSectionMenuRef}>
+                  <button 
+                    onClick={() => setIsAddSectionMenuOpen(!isAddSectionMenuOpen)}
+                    className="w-full py-4 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-2xl text-zinc-500 font-medium hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors flex items-center justify-center gap-2 no-export"
+                  >
+                    <Plus className="w-5 h-5" /> Add Section
+                  </button>
+                  <AnimatePresence>
+                    {isAddSectionMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 py-2 z-50"
+                      >
+                        <button 
+                          onClick={() => handleAddSection('images')}
+                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-3"
+                        >
+                          <ImageIcon className="w-4 h-4 text-indigo-500" /> Image Gallery
+                        </button>
+                        <button 
+                          onClick={() => handleAddSection('sliders')}
+                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-3"
+                        >
+                          <Sliders className="w-4 h-4 text-emerald-500" /> Metrics & Sliders
+                        </button>
+                        <button 
+                          onClick={() => handleAddSection('list')}
+                          className="w-full px-4 py-2.5 text-left text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-3"
+                        >
+                          <List className="w-4 h-4 text-amber-500" /> Custom List
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
+              )}
             </div>
           </div>
         </div>

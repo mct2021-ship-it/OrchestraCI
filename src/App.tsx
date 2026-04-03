@@ -26,6 +26,7 @@ import { CompanyProfile } from './components/YourCompany';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { GeminiChatbot } from './components/GeminiChatbot';
 import { FeedbackModal } from './components/FeedbackModal';
+import { NotificationsModal } from './components/NotificationsModal';
 import { Menu, ChevronLeft, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -99,6 +100,27 @@ function AppContent() {
   const [ws, setWs] = useState<WebSocket | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ item: any, type: RecycleBinItem['type'], originalProjectId?: string } | null>(null);
   const [resetTrigger, setResetTrigger] = useState(0);
+
+  const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
+  const [notifications, setNotifications] = useState<import('./components/NotificationsModal').Notification[]>([
+    {
+      id: 'welcome-1',
+      title: 'Welcome to Orchestra CI!',
+      message: 'We are excited to have you on board. Explore the dashboard to get started with your Customer Experience program.',
+      createdAt: new Date().toISOString(),
+      read: false,
+    }
+  ]);
+
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+  const handleMarkNotificationAsRead = (id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+  };
+
+  const handleMarkAllNotificationsAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  };
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -795,6 +817,8 @@ function AppContent() {
           isDarkMode={isDarkMode}
           companyProfile={companyProfile}
           onOpenFeedback={() => setIsFeedbackModalOpen(true)}
+          onOpenNotifications={() => setIsNotificationsModalOpen(true)}
+          unreadNotificationsCount={unreadNotificationsCount}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <header className={cn(
@@ -860,6 +884,15 @@ function AppContent() {
             }}
           />
           <FeedbackModal isOpen={isFeedbackModalOpen} onClose={() => setIsFeedbackModalOpen(false)} />
+          
+          <NotificationsModal
+            isOpen={isNotificationsModalOpen}
+            onClose={() => setIsNotificationsModalOpen(false)}
+            notifications={notifications}
+            onMarkAsRead={handleMarkNotificationAsRead}
+            onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+            isDarkMode={isDarkMode}
+          />
 
           <AnimatePresence>
             {showPersonaPromptModal && (

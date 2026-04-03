@@ -790,9 +790,9 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
                               {...provided.dragHandleProps}
                               onClick={() => setEditingTask(task)}
                               className={cn(
-                                "bg-white dark:bg-zinc-900 p-5 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all group cursor-pointer",
-                                snapshot.isDragging ? "shadow-xl ring-2 ring-indigo-500 rotate-2 scale-105" : "",
-                                isReadOnly ? "cursor-default hover:shadow-sm" : ""
+                                "bg-yellow-100 dark:bg-yellow-900/40 p-5 rounded-sm shadow-md border border-yellow-200 dark:border-yellow-700/50 hover:shadow-lg transition-all group cursor-pointer relative",
+                                snapshot.isDragging ? "shadow-xl ring-2 ring-yellow-400 rotate-3 scale-105 z-50" : "hover:-translate-y-1 hover:rotate-1",
+                                isReadOnly ? "cursor-default hover:shadow-sm hover:translate-y-0 hover:rotate-0" : ""
                               )}
                             >
                               <div className="flex justify-between items-start mb-3">

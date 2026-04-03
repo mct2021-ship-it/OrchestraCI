@@ -18,11 +18,11 @@ export const AVATAR_LIBRARY: AvatarData[] = [
   { url: 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=400&h=400&fit=crop', gender: 'Male', ageBracket: '18-30' },
   { url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop', gender: 'Male', ageBracket: '18-30' },
   // 31-50 Female
-  { url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&h=400&fit=crop', gender: 'Female', ageBracket: '31-50' },
+  { url: 'https://images.unsplash.com/photo-1531123897727-8f129e1bf98c?w=400&h=400&fit=crop', gender: 'Female', ageBracket: '31-50' },
   { url: 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400&h=400&fit=crop', gender: 'Female', ageBracket: '31-50' },
   { url: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=400&h=400&fit=crop', gender: 'Female', ageBracket: '31-50' },
   { url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop', gender: 'Female', ageBracket: '31-50' },
-  { url: 'https://images.unsplash.com/photo-1531123897727-8f129e1bfa82?w=400&h=400&fit=crop', gender: 'Female', ageBracket: '31-50' },
+  { url: 'https://images.unsplash.com/photo-1554151228-14d9def656e4?w=400&h=400&fit=crop', gender: 'Female', ageBracket: '31-50' },
   // 31-50 Male
   { url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=400&h=400&fit=crop', gender: 'Male', ageBracket: '31-50' },
   { url: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=400&h=400&fit=crop', gender: 'Male', ageBracket: '31-50' },

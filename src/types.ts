@@ -26,6 +26,15 @@ export interface CustomSection {
   text: string;
 }
 
+export interface PersonaSection {
+  id: string;
+  title: string;
+  type: 'images' | 'sliders' | 'list';
+  images?: string[];
+  sliders?: DemographicSlider[];
+  list?: string[];
+}
+
 export interface Persona {
   id: string;
   name: string;
@@ -44,12 +53,13 @@ export interface Persona {
   isDefaultTemplate?: boolean;
   userStories?: UserStory[];
   customSection?: CustomSection;
+  additionalSections?: PersonaSection[];
 }
 
 export interface Swimlane {
   id: string;
   name: string;
-  type: 'text-list' | 'emotion' | 'pictures';
+  type: 'text-list' | 'emotion';
   colorTheme: 'blue' | 'rose' | 'amber' | 'emerald' | 'zinc' | 'indigo' | 'purple';
   icon?: string;
   isHidden?: boolean;
@@ -100,7 +110,7 @@ export interface JourneyMap {
   productId?: string;
   serviceId?: string;
   title: string;
-  personaId: string;
+  personaIds: string[];
   state: 'Current' | 'Proposed' | 'Implemented';
   status?: 'Draft' | 'In Progress' | 'Complete';
   archived?: boolean;

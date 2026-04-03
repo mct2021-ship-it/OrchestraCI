@@ -37,16 +37,12 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     let percentX = (x / rect.width) * 100;
     let percentY = (y / rect.height) * 100;
     
-    // Reverse the 10-90 padding to calculate true 0-100 value
-    let adjustedX = ((percentX - 10) / 80) * 100;
-    let adjustedY = ((percentY - 10) / 80) * 100;
-    
-    adjustedX = Math.max(0, Math.min(100, adjustedX));
-    adjustedY = Math.max(0, Math.min(100, adjustedY));
+    percentX = Math.max(0, Math.min(100, percentX));
+    percentY = Math.max(0, Math.min(100, percentY));
     
     // Convert to 1-10 scale
-    const newInterest = Math.max(1, Math.min(10, Math.round((adjustedX / 100) * 9) + 1));
-    const newPower = Math.max(1, Math.min(10, 10 - Math.round((adjustedY / 100) * 9)));
+    const newInterest = Math.max(1, Math.min(10, Math.round((percentX / 100) * 9) + 1));
+    const newPower = Math.max(1, Math.min(10, 10 - Math.round((percentY / 100) * 9)));
     
     setProjectStakeholders(prev => prev.map(s => 
       s.id === id ? { ...s, interest: newInterest, power: newPower } : s
@@ -209,9 +205,9 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   const gridStakeholders = useMemo(() => {
     return projectStakeholders.map(s => ({
       ...s,
-      // Map 1-10 scale to 10-90% to keep cards within visual grid bounds
-      x: 10 + (((s.interest - 1) / 9) * 80),
-      y: 90 - (((s.power - 1) / 9) * 80)
+      // Map 1-10 scale to 0-100% for positioning
+      x: ((s.interest - 1) / 9) * 100,
+      y: 100 - (((s.power - 1) / 9) * 100)
     }));
   }, [projectStakeholders]);
 

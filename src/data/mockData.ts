@@ -349,7 +349,7 @@ export const personaTemplates: Persona[] = [
     goals: ['Accessible home adaptations', 'Quick safety fixes', 'Reassurance and face-to-face contact'],
     frustrations: ['Complex referral processes for adaptations', 'Inconsistent communication', 'Transport barriers to appointments'],
     motivations: ['Dignity', 'Independence', 'Trusted relationships with staff', 'Predictable service delivery'],
-    imageUrl: 'https://images.unsplash.com/photo-1581579186913-45ac3e6ef911?w=400&h=400&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=400&fit=crop',
     demographics: [
       { id: 'd1', label: 'Mobility Needs', value: 90 },
       { id: 'd2', label: 'Digital Savvy', value: 30 }
@@ -389,7 +389,7 @@ export const mockJourneyMaps: JourneyMap[] = [
     id: 'j_test_current',
     projectId: 'proj_test',
     title: 'Current Onboarding Experience (As-Is)',
-    personaId: 'p1',
+    personaIds: ['p1'],
     state: 'Current',
     status: 'Complete',
     satisfaction: {
@@ -443,7 +443,7 @@ export const mockJourneyMaps: JourneyMap[] = [
     id: 'j_test_proposed',
     projectId: 'proj_test',
     title: 'Optimized Onboarding Experience (To-Be)',
-    personaId: 'p1',
+    personaIds: ['p1'],
     state: 'Proposed',
     status: 'Complete',
     satisfaction: {
@@ -499,7 +499,7 @@ export const mockJourneyMaps: JourneyMap[] = [
     productId: 'prod1',
     serviceId: 'serv1',
     title: 'Software Onboarding Journey',
-    personaId: 'p1',
+    personaIds: ['p1'],
     state: 'Current',
     satisfaction: {
       metric: 'NPS',

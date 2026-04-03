@@ -109,7 +109,7 @@ export const personaLibrary: PersonaFolder[] = [
           { id: '6', label: 'Language Skills', value: 100 },
           { id: '7', label: 'Education Level', value: 50 }
         ],
-        imageUrl: 'https://images.unsplash.com/photo-1581579186913-45ac3e6ef911?w=400&h=400&fit=crop'
+        imageUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=400&h=400&fit=crop'
       },
       {
         name: 'Amina',
@@ -489,7 +489,7 @@ export const personaLibrary: PersonaFolder[] = [
           { id: '2', label: 'Time Poor', value: 80 },
           { id: '3', label: 'Financial Security', value: 50 }
         ],
-        imageUrl: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop'
+        imageUrl: 'https://images.unsplash.com/photo-1531123897727-8f129e1bf98c?w=400&h=400&fit=crop'
       }
     ]
   },
@@ -785,7 +785,7 @@ export const personaLibrary: PersonaFolder[] = [
           { id: '2', label: 'Time Poor', value: 80 },
           { id: '3', label: 'Financial Security', value: 10 }
         ],
-        imageUrl: 'https://images.unsplash.com/photo-1508214751196-bfd1414d4bbc?w=400&h=400&fit=crop'
+        imageUrl: 'https://images.unsplash.com/photo-1531123897727-8f129e1bf98c?w=400&h=400&fit=crop'
       }
     ]
   }

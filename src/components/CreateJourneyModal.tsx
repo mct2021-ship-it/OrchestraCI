@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type, ThinkingLevel } from '@google/genai';
 import { X, Wand2, Loader2, Mic, FilePlus, Upload, FileText } from 'lucide-react';
-import { JourneyMap, Swimlane, JourneyStage, Product, Service } from '../types';
+import { JourneyMap, Swimlane, JourneyStage, Product, Service, Persona } from '../types';
 import { defaultSwimlanes } from '../data/mockData';
 import { v4 as uuidv4 } from 'uuid';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -16,10 +16,12 @@ interface CreateJourneyModalProps {
   onClose: () => void;
   onSave: (journey: JourneyMap) => void;
   projectId: string;
+  personas: Persona[];
 }
 
-export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourneyModalProps) {
+export function CreateJourneyModal({ onClose, onSave, projectId, personas }: CreateJourneyModalProps) {
   const [prompt, setPrompt] = useState('');
+  const [selectedPersonas, setSelectedPersonas] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -31,7 +33,7 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
       id: uuidv4(),
       projectId,
       title: 'New Blank Journey',
-      personaId: 'p1', // Default persona for now
+      personaIds: selectedPersonas,
       state: 'Current',
       satisfaction: {
         metric: 'NPS',
@@ -166,7 +168,7 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
         id: uuidv4(),
         projectId,
         title: data.title || 'Generated Journey Map',
-        personaId: 'p1', // Default persona for now
+        personaIds: selectedPersonas,
         state: 'Proposed',
         satisfaction: {
           metric: 'NPS',
@@ -224,6 +226,34 @@ export function CreateJourneyModal({ onClose, onSave, projectId }: CreateJourney
         </div>
         
         <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+              Select Personas (Optional)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {personas.map(persona => (
+                <button
+                  key={persona.id}
+                  onClick={() => {
+                    setSelectedPersonas(prev => 
+                      prev.includes(persona.id) 
+                        ? prev.filter(id => id !== persona.id)
+                        : [...prev, persona.id]
+                    );
+                  }}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors flex items-center gap-2 ${
+                    selectedPersonas.includes(persona.id)
+                      ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-900/30 dark:border-indigo-500/30 dark:text-indigo-300'
+                      : 'bg-white border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800'
+                  }`}
+                >
+                  <img src={persona.imageUrl} alt={persona.name} className="w-4 h-4 rounded-full object-cover" referrerPolicy="no-referrer" />
+                  {persona.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               onClick={handleCreateBlank}

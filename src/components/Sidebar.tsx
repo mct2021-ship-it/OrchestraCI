@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Users, Map, Target, GitMerge, Sparkles, Menu, X as CloseIcon, Settings, BrainCircuit, Shield, Building2, Activity, LayoutList, Briefcase, FileText, UsersRound, KanbanSquare, MonitorSmartphone, Calendar, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Users, Map, Target, GitMerge, Sparkles, Menu, X as CloseIcon, Settings, BrainCircuit, Shield, Building2, Activity, LayoutList, Briefcase, FileText, UsersRound, KanbanSquare, MonitorSmartphone, Calendar, MessageSquare, Bell } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePlan } from '../context/PlanContext';
 import { useAuth } from '../context/AuthContext';
@@ -16,9 +16,11 @@ interface SidebarProps {
   isDarkMode?: boolean;
   companyProfile?: CompanyProfile;
   onOpenFeedback?: () => void;
+  onOpenNotifications?: () => void;
+  unreadNotificationsCount?: number;
 }
 
-export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProject, isDarkMode, companyProfile, onOpenFeedback }: SidebarProps) {
+export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProject, isDarkMode, companyProfile, onOpenFeedback, onOpenNotifications, unreadNotificationsCount = 0 }: SidebarProps) {
   const { plan } = usePlan();
   const { user } = useAuth();
 
@@ -154,6 +156,26 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
           <nav className="space-y-1">
             {renderNavItem({ id: 'settings', label: 'Settings', icon: Settings })}
             {renderNavItem({ id: 'audit_log', label: 'Audit Log', icon: Activity })}
+            <button
+              onClick={() => {
+                onOpenNotifications?.();
+                onClose?.();
+              }}
+              className={cn(
+                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                isDarkMode ? "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 hover:text-zinc-900 dark:text-white"
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <Bell className={cn("w-5 h-5", isDarkMode ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400")} />
+                Notifications
+              </div>
+              {unreadNotificationsCount > 0 && (
+                <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {unreadNotificationsCount}
+                </span>
+              )}
+            </button>
             <button
               onClick={() => {
                 onOpenFeedback?.();

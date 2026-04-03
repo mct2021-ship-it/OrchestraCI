@@ -15,11 +15,10 @@ import {
   Target,
   ArrowRight,
   Download,
-  MoreVertical,
-  ChevronDown
+  MoreVertical
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
-import Markdown from 'react-markdown';import { cn } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
@@ -47,7 +46,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     status: 'Not Started',
-    stage: activeProjectId && projects.find(p => p.id === activeProjectId)?.status ? projects.find(p => p.id === activeProjectId)!.status : 'Discover',
+    stage: 'Discover',
     tasks: []
   });
 
@@ -76,7 +75,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
       startDate: new Date().toISOString().split('T')[0],
       endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       status: 'Not Started',
-      stage: activeProjectId && projects.find(p => p.id === activeProjectId)?.status ? projects.find(p => p.id === activeProjectId)!.status : 'Discover',
+      stage: 'Discover',
       tasks: []
     });
   };
@@ -277,29 +276,11 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                     )}>
                       {sprint.status}
                     </div>
-                    <div className="relative group/stage">
-                      <select
-                        value={sprint.stage || ''}
-                        onChange={(e) => {
-                          const newStage = e.target.value as any;
-                          setSprints(prev => prev.map(s => 
-                            s.id === sprint.id ? { ...s, stage: newStage } : s
-                          ));
-                        }}
-                        className={cn(
-                          "appearance-none px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer outline-none transition-all",
-                          sprint.status === 'In Progress' 
-                            ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400 hover:bg-purple-200" 
-                            : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 hover:bg-zinc-200"
-                        )}
-                      >
-                        <option value="">Select Stage</option>
-                        {['Discover', 'Define', 'Develop', 'Deliver', 'Done', 'Archived'].map(stage => (
-                          <option key={stage} value={stage}>{stage}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="w-2.5 h-2.5 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-50 group-hover/stage:opacity-100 transition-opacity" />
-                    </div>
+                    {sprint.stage && (
+                      <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">
+                        {sprint.stage}
+                      </div>
+                    )}
                   </div>
                   <button className="p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white rounded-lg transition-colors">
                     <MoreVertical className="w-4 h-4" />
@@ -315,39 +296,25 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                   </h3>
                 </div>
 
-                <div className="flex flex-col gap-2 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
+                <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
                   <div className="flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                    <span className="font-bold">Start Date:</span>
-                    <span>{new Date(sprint.startDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>{sprint.startDate} - {sprint.endDate}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <Calendar className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="font-bold">Expected End Date:</span>
-                    <span>{new Date(sprint.endDate).toLocaleDateString(undefined, { dateStyle: 'medium' })}</span>
+                    <Target className="w-3.5 h-3.5" />
+                    <span>{sprint.tasks?.length || 0} Tasks</span>
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center justify-center px-2.5 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-bold text-zinc-500 gap-2 border border-zinc-200 dark:border-zinc-700">
-                      <div className="flex -space-x-1">
-                        {projects.find(p => p.id === sprint.projectId)?.team?.slice(0, 3).map((m, i) => (
-                          <div key={i} className="w-4 h-4 rounded-full bg-indigo-100 border border-white dark:border-zinc-800 flex items-center justify-center text-[6px] text-indigo-600">
-                            {m.photoUrl ? (
-                              <img src={m.photoUrl} className="w-full h-full rounded-full object-cover" />
-                            ) : (
-                              m.name.charAt(0)
-                            )}
-                          </div>
-                        ))}
+                  <div className="flex -space-x-2">
+                    {/* Placeholder for team members */}
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="w-7 h-7 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold text-zinc-400">
+                        U
                       </div>
-                      <span>{projects.find(p => p.id === sprint.projectId)?.team?.length || 0} Members Involved</span>
-                    </div>
-                    <div className="flex items-center justify-center px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-[10px] font-bold text-emerald-600 gap-1 border border-emerald-100 dark:border-emerald-800/30">
-                      <Target className="w-3 h-3" />
-                      {sprint.tasks?.length || 0} Tasks
-                    </div>
+                    ))}
                   </div>
                   <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400">
                     View Details
@@ -646,8 +613,8 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                           </div>
                         ) : selectedSprint.report ? (
                           <div className="prose prose-sm dark:prose-invert max-w-none">
-                            <div className="markdown-body text-sm text-zinc-600 dark:text-zinc-400">
-                              <Markdown>{selectedSprint.report}</Markdown>
+                            <div className="whitespace-pre-wrap text-sm text-zinc-600 dark:text-zinc-400">
+                              {selectedSprint.report}
                             </div>
                           </div>
                         ) : (
@@ -680,11 +647,11 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                 <div className="flex items-center gap-6">
                   <div className="flex items-center gap-2">
                     <Users className="w-4 h-4 text-zinc-400" />
-                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{getProjectName(selectedSprint.projectId) ? (projects.find(p => p.id === selectedSprint.projectId)?.team?.length || 0) : 0} Members Involved</span>
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">8 Members Involved</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">{getSprintTasks(selectedSprint.id).filter(t => t.kanbanStatus === 'Done' || t.kanbanStatus === 'Completed').length} Tasks Completed</span>
+                    <span className="text-xs font-bold text-zinc-600 dark:text-zinc-400">12 Tasks Completed</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-4">

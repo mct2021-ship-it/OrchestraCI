@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, ChevronRight, Layout, Calendar, CheckCircle2, Clock, AlertCircle } from 'lucide-react';
+import { Search, Filter, ChevronRight, Layout, Calendar, CheckCircle2, Clock, AlertCircle, Download } from 'lucide-react';
 import { Project, Task, User } from '../types';
 import { cn } from '../lib/utils';
 
@@ -46,6 +46,36 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
   const getOwnerName = (ownerId: string) => {
     const user = users.find(u => u.id === ownerId || u.name === ownerId);
     return user ? user.name : ownerId;
+  };
+
+  const downloadCSV = () => {
+    const headers = ['Project', 'Sprint', 'Task Title', 'Description', 'Status', 'Owner', 'Due Date'];
+    const csvContent = [
+      headers.join(','),
+      ...filteredTasks.map(task => {
+        const project = projects.find(p => p.id === task.projectId);
+        const sprint = project?.sprints?.find(s => s.id === task.sprint)?.name || '';
+        return [
+          `"${getProjectName(task.projectId).replace(/"/g, '""')}"`,
+          `"${sprint.replace(/"/g, '""')}"`,
+          `"${task.title.replace(/"/g, '""')}"`,
+          `"${(task.description || '').replace(/"/g, '""')}"`,
+          `"${task.kanbanStatus || task.status}"`,
+          `"${getOwnerName(task.owner).replace(/"/g, '""')}"`,
+          `"${task.expectedCompletionDate ? new Date(task.expectedCompletionDate).toLocaleDateString() : ''}"`
+        ].join(',');
+      })
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'single_view_of_change.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -105,6 +135,15 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
             <option value="In Progress">In Progress (Kanban)</option>
             <option value="Done">Done (Kanban)</option>
           </select>
+
+          <button
+            onClick={downloadCSV}
+            className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors ml-2"
+            title="Download as CSV"
+          >
+            <Download className="w-4 h-4" />
+            <span className="hidden sm:inline">Export CSV</span>
+          </button>
         </div>
       </div>
 

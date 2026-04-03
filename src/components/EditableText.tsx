@@ -8,9 +8,10 @@ interface EditableTextProps {
   multiline?: boolean;
   disabled?: boolean;
   showConfirmTick?: boolean;
+  hideEditIcon?: boolean;
 }
 
-export function EditableText({ value, onChange, className = '', multiline = false, disabled = false, showConfirmTick = false }: EditableTextProps) {
+export function EditableText({ value, onChange, className = '', multiline = false, disabled = false, showConfirmTick = false, hideEditIcon = false }: EditableTextProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [tempValue, setTempValue] = useState(value);
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
@@ -100,9 +101,6 @@ export function EditableText({ value, onChange, className = '', multiline = fals
       }}
     >
       <span className="break-words">{value}</span>
-      {!showConfirmTick && (
-        <Edit2 className="w-3 h-3 text-zinc-400 dark:text-zinc-400 absolute right-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity" />
-      )}
     </div>
   );
 }
