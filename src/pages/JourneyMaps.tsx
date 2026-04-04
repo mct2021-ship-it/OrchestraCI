@@ -511,6 +511,7 @@ export function JourneyMaps({
 
   const [showArchived, setShowArchived] = useState(false);
   const [draggedLaneIndex, setDraggedLaneIndex] = useState<number | null>(null);
+  const [draggedStageIndex, setDraggedStageIndex] = useState<number | null>(null);
 
   const reorderSwimlanes = (fromIndex: number, toIndex: number) => {
     if (fromIndex === toIndex || !activeJourney) return;
@@ -518,6 +519,14 @@ export function JourneyMaps({
     const [movedItem] = newSwimlanes.splice(fromIndex, 1);
     newSwimlanes.splice(toIndex, 0, movedItem);
     setJourneys(journeys.map(j => j.id === activeJourneyId ? { ...j, swimlanes: newSwimlanes } : j));
+  };
+
+  const reorderStages = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || !activeJourney) return;
+    const newStages = [...activeJourney.stages];
+    const [movedItem] = newStages.splice(fromIndex, 1);
+    newStages.splice(toIndex, 0, movedItem);
+    setJourneys(journeys.map(j => j.id === activeJourneyId ? { ...j, stages: newStages } : j));
   };
   const visibleJourneys = journeys.filter(j => showArchived ? j.archived : !j.archived);
 
@@ -1654,7 +1663,24 @@ export function JourneyMaps({
               {activeJourney.stages.map((stage, i) => {
                 const StageIcon = getIconComponent(stage.icon);
                 return (
-                <div key={stage.id} className="p-4 text-center font-semibold text-zinc-900 dark:text-white bg-indigo-50/30 dark:bg-indigo-900/10 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 relative group flex-1 min-w-[200px] print:border-zinc-300">
+                <div 
+                  key={stage.id} 
+                  draggable={canEdit}
+                  onDragStart={() => canEdit && setDraggedStageIndex(i)}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    if (draggedStageIndex !== null && draggedStageIndex !== i) {
+                      reorderStages(draggedStageIndex, i);
+                      setDraggedStageIndex(i);
+                    }
+                  }}
+                  onDragEnd={() => setDraggedStageIndex(null)}
+                  className={cn(
+                    "p-4 text-center font-semibold text-zinc-900 dark:text-white bg-indigo-50/30 dark:bg-indigo-900/10 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 relative group flex-1 min-w-[200px] print:border-zinc-300 transition-all",
+                    draggedStageIndex === i ? "opacity-50 scale-95 bg-indigo-100 dark:bg-indigo-900/40" : "opacity-100 scale-100",
+                    canEdit && "cursor-grab active:cursor-grabbing"
+                  )}
+                >
                   <div className="flex flex-col items-center justify-center gap-2">
                     <div className="relative">
                       <button 
@@ -1781,44 +1807,50 @@ export function JourneyMaps({
                     onDragEnd={() => setDraggedLaneIndex(null)}
                   >
                     <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-center group relative print:bg-white dark:bg-zinc-900 cursor-grab active:cursor-grabbing">
-                    <div className="flex items-center justify-between w-full">
-                      <div className="flex items-center gap-2">
-                        <div className="relative">
-                          <button 
-                            onClick={() => canEdit && setEditingSwimlaneIconId(editingSwimlaneIconId === lane.id ? null : lane.id)}
-                            disabled={!canEdit}
-                            className={`w-6 h-6 rounded-full bg-${lane.colorTheme}-100 dark:bg-${lane.colorTheme}-900/30 flex items-center justify-center text-${lane.colorTheme}-600 dark:text-${lane.colorTheme}-400 transition-colors ${canEdit ? `hover:bg-${lane.colorTheme}-200 cursor-pointer` : 'cursor-default'}`}
-                          >
-                            {(() => {
-                              const Icon = getSwimlaneIconComponent(lane.icon);
-                              return <Icon className="w-3.5 h-3.5" />;
-                            })()}
-                          </button>
-                          
-                          {editingSwimlaneIconId === lane.id && (
-                            <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 p-3 z-50 grid grid-cols-5 gap-2">
-                              {SWIMLANE_ICONS.map(iconDef => {
-                                const Icon = iconDef.icon;
-                                return (
-                                  <button
-                                    key={iconDef.name}
-                                    onClick={() => updateSwimlaneIcon(lane.id, iconDef.name)}
-                                    className={`p-2 rounded-lg flex items-center justify-center transition-colors ${
-                                      lane.icon === iconDef.name 
-                                        ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' 
-                                        : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
-                                    }`}
-                                    title={iconDef.name}
-                                  >
-                                    <Icon className="w-4 h-4" />
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0 pr-10">
-                          <EditableText value={lane.name} onChange={(val) => updateLaneName(lane.id, val)} className="text-sm font-bold whitespace-normal break-words w-full" disabled={!canEdit} />
+                      <div className="flex flex-col gap-2 w-full">
+                        <div className="flex items-center gap-2">
+                          <div className="relative">
+                            <button 
+                              onClick={() => canEdit && setEditingSwimlaneIconId(editingSwimlaneIconId === lane.id ? null : lane.id)}
+                              disabled={!canEdit}
+                              className={`w-8 h-8 rounded-lg bg-${lane.colorTheme}-100 dark:bg-${lane.colorTheme}-900/30 flex items-center justify-center text-${lane.colorTheme}-600 dark:text-${lane.colorTheme}-400 transition-colors ${canEdit ? `hover:bg-${lane.colorTheme}-200 cursor-pointer` : 'cursor-default'}`}
+                            >
+                              {(() => {
+                                const Icon = getSwimlaneIconComponent(lane.icon);
+                                return <Icon className="w-4 h-4" />;
+                              })()}
+                            </button>
+                            
+                            {editingSwimlaneIconId === lane.id && (
+                              <div className="absolute top-full left-0 mt-2 w-64 bg-white dark:bg-zinc-800 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-700 p-3 z-50 grid grid-cols-5 gap-2">
+                                {SWIMLANE_ICONS.map(iconDef => {
+                                  const Icon = iconDef.icon;
+                                  return (
+                                    <button
+                                      key={iconDef.name}
+                                      onClick={() => updateSwimlaneIcon(lane.id, iconDef.name)}
+                                      className={`p-2 rounded-lg flex items-center justify-center transition-colors ${
+                                        lane.icon === iconDef.name 
+                                          ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400' 
+                                          : 'text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700'
+                                      }`}
+                                      title={iconDef.name}
+                                    >
+                                      <Icon className="w-4 h-4" />
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <EditableText 
+                              value={lane.name} 
+                              onChange={(val) => updateLaneName(lane.id, val)} 
+                              className="text-sm font-bold whitespace-normal break-words w-full leading-tight" 
+                              disabled={!canEdit} 
+                            />
+                          </div>
                         </div>
                       </div>
                       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 print:hidden no-export bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-zinc-200/50 dark:border-zinc-700/50 z-10">
@@ -1862,7 +1894,6 @@ export function JourneyMaps({
                         </button>
                       </div>
                     )}
-                  </div>
                   
                   {activeJourney.stages.map(stage => {
                     if (lane.isHidden) {

@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Bell, CheckCircle2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Bell, CheckCircle2, MessageSquare, Info } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -9,6 +9,7 @@ export interface Notification {
   message: string;
   createdAt: string;
   read: boolean;
+  type?: 'system' | 'chat';
 }
 
 interface NotificationsModalProps {
@@ -21,7 +22,14 @@ interface NotificationsModalProps {
 }
 
 export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRead, onMarkAllAsRead, isDarkMode }: NotificationsModalProps) {
+  const [activeTab, setActiveTab] = useState<'all' | 'system' | 'chat'>('all');
+
   if (!isOpen) return null;
+
+  const filteredNotifications = notifications.filter(n => {
+    if (activeTab === 'all') return true;
+    return n.type === activeTab;
+  });
 
   return (
     <AnimatePresence>
@@ -81,21 +89,46 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
               </div>
             </div>
 
+            <div className={cn(
+              "flex items-center p-1 border-b",
+              isDarkMode ? "border-zinc-800 bg-zinc-900/50" : "border-zinc-200 bg-zinc-50/50"
+            )}>
+              {(['all', 'system', 'chat'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={cn(
+                    "flex-1 py-2 text-xs font-bold rounded-lg transition-all capitalize",
+                    activeTab === tab
+                      ? (isDarkMode ? "bg-zinc-800 text-white shadow-sm" : "bg-white text-zinc-900 shadow-sm")
+                      : (isDarkMode ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-500 hover:text-zinc-700")
+                  )}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
             <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-              {notifications.length === 0 ? (
-                <div className="text-center py-8">
-                  <Bell className="w-12 h-12 mx-auto text-zinc-300 dark:text-zinc-700 mb-3" />
-                  <p className={cn("font-medium", isDarkMode ? "text-zinc-400" : "text-zinc-500")}>
-                    No notifications yet
+              {filteredNotifications.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-zinc-100 dark:bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Bell className="w-8 h-8 text-zinc-300 dark:text-zinc-600" />
+                  </div>
+                  <p className={cn("font-bold text-lg", isDarkMode ? "text-zinc-400" : "text-zinc-500")}>
+                    No {activeTab !== 'all' ? activeTab : ''} notifications
+                  </p>
+                  <p className={cn("text-sm mt-1", isDarkMode ? "text-zinc-500" : "text-zinc-400")}>
+                    You're all caught up!
                   </p>
                 </div>
               ) : (
-                notifications.map((notification) => (
+                filteredNotifications.map((notification) => (
                   <div
                     key={notification.id}
                     onClick={() => onMarkAsRead(notification.id)}
                     className={cn(
-                      "p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden",
+                      "p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden group",
                       !notification.read 
                         ? (isDarkMode ? "bg-zinc-800/50 border-indigo-500/30" : "bg-indigo-50/50 border-indigo-200") 
                         : (isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200"),
@@ -106,13 +139,28 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
                       <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-500" />
                     )}
                     <div className="flex items-start justify-between gap-4">
+                      <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 mt-0.5">
+                        {notification.type === 'chat' ? (
+                          <MessageSquare className="w-4 h-4 text-indigo-500" />
+                        ) : (
+                          <Info className="w-4 h-4 text-zinc-400" />
+                        )}
+                      </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className={cn(
-                          "text-sm font-bold mb-1",
-                          isDarkMode ? "text-white" : "text-zinc-900"
-                        )}>
-                          {notification.title}
-                        </h4>
+                        <div className="flex items-center justify-between mb-1">
+                          <h4 className={cn(
+                            "text-sm font-bold",
+                            isDarkMode ? "text-white" : "text-zinc-900"
+                          )}>
+                            {notification.title}
+                          </h4>
+                          <span className={cn(
+                            "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800",
+                            notification.type === 'chat' ? "text-indigo-500" : "text-zinc-400"
+                          )}>
+                            {notification.type || 'system'}
+                          </span>
+                        </div>
                         <p className={cn(
                           "text-sm leading-relaxed",
                           isDarkMode ? "text-zinc-400" : "text-zinc-600"
@@ -120,10 +168,10 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
                           {notification.message}
                         </p>
                         <p className={cn(
-                          "text-xs mt-2 font-medium",
-                          isDarkMode ? "text-zinc-500" : "text-zinc-400"
+                          "text-[10px] mt-2 font-bold uppercase tracking-widest",
+                          isDarkMode ? "text-zinc-600" : "text-zinc-400"
                         )}>
-                          {new Date(notification.createdAt).toLocaleDateString()} at {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {new Date(notification.createdAt).toLocaleDateString()} • {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                         </p>
                       </div>
                       {!notification.read && (

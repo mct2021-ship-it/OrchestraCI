@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Package, Layers, Building2, Users, Plus, Trash2, Save, Shield, Mail, Bell, Moon, Globe, Upload, User as UserIcon, CreditCard, CheckCircle2, ArrowUpCircle, History, Download, Edit2 } from 'lucide-react';
+import { Settings as SettingsIcon, Package, Layers, Building2, Users, Plus, Trash2, Save, Shield, Mail, Bell, Moon, Globe, Upload, User as UserIcon, CreditCard, CheckCircle2, ArrowUpCircle, History, Download, Edit2, X } from 'lucide-react';
 import { Product, Service, User, Project } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { CompanyProfile, YourCompany } from '../components/YourCompany';
@@ -7,6 +7,7 @@ import { ContextualHelp } from '../components/ContextualHelp';
 import { PRESET_AVATARS } from '../constants';
 import { cn } from '../lib/utils';
 import { useAuth } from '../context/AuthContext';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface SettingsProps {
   projects: Project[];
@@ -39,6 +40,7 @@ export function Settings({ projects, setProjects, products, setProducts, service
   // User Management State
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [isEditUserModalOpen, setIsEditUserModalOpen] = useState(false);
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newUser, setNewUser] = useState({ name: '', email: '', role: 'Viewer', password: 'password123', photoUrl: '' });
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
@@ -229,7 +231,7 @@ export function Settings({ projects, setProjects, products, setProducts, service
       <div className="flex border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto no-scrollbar">
         {[
           { id: 'general', label: 'General', icon: Globe },
-          { id: 'taxonomy', label: 'Taxonomy', icon: Package, adminOnly: true },
+          { id: 'taxonomy', label: 'Products and Services', icon: Package, adminOnly: true },
           { id: 'company', label: 'Company Profile', icon: Building2, adminOnly: true },
           { id: 'users', label: 'User Management', icon: Users, adminOnly: true },
           { id: 'billing', label: 'Subscription & Billing', icon: CreditCard, adminOnly: true },
@@ -265,37 +267,24 @@ export function Settings({ projects, setProjects, products, setProducts, service
                   <div className="space-y-4">
                     <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">Profile Photo</label>
                     <div className="relative group">
-                      {currentUser?.photoUrl ? (
-                        <img src={currentUser.photoUrl} alt="Profile" className="w-24 h-24 rounded-full object-cover border-4 border-white dark:border-zinc-800 shadow-lg" />
-                      ) : (
-                        <div className="w-24 h-24 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400 border-4 border-white dark:border-zinc-800 shadow-lg">
-                          <UserIcon className="w-12 h-12" />
-                        </div>
-                      )}
-                      <input 
-                        type="file" 
-                        id="profile-photo-upload"
-                        className="hidden" 
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const reader = new FileReader();
-                            reader.onload = (event) => {
-                              const url = event.target?.result as string;
-                              updateUser({ photoUrl: url });
-                              setUsers(prev => prev.map(u => u.id === currentUser?.id ? { ...u, photoUrl: url } : u));
-                            };
-                            reader.readAsDataURL(file);
-                          }
-                        }}
-                      />
-                      <label 
-                        htmlFor="profile-photo-upload"
-                        className="absolute bottom-0 right-0 p-2 bg-zinc-900 text-white rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform"
+                      <button 
+                        onClick={() => setIsAvatarModalOpen(true)}
+                        className="relative block rounded-full overflow-hidden border-4 border-white dark:border-zinc-800 shadow-lg transition-transform hover:scale-105"
                       >
+                        {currentUser?.photoUrl ? (
+                          <img src={currentUser.photoUrl} alt="Profile" className="w-24 h-24 object-cover" />
+                        ) : (
+                          <div className="w-24 h-24 bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                            <UserIcon className="w-12 h-12" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <Edit2 className="w-6 h-6 text-white" />
+                        </div>
+                      </button>
+                      <div className="absolute bottom-0 right-0 p-2 bg-zinc-900 text-white rounded-full shadow-lg pointer-events-none">
                         <Upload className="w-4 h-4" />
-                      </label>
+                      </div>
                     </div>
                   </div>
 
@@ -322,27 +311,6 @@ export function Settings({ projects, setProjects, products, setProducts, service
                           disabled
                           className="w-full px-4 py-3 bg-zinc-100 dark:bg-zinc-800/50 border border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-500 cursor-not-allowed"
                         />
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Quick Avatars</label>
-                      <div className="flex gap-3 overflow-x-auto pb-2 no-scrollbar">
-                        {PRESET_AVATARS.map((url, i) => (
-                          <button 
-                            key={i}
-                            onClick={() => {
-                              updateUser({ photoUrl: url });
-                              setUsers(prev => prev.map(u => u.id === currentUser?.id ? { ...u, photoUrl: url } : u));
-                            }}
-                            className={cn(
-                              "w-12 h-12 rounded-full overflow-hidden border-2 transition-all shrink-0",
-                              currentUser?.photoUrl === url ? "border-zinc-900 scale-110 shadow-md" : "border-transparent hover:border-zinc-300"
-                            )}
-                          >
-                            <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                          </button>
-                        ))}
                       </div>
                     </div>
                   </div>
@@ -416,8 +384,8 @@ export function Settings({ projects, setProjects, products, setProducts, service
           <div className="space-y-6 animate-in fade-in duration-300">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Journey Taxonomy</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Define the products and services used to categorize your journey maps.</p>
+                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Products and Services</h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">Define the global products and services used to categorize your journey maps across all projects.</p>
               </div>
               <button 
                 onClick={addProduct}
@@ -429,11 +397,18 @@ export function Settings({ projects, setProjects, products, setProducts, service
 
             <div className="grid grid-cols-1 gap-6">
               {products.map(product => (
-                <div key={product.id} className="bg-white dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
+                <div key={product.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
                   <div className="p-4 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <Package className="w-5 h-5 text-zinc-400" />
-                      <h4 className="font-bold text-zinc-900 dark:text-white">{product.name}</h4>
+                      <Package className="w-5 h-5 text-indigo-600" />
+                      <input 
+                        type="text"
+                        value={product.name}
+                        onChange={(e) => {
+                          setProducts(prev => prev.map(p => p.id === product.id ? { ...p, name: e.target.value } : p));
+                        }}
+                        className="bg-transparent border-none outline-none font-bold text-zinc-900 dark:text-white focus:ring-0 p-0"
+                      />
                     </div>
                     <div className="flex items-center gap-2">
                       <button 
@@ -454,9 +429,16 @@ export function Settings({ projects, setProjects, products, setProducts, service
                     <div className="space-y-2">
                       {services.filter(s => s.productId === product.id).map(service => (
                         <div key={service.id} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-100 group">
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-3 flex-1">
                             <Layers className="w-4 h-4 text-zinc-300" />
-                            <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">{service.name}</span>
+                            <input 
+                              type="text"
+                              value={service.name}
+                              onChange={(e) => {
+                                setServices(prev => prev.map(s => s.id === service.id ? { ...s, name: e.target.value } : s));
+                              }}
+                              className="bg-transparent border-none outline-none text-sm font-medium text-zinc-700 dark:text-zinc-200 focus:ring-0 p-0 flex-1"
+                            />
                           </div>
                           <button 
                             onClick={() => deleteService(service.id)}
@@ -1028,6 +1010,104 @@ export function Settings({ projects, setProjects, products, setProducts, service
             </div>
           </div>
         )}
+        {/* Avatar Selection Modal */}
+        <AnimatePresence>
+          {isAvatarModalOpen && (
+            <>
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+                onClick={() => setIsAvatarModalOpen(false)}
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="fixed inset-0 z-[60] flex items-center justify-center p-4 pointer-events-none"
+              >
+                <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[80vh]">
+                  <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg">
+                        <UserIcon className="w-5 h-5" />
+                      </div>
+                      <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Choose Profile Photo</h3>
+                    </div>
+                    <button 
+                      onClick={() => setIsAvatarModalOpen(false)}
+                      className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="p-6 overflow-y-auto flex-1 space-y-8">
+                    <div className="space-y-4">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">Upload Custom Photo</label>
+                      <div className="flex items-center gap-4">
+                        <input 
+                          type="file" 
+                          id="avatar-upload"
+                          className="hidden" 
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (event) => {
+                                const url = event.target?.result as string;
+                                updateUser({ photoUrl: url });
+                                setUsers(prev => prev.map(u => u.id === currentUser?.id ? { ...u, photoUrl: url } : u));
+                                setIsAvatarModalOpen(false);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                        <label 
+                          htmlFor="avatar-upload"
+                          className="flex-1 flex flex-col items-center justify-center gap-2 p-8 border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer group"
+                        >
+                          <div className="p-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 group-hover:scale-110 transition-transform rounded-full">
+                            <Upload className="w-6 h-6" />
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-zinc-900 dark:text-white">Click to upload photo</p>
+                            <p className="text-xs text-zinc-500">PNG, JPG or GIF up to 2MB</p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest block">Choose an Avatar</label>
+                      <div className="grid grid-cols-4 sm:grid-cols-6 gap-4">
+                        {PRESET_AVATARS.map((url, i) => (
+                          <button 
+                            key={i}
+                            onClick={() => {
+                              updateUser({ photoUrl: url });
+                              setUsers(prev => prev.map(u => u.id === currentUser?.id ? { ...u, photoUrl: url } : u));
+                              setIsAvatarModalOpen(false);
+                            }}
+                            className={cn(
+                              "aspect-square rounded-2xl overflow-hidden border-2 transition-all hover:scale-105",
+                              currentUser?.photoUrl === url ? "border-zinc-900 shadow-lg" : "border-transparent hover:border-zinc-300"
+                            )}
+                          >
+                            <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, Plus, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Send, UsersRound } from 'lucide-react';
+import { Target, Plus, X, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Send, UsersRound } from 'lucide-react';
 import { Task, Project, Comment, User, TeamMember } from '../types';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from './ContextualHelp';
@@ -53,26 +53,26 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
         onClick={onClose}
       />
       <motion.div 
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-        className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col border-l border-zinc-200 dark:border-zinc-800"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
       >
-        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
-              <Target className="w-5 h-5" />
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden pointer-events-auto flex flex-col max-h-[90vh] border border-zinc-200 dark:border-zinc-800" onClick={(e) => e.stopPropagation()}>
+          <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg">
+                <Target className="w-5 h-5" />
+              </div>
+              <h3 className="font-bold text-zinc-900 dark:text-white text-lg">{isReadOnly ? 'View Task' : 'Edit Task'}</h3>
             </div>
-            <h3 className="font-bold text-zinc-900 dark:text-white text-lg">{isReadOnly ? 'View Task' : 'Edit Task'}</h3>
+            <button 
+              onClick={onClose}
+              className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
-          <button 
-            onClick={onClose}
-            className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all"
-          >
-            <Plus className="w-5 h-5 rotate-45" />
-          </button>
-        </div>
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
           <div className="space-y-2">
@@ -508,7 +508,8 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
+    </motion.div>
 
       {/* Add to Team Prompt */}
       <AnimatePresence>

@@ -61,6 +61,7 @@ if (stateRow) {
     processMaps: [],
     products: [],
     services: [],
+    sprints: [],
     auditLogs: [],
     stakeholders: [
       {

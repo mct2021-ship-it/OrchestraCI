@@ -790,11 +790,14 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
                               {...provided.dragHandleProps}
                               onClick={() => setEditingTask(task)}
                               className={cn(
-                                "bg-yellow-100 dark:bg-yellow-900/40 p-5 rounded-sm shadow-md border border-yellow-200 dark:border-yellow-700/50 hover:shadow-lg transition-all group cursor-pointer relative",
-                                snapshot.isDragging ? "shadow-xl ring-2 ring-yellow-400 rotate-3 scale-105 z-50" : "hover:-translate-y-1 hover:rotate-1",
+                                "bg-yellow-100 dark:bg-yellow-900/40 p-5 rounded-sm shadow-[2px_2px_5px_rgba(0,0,0,0.1)] border-l-4 border-yellow-400 dark:border-yellow-600 hover:shadow-lg transition-all group cursor-pointer relative overflow-hidden",
+                                snapshot.isDragging ? "shadow-2xl ring-2 ring-yellow-400 rotate-3 scale-105 z-50" : "hover:-translate-y-1 hover:rotate-1",
                                 isReadOnly ? "cursor-default hover:shadow-sm hover:translate-y-0 hover:rotate-0" : ""
                               )}
                             >
+                              {/* Tape effect */}
+                              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-3 bg-white/40 dark:bg-black/20 backdrop-blur-sm -rotate-2 z-10" />
+                              
                               <div className="flex justify-between items-start mb-3">
                                 <span className={cn(
                                   "px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider",

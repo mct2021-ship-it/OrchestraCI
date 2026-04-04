@@ -638,7 +638,7 @@ export function ProjectDetail({
                   <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg">
                     <Package className="w-5 h-5" />
                   </div>
-                  <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Manage Project Taxonomy</h3>
+                  <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Manage Products and Services</h3>
                 </div>
                 <button 
                   onClick={() => setIsEditingTaxonomy(false)}

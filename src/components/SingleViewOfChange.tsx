@@ -15,6 +15,16 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
   const [selectedSprint, setSelectedSprint] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const TASKS_PER_PAGE = 10;
+  const [selectedColumns, setSelectedColumns] = useState<string[]>([
+    'Project', 'Sprint', 'Task Title', 'Description', 'Status', 'Owner', 'Due Date'
+  ]);
+
+  const allColumns = [
+    'Project', 'Sprint', 'Task Title', 'Description', 'Status', 'Owner', 'Due Date'
+  ];
 
   const filteredProjects = useMemo(() => {
     if (selectedProjectId === 'all') return projects.filter(p => !p.archived);
@@ -39,6 +49,13 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
     });
   }, [tasks, selectedProjectId, selectedSprint, selectedStatus, searchQuery]);
 
+  const paginatedTasks = useMemo(() => {
+    const startIndex = (currentPage - 1) * TASKS_PER_PAGE;
+    return filteredTasks.slice(startIndex, startIndex + TASKS_PER_PAGE);
+  }, [filteredTasks, currentPage]);
+
+  const totalPages = Math.ceil(filteredTasks.length / TASKS_PER_PAGE);
+
   const getProjectName = (projectId: string) => {
     return projects.find(p => p.id === projectId)?.name || 'Unknown Project';
   };
@@ -49,21 +66,23 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
   };
 
   const downloadCSV = () => {
-    const headers = ['Project', 'Sprint', 'Task Title', 'Description', 'Status', 'Owner', 'Due Date'];
     const csvContent = [
-      headers.join(','),
+      selectedColumns.join(','),
       ...filteredTasks.map(task => {
         const project = projects.find(p => p.id === task.projectId);
         const sprint = project?.sprints?.find(s => s.id === task.sprint)?.name || '';
-        return [
-          `"${getProjectName(task.projectId).replace(/"/g, '""')}"`,
-          `"${sprint.replace(/"/g, '""')}"`,
-          `"${task.title.replace(/"/g, '""')}"`,
-          `"${(task.description || '').replace(/"/g, '""')}"`,
-          `"${task.kanbanStatus || task.status}"`,
-          `"${getOwnerName(task.owner).replace(/"/g, '""')}"`,
-          `"${task.expectedCompletionDate ? new Date(task.expectedCompletionDate).toLocaleDateString() : ''}"`
-        ].join(',');
+        
+        const rowData: Record<string, string> = {
+          'Project': getProjectName(task.projectId),
+          'Sprint': sprint,
+          'Task Title': task.title,
+          'Description': task.description || '',
+          'Status': task.kanbanStatus || task.status,
+          'Owner': getOwnerName(task.owner),
+          'Due Date': task.expectedCompletionDate ? new Date(task.expectedCompletionDate).toLocaleDateString() : ''
+        };
+
+        return selectedColumns.map(col => `"${(rowData[col] || '').replace(/"/g, '""')}"`).join(',');
       })
     ].join('\n');
 
@@ -87,7 +106,10 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
             type="text"
             placeholder="Search tasks across projects..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full pl-10 pr-4 py-2 bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
           />
         </div>
@@ -99,6 +121,7 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
             onChange={(e) => {
               setSelectedProjectId(e.target.value);
               setSelectedSprint('all');
+              setCurrentPage(1);
             }}
             className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
           >
@@ -111,7 +134,10 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
           {selectedProjectId !== 'all' && availableSprints.length > 0 && (
             <select 
               value={selectedSprint}
-              onChange={(e) => setSelectedSprint(e.target.value)}
+              onChange={(e) => {
+                setSelectedSprint(e.target.value);
+                setCurrentPage(1);
+              }}
               className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 transition-all font-medium animate-in fade-in slide-in-from-left-2"
             >
               <option value="all">All Sprints</option>
@@ -123,7 +149,10 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
 
           <select 
             value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
+            onChange={(e) => {
+              setSelectedStatus(e.target.value);
+              setCurrentPage(1);
+            }}
             className="bg-zinc-50 dark:bg-zinc-800 border-none rounded-xl px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-500 transition-all font-medium"
           >
             <option value="all">All Statuses</option>
@@ -136,20 +165,71 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
             <option value="Done">Done (Kanban)</option>
           </select>
 
-          <button
-            onClick={downloadCSV}
-            className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors ml-2"
-            title="Download as CSV"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Export CSV</span>
-          </button>
+          <div className="relative">
+            <button
+              onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+              className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors ml-2"
+              title="Export Options"
+            >
+              <Download className="w-4 h-4" />
+              <span className="hidden sm:inline">Export CSV</span>
+            </button>
+
+            {isExportMenuOpen && (
+              <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-xl z-50 p-4 animate-in fade-in zoom-in-95">
+                <div className="flex items-center justify-between mb-3">
+                  <h5 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Select Columns</h5>
+                  <button 
+                    onClick={() => {
+                      if (selectedColumns.length === allColumns.length) {
+                        setSelectedColumns([]);
+                      } else {
+                        setSelectedColumns([...allColumns]);
+                      }
+                    }}
+                    className="text-[10px] font-bold text-indigo-600 hover:underline"
+                  >
+                    {selectedColumns.length === allColumns.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
+                <div className="space-y-2 mb-4 max-h-48 overflow-y-auto pr-2 custom-scrollbar">
+                  {allColumns.map(col => (
+                    <label key={col} className="flex items-center gap-3 p-2 hover:bg-zinc-50 dark:hover:bg-zinc-800 rounded-lg cursor-pointer transition-colors group">
+                      <input 
+                        type="checkbox"
+                        checked={selectedColumns.includes(col)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedColumns(prev => [...prev, col]);
+                          } else {
+                            setSelectedColumns(prev => prev.filter(c => c !== col));
+                          }
+                        }}
+                        className="w-4 h-4 rounded border-zinc-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 group-hover:text-indigo-600 transition-colors">{col}</span>
+                    </label>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => {
+                    downloadCSV();
+                    setIsExportMenuOpen(false);
+                  }}
+                  disabled={selectedColumns.length === 0}
+                  className="w-full py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/25"
+                >
+                  Download CSV
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredTasks.length > 0 ? (
-          filteredTasks.map(task => {
+        {paginatedTasks.length > 0 ? (
+          paginatedTasks.map(task => {
             const project = projects.find(p => p.id === task.projectId);
             const isOverdue = task.expectedCompletionDate && new Date(task.expectedCompletionDate) < new Date() && task.status !== 'Deliver' && task.kanbanStatus !== 'Done';
             
@@ -234,6 +314,7 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
                 setSelectedSprint('all');
                 setSelectedStatus('all');
                 setSearchQuery('');
+                setCurrentPage(1);
               }}
               className="mt-6 px-6 py-2 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/25"
             >
@@ -242,6 +323,41 @@ export function SingleViewOfChange({ projects, tasks, users, onSelectProject }: 
           </div>
         )}
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-2 pt-4">
+          <button
+            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+            disabled={currentPage === 1}
+            className="px-4 py-2 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 disabled:opacity-50 transition-colors"
+          >
+            Previous
+          </button>
+          <div className="flex items-center gap-1">
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+              <button
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={cn(
+                  "w-10 h-10 rounded-xl text-sm font-bold transition-all",
+                  currentPage === page 
+                    ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/25" 
+                    : "text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                )}
+              >
+                {page}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+            disabled={currentPage === totalPages}
+            className="px-4 py-2 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 disabled:opacity-50 transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

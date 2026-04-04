@@ -36,13 +36,16 @@ import { StakeholderMapping } from './components/StakeholderMapping';
 import { Persona, JourneyMap, Task, ProcessMap, Product, Service, Project, User, Sprint, RecycleBinItem, AuditEntry, Stakeholder, ProjectStakeholder } from './types';
 import { PlanContext, PLAN_DETAILS, PlanType } from './context/PlanContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { Login } from './pages/Login';
 import { Logo } from './components/Logo';
 
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <NotificationProvider>
+        <AppContent />
+      </NotificationProvider>
     </AuthProvider>
   );
 }
@@ -102,25 +105,7 @@ function AppContent() {
   const [resetTrigger, setResetTrigger] = useState(0);
 
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
-  const [notifications, setNotifications] = useState<import('./components/NotificationsModal').Notification[]>([
-    {
-      id: 'welcome-1',
-      title: 'Welcome to Orchestra CI!',
-      message: 'We are excited to have you on board. Explore the dashboard to get started with your Customer Experience program.',
-      createdAt: new Date().toISOString(),
-      read: false,
-    }
-  ]);
-
-  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
-
-  const handleMarkNotificationAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-  };
-
-  const handleMarkAllNotificationsAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-  };
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -150,6 +135,7 @@ function AppContent() {
             if (state.services?.length) setServices(state.services);
             if (state.stakeholders?.length) setStakeholders(state.stakeholders);
             if (state.projectStakeholders?.length) setProjectStakeholders(state.projectStakeholders);
+            if (state.sprints?.length) setSprints(state.sprints);
             // Users are handled separately via /api/users but can be synced for UI updates
             if (state.users?.length) setUsers(state.users);
           } else if (data.type === 'COLLECTION_UPDATED') {
@@ -164,6 +150,7 @@ function AppContent() {
               case 'services': setServices(items); break;
               case 'stakeholders': setStakeholders(items); break;
               case 'projectStakeholders': setProjectStakeholders(items); break;
+              case 'sprints': setSprints(items); break;
               case 'users': setUsers(items); break;
             }
           }
@@ -285,6 +272,14 @@ function AppContent() {
     setProjectStakeholders(prev => {
       const newItems = typeof items === 'function' ? items(prev) : items;
       syncCollection('projectStakeholders', newItems);
+      return newItems;
+    });
+  }, [syncCollection]);
+
+  const handleSetSprints = useCallback((items: Sprint[] | ((prev: Sprint[]) => Sprint[])) => {
+    setSprints(prev => {
+      const newItems = typeof items === 'function' ? items(prev) : items;
+      syncCollection('sprints', newItems);
       return newItems;
     });
   }, [syncCollection]);
@@ -757,7 +752,7 @@ function AppContent() {
             tasks={tasks} 
             users={users} 
             sprints={sprints} 
-            setSprints={setSprints} 
+            setSprints={handleSetSprints} 
             activeProjectId={activeProjectId}
           />
         );
@@ -818,7 +813,7 @@ function AppContent() {
           companyProfile={companyProfile}
           onOpenFeedback={() => setIsFeedbackModalOpen(true)}
           onOpenNotifications={() => setIsNotificationsModalOpen(true)}
-          unreadNotificationsCount={unreadNotificationsCount}
+          unreadNotificationsCount={unreadCount}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <header className={cn(
@@ -889,8 +884,8 @@ function AppContent() {
             isOpen={isNotificationsModalOpen}
             onClose={() => setIsNotificationsModalOpen(false)}
             notifications={notifications}
-            onMarkAsRead={handleMarkNotificationAsRead}
-            onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+            onMarkAsRead={markAsRead}
+            onMarkAllAsRead={markAllAsRead}
             isDarkMode={isDarkMode}
           />
 

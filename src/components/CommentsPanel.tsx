@@ -4,6 +4,8 @@ import { Comment, User } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { motion, AnimatePresence } from 'motion/react';
 import { MentionTextarea } from './MentionTextarea';
+import { useNotifications } from '../context/NotificationContext';
+import { useToast } from '../context/ToastContext';
 
 interface CommentsPanelProps {
   isOpen: boolean;
@@ -17,19 +19,50 @@ interface CommentsPanelProps {
 
 export function CommentsPanel({ isOpen, comments, currentUser, users, onAddComment, onClose, title = "Comments" }: CommentsPanelProps) {
   const [newCommentText, setNewCommentText] = useState('');
+  const { addNotification } = useNotifications();
+  const { addToast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCommentText.trim()) return;
 
+    const text = newCommentText.trim();
     const newComment: Comment = {
       id: uuidv4(),
       userId: currentUser.id,
       userName: currentUser.name,
       userAvatar: currentUser.photoUrl,
-      text: newCommentText.trim(),
+      text: text,
       createdAt: new Date().toISOString(),
     };
+
+    // Check for mentions
+    const mentionRegex = /@([^ ]+)/g;
+    const matches = text.match(mentionRegex);
+    
+    if (matches) {
+      matches.forEach(match => {
+        const mentionedName = match.substring(1);
+        const mentionedUser = users.find(u => u.name === mentionedName);
+        
+        if (mentionedUser) {
+          // In a real app, this would be sent to the server and the server would notify the user.
+          // For this demo, we'll simulate a notification being received by the mentioned user.
+          // If the mentioned user is the current user, they'll see it immediately.
+          addNotification({
+            title: 'New Mention',
+            message: `${currentUser.name} mentioned you in a comment: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
+            type: 'chat'
+          });
+          
+          if (mentionedUser.id === currentUser.id) {
+            addToast(`You mentioned yourself!`, 'info');
+          } else {
+            addToast(`Mentioned ${mentionedUser.name}`, 'success');
+          }
+        }
+      });
+    }
 
     onAddComment(newComment);
     setNewCommentText('');

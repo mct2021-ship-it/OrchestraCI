@@ -53,6 +53,9 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [isGeneratingStories, setIsGeneratingStories] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isAddSectionMenuOpen, setIsAddSectionMenuOpen] = useState(false);
+  const [isAddingImageToSection, setIsAddingImageToSection] = useState<string | null>(null);
+  const [newImageUrl, setNewImageUrl] = useState('');
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const addSectionMenuRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -520,7 +523,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
               </div>
             </>
           )}
-          {plan !== 'starter' && canEdit && (
+          {plan !== 'starter' && canEdit && !selectedPersonaId && (
             <button 
               onClick={handleOpenAiGenerator}
               className="bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-400 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-indigo-200 dark:border-indigo-800 shadow-sm"
@@ -529,7 +532,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
               <span className="hidden sm:inline">AI Generator</span>
             </button>
           )}
-          {canAddPersona && (
+          {canAddPersona && !selectedPersonaId && (
             <button 
               onClick={() => setIsLibraryOpen(true)}
               className="bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
@@ -538,7 +541,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
               <span className="hidden sm:inline">Browse Library</span>
             </button>
           )}
-          {canAddPersona ? (
+          {canAddPersona && !selectedPersonaId ? (
             <button 
               onClick={handleOpenNewPersona}
               className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg"
@@ -546,7 +549,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
               <Plus className="w-5 h-5" />
               <span className="hidden sm:inline">New Persona</span>
             </button>
-          ) : (
+          ) : !selectedPersonaId && (
             <button 
               onClick={() => setShowLimitModal(true)}
               title={!canEdit ? "You do not have permission to add personas" : `Plan limit reached (${details.maxGlobalPersonas} personas)`}
@@ -840,11 +843,22 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         <div id="persona-content" className="space-y-8">
           <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col md:flex-row print:shadow-none print:border-zinc-300 break-inside-avoid">
             <div className="bg-zinc-50 dark:bg-zinc-900 p-8 md:w-1/3 flex flex-col items-center text-center border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800 print:bg-white dark:bg-zinc-900">
-            <div className="relative group cursor-pointer" onClick={() => changeAvatar(selectedPersona!.id)}>
-              <img src={selectedPersona!.imageUrl} alt={selectedPersona!.name} className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md mb-6 transition-all group-hover:brightness-75" referrerPolicy="no-referrer" />
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity mb-6">
-                <ImageIcon className="w-8 h-8 text-white" />
+            <div className="relative group">
+              <div className="relative cursor-pointer" onClick={() => setSelectedImage(selectedPersona!.imageUrl)}>
+                <img src={selectedPersona!.imageUrl} alt={selectedPersona!.name} className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md mb-6 transition-all group-hover:brightness-75" referrerPolicy="no-referrer" />
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity mb-6">
+                  <Eye className="w-8 h-8 text-white" />
+                </div>
               </div>
+              {canEdit && (
+                <button 
+                  onClick={() => changeAvatar(selectedPersona!.id)}
+                  className="absolute bottom-6 right-0 p-2 bg-white dark:bg-zinc-800 rounded-full shadow-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 transition-all no-export"
+                  title="Change Avatar"
+                >
+                  <Edit3 className="w-4 h-4" />
+                </button>
+              )}
             </div>
             
             <EditableText 
@@ -1193,7 +1207,13 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       {(section.images || []).map((img, i) => (
                         <div key={i} className="relative group/img aspect-video bg-zinc-200 dark:bg-zinc-800 rounded-xl overflow-hidden">
-                          <img src={img} alt="" className="w-full h-full object-cover" crossOrigin="anonymous" />
+                          <img 
+                            src={img} 
+                            alt="" 
+                            className="w-full h-full object-cover cursor-pointer" 
+                            crossOrigin="anonymous" 
+                            onClick={() => setSelectedImage(img)}
+                          />
                           {canEdit && (
                             <button 
                               onClick={() => {
@@ -1209,18 +1229,32 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                         </div>
                       ))}
                       {canEdit && (section.images || []).length < 3 && (
-                        <button 
-                          onClick={() => {
-                            const url = prompt('Enter image URL:');
-                            if (url) {
-                              handleUpdateSection(section.id, { images: [...(section.images || []), url] });
-                            }
-                          }}
-                          className="aspect-video flex flex-col items-center justify-center gap-2 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
-                        >
-                          <ImageIcon className="w-6 h-6" />
-                          <span className="text-xs font-medium">Add Image</span>
-                        </button>
+                        <div className="aspect-video relative">
+                          <input 
+                            type="file"
+                            id={`section-image-upload-${section.id}`}
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (event) => {
+                                  const url = event.target?.result as string;
+                                  handleUpdateSection(section.id, { images: [...(section.images || []), url] });
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                          <label 
+                            htmlFor={`section-image-upload-${section.id}`}
+                            className="w-full h-full flex flex-col items-center justify-center gap-2 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl text-zinc-500 hover:text-indigo-600 hover:border-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors cursor-pointer"
+                          >
+                            <ImageIcon className="w-6 h-6" />
+                            <span className="text-xs font-medium">Upload Image</span>
+                          </label>
+                        </div>
                       )}
                     </div>
                   )}
@@ -1508,6 +1542,36 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         onClose={() => setIsLibraryOpen(false)}
         onImport={handleSavePersona}
       />
+
+      <AnimatePresence>
+        {selectedImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelectedImage(null)}
+            className="fixed inset-0 bg-black/90 z-[100] flex items-center justify-center p-4 md:p-12 cursor-zoom-out"
+          >
+            <motion.button
+              initial={{ opacity: 0, scale: 0.5 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="absolute top-6 right-6 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+              onClick={() => setSelectedImage(null)}
+            >
+              <X className="w-6 h-6" />
+            </motion.button>
+            <motion.img
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              src={selectedImage}
+              alt="Preview"
+              className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AvatarGalleryModal
         isOpen={isAvatarModalOpen}
