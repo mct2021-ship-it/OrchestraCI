@@ -12,6 +12,7 @@ interface TaskListProps {
   projects: Project[];
   initialAssigneeId?: string;
   initialProjectId?: string;
+  initialTaskId?: string;
   onNavigate?: (tab: string) => void;
   isEmbedded?: boolean;
   onTaskClick?: (task: Task) => void;
@@ -23,13 +24,22 @@ interface TaskListProps {
   users?: User[];
 }
 
-export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [] }: TaskListProps) {
+export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId, initialTaskId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [] }: TaskListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState<string>(initialAssigneeId || 'all');
   const [selectedProject, setSelectedProject] = useState<string>(initialProjectId || 'all');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const { canEditProjectFeature } = usePermissions();
+
+  React.useEffect(() => {
+    if (initialTaskId) {
+      const task = tasks.find(t => t.id === initialTaskId);
+      if (task) {
+        setEditingTask(task);
+      }
+    }
+  }, [initialTaskId, tasks]);
 
   React.useEffect(() => {
     if (initialAssigneeId) {

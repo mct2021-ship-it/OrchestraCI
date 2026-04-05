@@ -200,7 +200,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     try {
       const hasKey = await ensureApiKey();
       if (!hasKey) {
-        throw new Error("Gemini API key is required. Please select one in the settings.");
+        throw new Error("Gemini API key is required. Please select one in the settings in AI Studio, or ensure the GEMINI_API_KEY environment variable is set if running standalone.");
       }
 
       const prompt = `Analyze the company at this URL: ${stripPIData(tempProfile.websiteUrl)}. 
@@ -284,7 +284,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     try {
       const hasKey = await ensureApiKey();
       if (!hasKey) {
-        throw new Error("Gemini API key is required. Please select one in the settings.");
+        throw new Error("Gemini API key is required. Please select one in the settings in AI Studio, or ensure the GEMINI_API_KEY environment variable is set if running standalone.");
       }
 
       const prompt = `Perform a competitor analysis for ${stripPIData(profile.name)} (${stripPIData(profile.websiteUrl || '')}) against the following competitors:

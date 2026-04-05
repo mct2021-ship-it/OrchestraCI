@@ -14,11 +14,13 @@ interface DashboardProps {
   onNavigate: (tab: string) => void;
   onSelectProject: (projectId: string) => void;
   onMentionClick: (type: 'task' | 'journey' | 'process', sourceId: string, projectId: string) => void;
+  markAsRead?: (id: string) => void;
+  notifications?: any[];
   currentUser?: User;
   users: User[];
 }
 
-export function Dashboard({ personas, journeys, tasks, processMaps, projects, onNavigate, onSelectProject, onMentionClick, currentUser, users }: DashboardProps) {
+export function Dashboard({ personas, journeys, tasks, processMaps, projects, onNavigate, onSelectProject, onMentionClick, markAsRead, notifications, currentUser, users }: DashboardProps) {
   const [showIntro, setShowIntro] = React.useState(true);
   const [expandedStatId, setExpandedStatId] = React.useState<string | null>(null);
   const [acknowledgedMentions, setAcknowledgedMentions] = React.useState<string[]>(() => {
@@ -35,6 +37,14 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
     const newAck = [...acknowledgedMentions, id];
     setAcknowledgedMentions(newAck);
     localStorage.setItem('acknowledgedMentions', JSON.stringify(newAck));
+
+    // Also mark the corresponding notification as read if it exists
+    if (markAsRead && notifications) {
+      const notification = notifications.find(n => n.sourceId === id);
+      if (notification) {
+        markAsRead(notification.id);
+      }
+    }
   };
 
   const activeProjects = useMemo(() => (projects || []).filter(p => !p.archived), [projects]);

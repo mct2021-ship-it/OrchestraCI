@@ -92,9 +92,21 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Generate a structured process map from the following SOP/Process document text. 
+        Identify decision points, branching paths, and the type of each step.
+        
+        Node Types to use:
+        - 'start': The beginning of the process
+        - 'task': A manual human task
+        - 'system': An automated system action
+        - 'email': Sending or receiving an email
+        - 'phone': A phone call or verbal communication
+        - 'policy': A check against a policy or regulation
+        - 'decision': A point where the process splits based on a condition (Yes/No, etc.)
+        - 'end': The conclusion of the process
+        
         Return a JSON object with:
         - 'title': string
-        - 'nodes': array of { id: string, label: string, description: string }
+        - 'nodes': array of { id: string, label: string, description: string, type: string }
         - 'edges': array of { sourceId: string, targetId: string, label?: string }
         
         Process Text:
@@ -113,9 +125,13 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
                   properties: {
                     id: { type: Type.STRING },
                     label: { type: Type.STRING },
-                    description: { type: Type.STRING }
+                    description: { type: Type.STRING },
+                    type: { 
+                      type: Type.STRING, 
+                      enum: ['start', 'task', 'system', 'email', 'phone', 'policy', 'decision', 'end'] 
+                    }
                   },
-                  required: ["id", "label", "description"]
+                  required: ["id", "label", "description", "type"]
                 }
               },
               edges: {
@@ -138,10 +154,14 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
 
       const result = JSON.parse(response.text || '{}');
       
-      // Simple layout logic: horizontal sequence with some vertical offset for branches
+      // Layout logic: Use a simple grid/tree layout for the generated nodes
       const nodes = (result.nodes || []).map((node: any, index: number) => ({
         id: node.id,
-        position: { x: index * 250, y: (index % 2 === 0 ? 0 : 50) },
+        type: node.type,
+        position: { 
+          x: (index % 4) * 300, 
+          y: Math.floor(index / 4) * 200 
+        },
         data: { label: node.label, description: node.description }
       }));
 

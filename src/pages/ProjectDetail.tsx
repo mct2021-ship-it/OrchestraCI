@@ -505,14 +505,16 @@ export function ProjectDetail({
               <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Taxonomy</span>
             </div>
             <div className="flex gap-1.5">
-              {(project.products || []).slice(0, 3).map(p => (
+              {(project.products || []).slice(0, 1).map(p => (
                 <div key={p.id} className="px-2 py-0.5 bg-white dark:bg-zinc-900 border border-zinc-100 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">
                   {p.name}
                 </div>
               ))}
-              {(project.products || []).length > 3 && (
-                <div className="text-[10px] text-zinc-400 font-bold">+{(project.products || []).length - 3}</div>
-              )}
+              {(project.services || []).slice(0, 1).map(s => (
+                <div key={s.id} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 rounded text-[10px] font-bold text-indigo-600 dark:text-indigo-300">
+                  {s.name}
+                </div>
+              ))}
               <button 
                 onClick={() => setIsEditingTaxonomy(true)}
                 className="p-1 hover:bg-zinc-200 rounded transition-colors"
@@ -649,100 +651,79 @@ export function ProjectDetail({
               </div>
               <div className="p-8 space-y-8 max-h-[70vh] overflow-y-auto">
                 {/* Global Taxonomy Selection */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Select from Global Taxonomy</h4>
-                  <div className="flex flex-wrap gap-2">
-                    {globalProducts.map(p => {
-                      const isSelected = (project.products || []).some(pp => pp.id === p.id);
-                      return (
-                        <button
-                          key={p.id}
-                          onClick={() => {
-                            if (isSelected) {
-                              handleRemoveProduct(p.id);
-                            } else {
-                              const updatedProducts = [...(project.products || []), p];
-                              setProjects(prev => prev.map(proj => 
-                                proj.id === project.id ? { ...proj, products: updatedProducts } : proj
-                              ));
-                            }
-                          }}
-                          className={cn(
-                            "px-4 py-2 rounded-xl text-sm font-bold transition-all border",
-                            isSelected 
-                              ? "bg-indigo-600 text-white border-transparent shadow-md" 
-                              : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
-                          )}
-                        >
-                          {p.name}
-                        </button>
-                      );
-                    })}
+                <div className="space-y-6">
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Select Product</h4>
+                    <div className="flex flex-wrap gap-2">
+                      {globalProducts.map(p => {
+                        const isSelected = (project.products || []).some(pp => pp.id === p.id);
+                        return (
+                          <button
+                            key={p.id}
+                            onClick={() => {
+                              if (isSelected) {
+                                setProjects(prev => prev.map(proj => 
+                                  proj.id === project.id ? { ...proj, products: [], services: [] } : proj
+                                ));
+                              } else {
+                                setProjects(prev => prev.map(proj => 
+                                  proj.id === project.id ? { ...proj, products: [p], services: [] } : proj
+                                ));
+                              }
+                            }}
+                            className={cn(
+                              "px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+                              isSelected 
+                                ? "bg-indigo-600 text-white border-transparent shadow-md" 
+                                : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                            )}
+                          >
+                            {p.name}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
+
+                  {project.products && project.products.length > 0 && (
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Select Service</h4>
+                      <div className="flex flex-wrap gap-2">
+                        {globalServices
+                          .filter(s => project.products?.some(p => p.id === s.productId))
+                          .map(s => {
+                            const isSelected = (project.services || []).some(ss => ss.id === s.id);
+                            return (
+                              <button
+                                key={s.id}
+                                onClick={() => {
+                                  if (isSelected) {
+                                    setProjects(prev => prev.map(proj => 
+                                      proj.id === project.id ? { ...proj, services: [] } : proj
+                                    ));
+                                  } else {
+                                    setProjects(prev => prev.map(proj => 
+                                      proj.id === project.id ? { ...proj, services: [s] } : proj
+                                    ));
+                                  }
+                                }}
+                                className={cn(
+                                  "px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+                                  isSelected 
+                                    ? "bg-emerald-600 text-white border-transparent shadow-md" 
+                                    : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:border-zinc-300"
+                                )}
+                              >
+                                {s.name}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="h-px bg-zinc-100 dark:bg-zinc-800" />
-
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Custom Project Products & Services</h4>
-                    {canEdit && (
-                      <button onClick={handleAddProduct} className="flex items-center gap-1 text-xs font-bold text-indigo-600 hover:text-indigo-700">
-                        <Plus className="w-4 h-4" />
-                        Add Custom Product
-                      </button>
-                    )}
-                  </div>
-                  <div className="space-y-4">
-                    {(project.products || []).map(p => (
-                      <div key={p.id} className="p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="text"
-                            value={p.name}
-                            onChange={(e) => handleUpdateProduct(p.id, e.target.value)}
-                            disabled={!canEdit}
-                            className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-2 text-sm font-bold outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                            placeholder="Product Name"
-                          />
-                          {canEdit && (
-                            <button onClick={() => handleRemoveProduct(p.id)} className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
-                              <X className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="ml-6 space-y-2">
-                          {(project.services || []).filter(s => s.productId === p.id).map(s => (
-                            <div key={s.id} className="flex items-center gap-2">
-                              <input 
-                                type="text"
-                                value={s.name}
-                                onChange={(e) => handleUpdateService(s.id, e.target.value)}
-                                disabled={!canEdit}
-                                className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-100 rounded-lg px-3 py-1.5 text-xs outline-none focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                                placeholder="Service Name"
-                              />
-                              {canEdit && (
-                                <button onClick={() => handleRemoveService(s.id)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg transition-colors">
-                                  <X className="w-3 h-3" />
-                                </button>
-                              )}
-                            </div>
-                          ))}
-                          {canEdit && (
-                            <button 
-                              onClick={() => handleAddService(p.id)}
-                              className="text-xs text-indigo-500 hover:text-indigo-600 font-bold flex items-center gap-1"
-                            >
-                              <Plus className="w-3 h-3" />
-                              Add Service
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
               <div className="p-6 bg-zinc-50 dark:bg-zinc-900 border-t border-zinc-100 flex justify-end">
                 <button 

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, Task, KanbanColumn, Sprint, SprintSnapshot } from '../types';
 import { Target, Plus, Clock, TrendingUp, Zap, GripVertical, CheckCircle2, MoreVertical, Printer, LayoutList, LayoutGrid, Settings, Palette, Trash2, X, ChevronUp, ChevronDown, Download, FileText, Image as ImageIcon, ArrowRight, MessageSquare, AlertCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, fixOklch } from '../lib/utils';
 import { useToast } from '../context/ToastContext';
 import { v4 as uuidv4 } from 'uuid';
 import html2canvas from 'html2canvas';
@@ -311,7 +311,10 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
         useCORS: true,
         scale: 2,
         backgroundColor: isDarkMode() ? '#18181b' : '#ffffff',
-        ignoreElements: (element) => element.classList.contains('no-export')
+        ignoreElements: (element) => element.classList.contains('no-export'),
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -341,7 +344,10 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
         useCORS: true,
         scale: 2,
         backgroundColor: isDarkMode() ? '#18181b' : '#ffffff', // zinc-900 or white
-        ignoreElements: (element) => element.classList.contains('no-export')
+        ignoreElements: (element) => element.classList.contains('no-export'),
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
       });
       const data = canvas.toDataURL('image/png');
       const link = document.createElement('a');

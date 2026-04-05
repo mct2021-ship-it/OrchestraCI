@@ -10,6 +10,12 @@ export interface Notification {
   createdAt: string;
   read: boolean;
   type?: 'system' | 'chat';
+  sourceId?: string;
+  link?: {
+    type: 'task' | 'journey' | 'process' | 'project';
+    id: string;
+    projectId?: string;
+  };
 }
 
 interface NotificationsModalProps {
@@ -18,13 +24,30 @@ interface NotificationsModalProps {
   notifications: Notification[];
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  onNavigate?: (tab: string, subTab?: string) => void;
   isDarkMode?: boolean;
 }
 
-export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRead, onMarkAllAsRead, isDarkMode }: NotificationsModalProps) {
+export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRead, onMarkAllAsRead, onNavigate, isDarkMode }: NotificationsModalProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'system' | 'chat'>('all');
 
   if (!isOpen) return null;
+
+  const handleNotificationClick = (notification: Notification) => {
+    onMarkAsRead(notification.id);
+    if (notification.link && onNavigate) {
+      if (notification.link.type === 'task') {
+        onNavigate('tasks', notification.link.id);
+      } else if (notification.link.type === 'journey') {
+        onNavigate('journeys', notification.link.id);
+      } else if (notification.link.type === 'process') {
+        onNavigate('process_maps', notification.link.id);
+      } else if (notification.link.type === 'project') {
+        onNavigate('project_detail', notification.link.id);
+      }
+      onClose();
+    }
+  };
 
   const filteredNotifications = notifications.filter(n => {
     if (activeTab === 'all') return true;
@@ -126,7 +149,7 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
                 filteredNotifications.map((notification) => (
                   <div
                     key={notification.id}
-                    onClick={() => onMarkAsRead(notification.id)}
+                    onClick={() => handleNotificationClick(notification)}
                     className={cn(
                       "p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden group",
                       !notification.read 

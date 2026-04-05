@@ -34,15 +34,12 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     const x = info.point.x - rect.left;
     const y = info.point.y - rect.top;
     
-    let percentX = (x / rect.width) * 100;
-    let percentY = (y / rect.height) * 100;
+    let percentX = ((x / rect.width) * 100);
+    let percentY = ((y / rect.height) * 100);
     
-    percentX = Math.max(0, Math.min(100, percentX));
-    percentY = Math.max(0, Math.min(100, percentY));
-    
-    // Convert to 1-10 scale
-    const newInterest = Math.max(1, Math.min(10, Math.round((percentX / 100) * 9) + 1));
-    const newPower = Math.max(1, Math.min(10, 10 - Math.round((percentY / 100) * 9)));
+    // Convert to 1-10 scale, accounting for 12% padding on each side to keep cards inside bounds
+    const newInterest = Math.max(1, Math.min(10, Math.round(((percentX - 12) / 76) * 9) + 1));
+    const newPower = Math.max(1, Math.min(10, 10 - Math.round(((percentY - 12) / 76) * 9)));
     
     setProjectStakeholders(prev => prev.map(s => 
       s.id === id ? { ...s, interest: newInterest, power: newPower } : s
@@ -205,9 +202,9 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   const gridStakeholders = useMemo(() => {
     return projectStakeholders.map(s => ({
       ...s,
-      // Map 1-10 scale to 0-100% for positioning
-      x: ((s.interest - 1) / 9) * 100,
-      y: 100 - (((s.power - 1) / 9) * 100)
+      // Map 1-10 scale to 12-88% for positioning to keep cards inside bounds and avoid labels
+      x: 12 + (((s.interest - 1) / 9) * 76),
+      y: 88 - (((s.power - 1) / 9) * 76)
     }));
   }, [projectStakeholders]);
 
@@ -292,7 +289,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                     setIsAdding(true);
                   }}
                 >
-                  <div className="bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 rounded-xl p-3 shadow-xl min-w-[140px] max-w-[180px] transition-all group-hover:scale-105 group-hover:border-indigo-500">
+                  <div className="bg-white dark:bg-zinc-800 border-2 border-zinc-200 dark:border-zinc-700 rounded-xl p-2.5 shadow-xl min-w-[120px] max-w-[150px] transition-all group-hover:scale-105 group-hover:border-indigo-500">
                     <div className="flex items-center justify-between mb-2">
                       <div className={cn(
                         "px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-wider",

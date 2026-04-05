@@ -105,7 +105,7 @@ import { stripPIData } from '../lib/piStripper';
 import { CommentsPanel } from '../components/CommentsPanel';
 import { VersionHistory } from '../components/VersionHistory';
 import { v4 as uuidv4 } from 'uuid';
-import { cn } from '../lib/utils';
+import { cn, fixOklch } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import ReactMarkdown from 'react-markdown';
@@ -117,6 +117,7 @@ import { usePermissions } from '../hooks/usePermissions';
 interface JourneyMapsProps {
   journeys: JourneyMap[];
   setJourneys: React.Dispatch<React.SetStateAction<JourneyMap[]>>;
+  setProjects?: React.Dispatch<React.SetStateAction<Project[]>>;
   products: Product[];
   services: Service[];
   personas: Persona[];
@@ -138,6 +139,7 @@ interface JourneyMapsProps {
 export function JourneyMaps({ 
   journeys, 
   setJourneys, 
+  setProjects,
   products, 
   services, 
   personas, 
@@ -186,6 +188,7 @@ export function JourneyMaps({
   const [showCarbon, setShowCarbon] = useState(false);
   const [isCalculatingCarbon, setIsCalculatingCarbon] = useState(false);
   const [isPersonaExpanded, setIsPersonaExpanded] = useState(false);
+  const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [activeCarbonTarget, setActiveCarbonTarget] = useState<{ stageId: string; laneId: string; itemIndex: number } | null>(null);
@@ -193,6 +196,12 @@ export function JourneyMaps({
   const exportMenuRef = useRef<HTMLDivElement>(null);
   const moreActionsMenuRef = useRef<HTMLDivElement>(null);
   const viewMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (initialJourneyId) {
+      setActiveJourneyId(initialJourneyId);
+    }
+  }, [initialJourneyId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -277,7 +286,16 @@ export function JourneyMaps({
         scale: 2,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
         ignoreElements: (element) => element.classList.contains('no-export'),
-        logging: false
+        logging: false,
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+          const clonedElement = clonedDoc.getElementById('journey-map-content');
+          if (clonedElement) {
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.width = `${element.scrollWidth}px`;
+          }
+        }
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -310,7 +328,16 @@ export function JourneyMaps({
         allowTaint: false,
         logging: false,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
-        ignoreElements: (element) => element.classList.contains('no-export')
+        ignoreElements: (element) => element.classList.contains('no-export'),
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+          const clonedElement = clonedDoc.getElementById('journey-map-content');
+          if (clonedElement) {
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.width = `${element.scrollWidth}px`;
+          }
+        }
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -373,6 +400,15 @@ export function JourneyMaps({
       allowTaint: false,
       logging: false,
       backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+      onclone: (clonedDoc) => {
+        fixOklch(clonedDoc);
+        const clonedElement = clonedDoc.getElementById('journey-map-content');
+        if (clonedElement) {
+          clonedElement.style.overflow = 'visible';
+          clonedElement.style.height = 'auto';
+          clonedElement.style.width = `${element.scrollWidth}px`;
+        }
+      }
     });
     
     const imgData = canvas.toDataURL('image/png');
@@ -1399,7 +1435,18 @@ export function JourneyMaps({
                 })}
               </div>
             </div>
-            {isPersonaExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsPersonaSelectorOpen(true);
+                }}
+                className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+              >
+                Manage
+              </button>
+              {isPersonaExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </div>
           </button>
           
           <AnimatePresence>
@@ -2225,6 +2272,8 @@ export function JourneyMaps({
         isOpen={showComments}
         onClose={() => setShowComments(false)}
         comments={activeJourney.comments || []}
+        itemId={activeJourney.id}
+        itemType="journey"
         onAddComment={(newComment) => {
           setJourneys(journeys.map(j => 
             j.id === activeJourneyId 
@@ -2373,7 +2422,7 @@ export function JourneyMaps({
                   
                   {selectedItemDetail.item.imageUrl ? (
                     <div className="relative group rounded-2xl overflow-hidden border-2 border-zinc-100 dark:border-zinc-800">
-                      <img src={selectedItemDetail.item.imageUrl} alt="Item" className="w-full h-auto max-h-48 object-cover" />
+                      <img src={selectedItemDetail.item.imageUrl} alt="Item" className="w-full h-auto max-h-48 object-cover" crossOrigin="anonymous" />
                       <button 
                         onClick={() => {
                           setSelectedItemDetail({ ...selectedItemDetail, item: { ...selectedItemDetail.item, imageUrl: undefined } });
@@ -2435,6 +2484,117 @@ export function JourneyMaps({
                   className="px-8 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl shadow-zinc-900/20 dark:shadow-white/10"
                 >
                   Save & Close
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {/* Persona Selector Modal */}
+        {isPersonaSelectorOpen && activeJourney && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col shadow-2xl border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-600 rounded-xl text-white">
+                    <Users className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Link Personas</h3>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Select personas to link to this journey map</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsPersonaSelectorOpen(false)}
+                  className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6 text-zinc-400" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {personas.map(persona => {
+                    const isSelected = activeJourney.personaIds.includes(persona.id);
+                    return (
+                      <div 
+                        key={persona.id}
+                        onClick={() => {
+                          const newIds = isSelected 
+                            ? activeJourney.personaIds.filter(id => id !== persona.id)
+                            : [...activeJourney.personaIds, persona.id];
+                          
+                          setJourneys(journeys.map(j => 
+                            j.id === activeJourney.id ? { ...j, personaIds: newIds } : j
+                          ));
+
+                          // Update project personaIds if setProjects is available
+                          if (setProjects && activeProjectId && !isSelected) {
+                            setProjects(prev => prev.map(p => {
+                              if (p.id === activeProjectId) {
+                                const currentPersonaIds = p.personaIds || [];
+                                if (!currentPersonaIds.includes(persona.id)) {
+                                  return { ...p, personaIds: [...currentPersonaIds, persona.id] };
+                                }
+                              }
+                              return p;
+                            }));
+                          }
+                        }}
+                        className={cn(
+                          "p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center gap-4 group",
+                          isSelected 
+                            ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20" 
+                            : "border-zinc-100 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900"
+                        )}
+                      >
+                        <div className="relative">
+                          <img 
+                            src={persona.imageUrl} 
+                            alt={persona.name} 
+                            className="w-12 h-12 rounded-full object-cover"
+                            crossOrigin="anonymous"
+                          />
+                          {isSelected && (
+                            <div className="absolute -top-1 -right-1 bg-indigo-600 text-white rounded-full p-0.5 shadow-sm">
+                              <CheckCircle2 className="w-3 h-3" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-zinc-900 dark:text-white truncate">{persona.name}</h4>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{persona.role}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {personas.length === 0 && (
+                  <div className="text-center py-12">
+                    <Users className="w-12 h-12 text-zinc-300 dark:text-zinc-700 mx-auto mb-4" />
+                    <p className="text-zinc-500 dark:text-zinc-400">No personas found in this project.</p>
+                    <button 
+                      onClick={() => {
+                        setIsPersonaSelectorOpen(false);
+                        onNavigateToPersonas?.();
+                      }}
+                      className="mt-4 text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
+                    >
+                      Create your first persona
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-end">
+                <button 
+                  onClick={() => setIsPersonaSelectorOpen(false)}
+                  className="px-8 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold rounded-2xl hover:scale-[1.02] active:scale-95 transition-all shadow-xl"
+                >
+                  Done
                 </button>
               </div>
             </motion.div>

@@ -2,8 +2,8 @@ import React, { useState, useCallback } from 'react';
 import { Plus, Download, Share2, GitMerge, Settings2, Trash2, Sparkles, ChevronUp, ChevronDown, Wand2, MessageSquare, Clock } from 'lucide-react';
 import { ProcessMap, JourneyMap, ProcessNode, ProcessEdge, Comment, User, Project, RecycleBinItem } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';
+import { ProcessFlowEditor } from '../components/ProcessFlowEditor';
 import { AiProcessGeneratorModal } from '../components/AiProcessGeneratorModal';
-import { VerticalProcessBuilder } from '../components/VerticalProcessBuilder';
 import { CommentsPanel } from '../components/CommentsPanel';
 import { VersionHistory } from '../components/VersionHistory';
 import { v4 as uuidv4 } from 'uuid';
@@ -47,6 +47,12 @@ export function ProcessMaps({
   const { canEditProjectFeature } = usePermissions();
   const activeProject = projects.find(p => p.id === activeProjectId);
   const canEdit = activeProject ? canEditProjectFeature(activeProject) : false;
+
+  React.useEffect(() => {
+    if (initialProcessMapId) {
+      setActiveCommentsMapId(initialProcessMapId);
+    }
+  }, [initialProcessMapId]);
 
   const deleteProcessMap = useCallback((id: string) => {
     const pm = processMaps.find(m => m.id === id);
@@ -241,7 +247,7 @@ export function ProcessMaps({
               </div>
             </div>
 
-            <VerticalProcessBuilder 
+            <ProcessFlowEditor 
               processMap={pm} 
               onUpdate={(nodes, edges) => updateProcessMapData(pm.id, nodes, edges)} 
               canEdit={canEdit}
@@ -276,6 +282,8 @@ export function ProcessMaps({
           isOpen={!!activeCommentsMapId}
           onClose={() => setActiveCommentsMapId(null)}
           comments={processMaps.find(pm => pm.id === activeCommentsMapId)?.comments || []}
+          itemId={activeCommentsMapId}
+          itemType="process"
           onAddComment={(newComment) => {
             setProcessMaps(processMaps.map(pm => 
               pm.id === activeCommentsMapId 

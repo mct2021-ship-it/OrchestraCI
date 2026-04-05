@@ -15,9 +15,21 @@ interface CommentsPanelProps {
   onAddComment: (comment: Comment) => void;
   onClose: () => void;
   title?: string;
+  itemId?: string;
+  itemType?: 'task' | 'journey' | 'process' | 'project';
 }
 
-export function CommentsPanel({ isOpen, comments, currentUser, users, onAddComment, onClose, title = "Comments" }: CommentsPanelProps) {
+export function CommentsPanel({ 
+  isOpen, 
+  comments, 
+  currentUser, 
+  users, 
+  onAddComment, 
+  onClose, 
+  title = "Comments",
+  itemId,
+  itemType
+}: CommentsPanelProps) {
   const [newCommentText, setNewCommentText] = useState('');
   const { addNotification } = useNotifications();
   const { addToast } = useToast();
@@ -37,32 +49,33 @@ export function CommentsPanel({ isOpen, comments, currentUser, users, onAddComme
     };
 
     // Check for mentions
-    const mentionRegex = /@([^ ]+)/g;
-    const matches = text.match(mentionRegex);
-    
-    if (matches) {
-      matches.forEach(match => {
-        const mentionedName = match.substring(1);
-        const mentionedUser = users.find(u => u.name === mentionedName);
-        
-        if (mentionedUser) {
-          // In a real app, this would be sent to the server and the server would notify the user.
-          // For this demo, we'll simulate a notification being received by the mentioned user.
-          // If the mentioned user is the current user, they'll see it immediately.
-          addNotification({
-            title: 'New Mention',
-            message: `${currentUser.name} mentioned you in a comment: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
-            type: 'chat'
-          });
-          
-          if (mentionedUser.id === currentUser.id) {
-            addToast(`You mentioned yourself!`, 'info');
-          } else {
-            addToast(`Mentioned ${mentionedUser.name}`, 'success');
-          }
-        }
-      });
+    const allUsers = [...users];
+    if (currentUser && !allUsers.some(u => u.id === currentUser.id)) {
+      allUsers.push(currentUser);
     }
+
+    allUsers.forEach(user => {
+      if (text.includes(`@${user.name}`)) {
+        // In a real app, this would be sent to the server and the server would notify the user.
+        // For this demo, we'll simulate a notification being received by the mentioned user.
+        addNotification({
+          title: 'New Mention',
+          message: `${currentUser.name} mentioned you in a comment: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
+          type: 'chat',
+          sourceId: newComment.id,
+          link: itemId && itemType ? {
+            type: itemType,
+            id: itemId
+          } : undefined
+        });
+        
+        if (user.id === currentUser.id) {
+          addToast(`You mentioned yourself!`, 'info');
+        } else {
+          addToast(`Mentioned ${user.name}`, 'success');
+        }
+      }
+    });
 
     onAddComment(newComment);
     setNewCommentText('');
@@ -84,7 +97,7 @@ export function CommentsPanel({ isOpen, comments, currentUser, users, onAddComme
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed right-0 top-0 bottom-0 w-96 bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl z-50 flex flex-col"
+            className="fixed right-0 top-0 bottom-0 w-[450px] bg-white dark:bg-zinc-900 border-l border-zinc-200 dark:border-zinc-800 shadow-2xl z-50 flex flex-col"
           >
             <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -147,7 +160,7 @@ export function CommentsPanel({ isOpen, comments, currentUser, users, onAddComme
                   users={users}
                   placeholder="Write a comment..."
                   className="w-full pl-4 pr-12 py-3 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm resize-none text-zinc-900 dark:text-white placeholder:text-zinc-400"
-                  rows={2}
+                  rows={4}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();

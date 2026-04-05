@@ -6,6 +6,8 @@ import { cn } from '../lib/utils';
 import { ContextualHelp } from './ContextualHelp';
 import { v4 as uuidv4 } from 'uuid';
 import { MentionTextarea } from './MentionTextarea';
+import { useNotifications } from '../context/NotificationContext';
+import { useToast } from '../context/ToastContext';
 
 interface TaskModalProps {
   task: Task;
@@ -25,6 +27,8 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
   const [pendingTeamMember, setPendingTeamMember] = useState<User | null>(null);
   const [showBlockerDetails, setShowBlockerDetails] = useState(true);
   const [newCommentText, setNewCommentText] = useState('');
+  const { addNotification } = useNotifications();
+  const { addToast } = useToast();
 
   const moscowCategories = [
     { id: 'Must', label: 'Must Have', color: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-900/30 dark:text-rose-400 dark:border-rose-800' },
@@ -426,18 +430,48 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
                   users={users}
                   placeholder="Add a comment..."
                   className="flex-1 px-4 py-2 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-zinc-900 dark:text-white"
-                  rows={1}
+                  rows={3}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey && newCommentText.trim()) {
                       e.preventDefault();
+                      const text = newCommentText.trim();
                       const newComment: Comment = {
                         id: uuidv4(),
                         userId: currentUser.id,
                         userName: currentUser.name,
                         userAvatar: currentUser.photoUrl,
-                        text: newCommentText.trim(),
+                        text: text,
                         createdAt: new Date().toISOString(),
                       };
+
+                      // Check for mentions
+                      const allUsers = [...users];
+                      if (currentUser && !allUsers.some(u => u.id === currentUser.id)) {
+                        allUsers.push(currentUser);
+                      }
+
+                      allUsers.forEach(user => {
+                        if (text.includes(`@${user.name}`)) {
+                          addNotification({
+                            title: 'New Mention',
+                            message: `${currentUser.name} mentioned you in a task comment: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
+                            type: 'chat',
+                            sourceId: newComment.id,
+                            link: {
+                              type: 'task',
+                              id: editingTask.id,
+                              projectId: editingTask.projectId
+                            }
+                          });
+                          
+                          if (user.id === currentUser.id) {
+                            addToast(`You mentioned yourself!`, 'info');
+                          } else {
+                            addToast(`Mentioned ${user.name}`, 'success');
+                          }
+                        }
+                      });
+
                       setEditingTask({
                         ...editingTask,
                         comments: [...(editingTask.comments || []), newComment]
@@ -449,14 +483,44 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
                 <button
                   onClick={() => {
                     if (newCommentText.trim()) {
+                      const text = newCommentText.trim();
                       const newComment: Comment = {
                         id: uuidv4(),
                         userId: currentUser.id,
                         userName: currentUser.name,
                         userAvatar: currentUser.photoUrl,
-                        text: newCommentText.trim(),
+                        text: text,
                         createdAt: new Date().toISOString(),
                       };
+
+                      // Check for mentions
+                      const allUsers = [...users];
+                      if (currentUser && !allUsers.some(u => u.id === currentUser.id)) {
+                        allUsers.push(currentUser);
+                      }
+
+                      allUsers.forEach(user => {
+                        if (text.includes(`@${user.name}`)) {
+                          addNotification({
+                            title: 'New Mention',
+                            message: `${currentUser.name} mentioned you in a task comment: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
+                            type: 'chat',
+                            sourceId: newComment.id,
+                            link: {
+                              type: 'task',
+                              id: editingTask.id,
+                              projectId: editingTask.projectId
+                            }
+                          });
+                          
+                          if (user.id === currentUser.id) {
+                            addToast(`You mentioned yourself!`, 'info');
+                          } else {
+                            addToast(`Mentioned ${user.name}`, 'success');
+                          }
+                        }
+                      });
+
                       const updatedTask = {
                         ...editingTask,
                         comments: [...(editingTask.comments || []), newComment]

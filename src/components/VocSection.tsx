@@ -127,7 +127,7 @@ export function VocSection() {
     try {
       const hasKey = await ensureApiKey();
       if (!hasKey) {
-        throw new Error("Gemini API key is required. Please select one in the settings.");
+        throw new Error("Gemini API key is required. Please select one in the settings in AI Studio, or ensure the GEMINI_API_KEY environment variable is set if running standalone.");
       }
 
       const ai = await getGeminiClient();

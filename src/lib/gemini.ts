@@ -24,11 +24,10 @@ export async function getGeminiClient(): Promise<GoogleGenAI | null> {
       if (!hasKey) {
         // This will open the platform's key selection dialog
         await window.aistudio.openSelectKey();
-        
-        // After the dialog, the key should be available in process.env.API_KEY
-        // We assume success as per instructions
-        apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
       }
+      // After the dialog, the key should be available in process.env.API_KEY
+      // We re-check the key here
+      apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
     } catch (error) {
       console.error('Error checking/selecting API key:', error);
     }
@@ -46,8 +45,13 @@ export async function getGeminiClient(): Promise<GoogleGenAI | null> {
  * Checks if an API key is available or can be selected.
  */
 export async function ensureApiKey(): Promise<boolean> {
+  // Check process.env (shimmed by Vite)
   const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (apiKey) return true;
+
+  // Check window.process.env directly (sometimes shims are weird)
+  if (typeof window !== 'undefined' && window.process?.env?.GEMINI_API_KEY) return true;
+  if (typeof window !== 'undefined' && window.process?.env?.API_KEY) return true;
 
   if (typeof window !== 'undefined' && window.aistudio) {
     const hasKey = await window.aistudio.hasSelectedApiKey();

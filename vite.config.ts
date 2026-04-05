@@ -12,11 +12,17 @@ export default defineConfig(({mode}) => {
       {
         name: 'inject-env',
         transformIndexHtml(html) {
-          const currentKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY || process.env.API_KEY || env.API_KEY;
-          return html.replace(
-            '</head>',
-            `<script>window.process = window.process || {}; window.process.env = window.process.env || {}; window.process.env.GEMINI_API_KEY = ${JSON.stringify(currentKey)};</script></head>`
-          );
+        const currentGeminiKey = process.env.GEMINI_API_KEY || env.GEMINI_API_KEY || '';
+        const currentApiKey = process.env.API_KEY || env.API_KEY || '';
+        return html.replace(
+          '</head>',
+          `<script>
+            window.process = window.process || {}; 
+            window.process.env = window.process.env || {}; 
+            window.process.env.GEMINI_API_KEY = ${JSON.stringify(currentGeminiKey)};
+            window.process.env.API_KEY = ${JSON.stringify(currentApiKey)};
+          </script></head>`
+        );
         }
       }
     ],
@@ -27,7 +33,7 @@ export default defineConfig(({mode}) => {
     },
     define: {
       'process.env.GEMINI_API_KEY': 'window.process.env.GEMINI_API_KEY',
-      'process.env.API_KEY': 'window.process.env.GEMINI_API_KEY',
+      'process.env.API_KEY': 'window.process.env.API_KEY',
       '__MY_VAR__': '"hello"',
     },
     server: {

@@ -27,7 +27,7 @@ import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { GeminiChatbot } from './components/GeminiChatbot';
 import { FeedbackModal } from './components/FeedbackModal';
 import { NotificationsModal } from './components/NotificationsModal';
-import { Menu, ChevronLeft, Users } from 'lucide-react';
+import { Menu, ChevronLeft, Users, Bell, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { mockPersonas, mockJourneyMaps, mockTasks, mockProcessMaps, mockProducts, mockServices, mockProjects, mockUsers, mockSprints, mockStakeholders, mockProjectStakeholders } from './data/mockData';
@@ -105,7 +105,17 @@ function AppContent() {
   const [resetTrigger, setResetTrigger] = useState(0);
 
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
+  const [hasCheckedUnreadOnLogin, setHasCheckedUnreadOnLogin] = useState(false);
+  const [isLoginNotificationModalOpen, setIsLoginNotificationModalOpen] = useState(false);
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+
+  // Check for unread notifications on login
+  useEffect(() => {
+    if (user && !hasCheckedUnreadOnLogin && unreadCount > 0) {
+      setIsLoginNotificationModalOpen(true);
+      setHasCheckedUnreadOnLogin(true);
+    }
+  }, [user, unreadCount, hasCheckedUnreadOnLogin]);
 
   // Initialize WebSocket connection
   useEffect(() => {
@@ -411,37 +421,71 @@ function AppContent() {
   const handleTabChange = useCallback((tab: string, subTab?: string) => {
     if (tab === currentTab && !subTab) {
       if (tab === 'journeys') setActiveJourneyId(null);
-      if (tab === 'tasks') setSelectedAssignee('all');
+      if (tab === 'tasks') {
+        setSelectedAssignee('all');
+        setActiveTaskId(null);
+      }
+      if (tab === 'process_maps') setActiveProcessMapId(null);
       setResetTrigger(prev => prev + 1);
       return;
     }
+
+    // Reset active item IDs when changing tabs
+    if (tab !== 'journeys') setActiveJourneyId(null);
+    if (tab !== 'tasks') setActiveTaskId(null);
+    if (tab !== 'process_maps') setActiveProcessMapId(null);
+
     if (tab === 'journeys') {
-      setActiveJourneyId(null);
       if (subTab === 'new') {
         setOpenNewJourneyModal(true);
+        setActiveJourneyId(null);
+      } else if (subTab) {
+        setActiveJourneyId(subTab);
+      } else {
+        setActiveJourneyId(null);
       }
     }
+
+    if (tab === 'tasks') {
+      if (subTab && tasks.some(t => t.id === subTab)) {
+        setActiveTaskId(subTab);
+        setSelectedAssignee('all');
+      } else if (subTab) {
+        setSelectedAssignee(subTab);
+        setActiveTaskId(null);
+      } else {
+        setSelectedAssignee('all');
+        setActiveTaskId(null);
+      }
+    }
+
+    if (tab === 'process_maps') {
+      if (subTab) {
+        setActiveProcessMapId(subTab);
+      } else {
+        setActiveProcessMapId(null);
+      }
+    }
+
     if (tab === 'projects' && subTab === 'new') {
       setOpenNewProjectModal(true);
     }
+
     if (tab === 'intelligence' && subTab === 'edit-company') {
       setStartInEditMode(true);
     } else {
       setStartInEditMode(false);
     }
+
     if (tab === 'personas' && subTab === 'new') {
       setStartPersonasInNewMode(true);
     } else {
       setStartPersonasInNewMode(false);
     }
-    if (tab === 'tasks' && subTab) {
-      setSelectedAssignee(subTab);
-    } else if (tab === 'tasks') {
-      setSelectedAssignee('all');
-    }
+
     setHistory(prev => [...prev, tab]);
     setCurrentTab(tab);
-  }, [currentTab]);
+  }, [currentTab, tasks]);
 
   const handleBack = useCallback(() => {
     if (history.length <= 1) return;
@@ -628,6 +672,7 @@ function AppContent() {
           <JourneyMaps 
             journeys={filteredJourneys}
             setJourneys={handleSetJourneys}
+            setProjects={handleSetProjects}
             products={activeProject?.products || products}
             services={activeProject?.services || services}
             personas={personas}
@@ -707,6 +752,7 @@ function AppContent() {
             projects={projects} 
             initialAssigneeId={selectedAssignee || 'all'}
             initialProjectId={activeProjectId || 'all'}
+            initialTaskId={activeTaskId || undefined}
             onNavigate={handleTabChange}
             onUpdateTask={(updatedTask) => handleSetTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t))}
             onDeleteItem={handleDeleteItem}
@@ -780,6 +826,8 @@ function AppContent() {
             }}
             currentUser={currentUser}
             users={users}
+            markAsRead={markAsRead}
+            notifications={notifications}
           />
         );
     }
@@ -888,6 +936,62 @@ function AppContent() {
             onMarkAllAsRead={markAllAsRead}
             isDarkMode={isDarkMode}
           />
+
+          <AnimatePresence>
+            {isLoginNotificationModalOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[60] flex items-center justify-center p-4"
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.95, opacity: 0 }}
+                  className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl max-w-md w-full p-6 border border-zinc-200 dark:border-zinc-800"
+                >
+                  <div className="text-center space-y-4">
+                    <div className="w-16 h-16 bg-amber-100 dark:bg-amber-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <Bell className="w-8 h-8 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Unread Notifications</h2>
+                    <p className="text-zinc-500 dark:text-zinc-400">
+                      You have {unreadCount} unread notification{unreadCount !== 1 ? 's' : ''}. What would you like to do?
+                    </p>
+                    <div className="pt-4 flex flex-col gap-3">
+                      <button
+                        onClick={() => {
+                          setIsLoginNotificationModalOpen(false);
+                          setIsNotificationsModalOpen(true);
+                        }}
+                        className="w-full px-4 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Bell className="w-4 h-4" />
+                        View Notifications
+                      </button>
+                      <button
+                        onClick={() => {
+                          markAllAsRead();
+                          setIsLoginNotificationModalOpen(false);
+                        }}
+                        className="w-full px-4 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl font-bold hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle2 className="w-4 h-4" />
+                        Mark All as Read
+                      </button>
+                      <button
+                        onClick={() => setIsLoginNotificationModalOpen(false)}
+                        className="w-full px-4 py-3 text-zinc-500 dark:text-zinc-400 font-medium hover:text-zinc-700 dark:hover:text-zinc-200 transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <AnimatePresence>
             {showPersonaPromptModal && (

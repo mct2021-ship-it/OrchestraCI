@@ -10,7 +10,7 @@ import { EditableText } from '../components/EditableText';
 import { VersionHistory } from '../components/VersionHistory';
 import { Persona, DemographicSlider } from '../types';
 import { v4 as uuidv4 } from 'uuid';
-import { cn } from '../lib/utils';
+import { cn, fixOklch } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { usePlan } from '../context/PlanContext';
@@ -125,9 +125,19 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       addToast('Generating PDF...', 'info');
       const canvas = await html2canvas(element, {
         useCORS: true,
+        allowTaint: false,
         scale: 2,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
-        ignoreElements: (element) => element.classList.contains('no-export')
+        ignoreElements: (element) => element.classList.contains('no-export'),
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+          const clonedElement = clonedDoc.getElementById('persona-content');
+          if (clonedElement) {
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.width = `${element.scrollWidth}px`;
+          }
+        }
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -167,9 +177,19 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       const canvas = await html2canvas(element, {
         scale: 2,
         useCORS: true,
+        allowTaint: false,
         logging: false,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
-        ignoreElements: (element) => element.classList.contains('no-export')
+        ignoreElements: (element) => element.classList.contains('no-export'),
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+          const clonedElement = clonedDoc.getElementById('persona-content');
+          if (clonedElement) {
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.width = `${element.scrollWidth}px`;
+          }
+        }
       });
       
       const imgData = canvas.toDataURL('image/png');
@@ -229,8 +249,18 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     const canvas = await html2canvas(element, {
       scale: 2,
       useCORS: true,
+      allowTaint: false,
       logging: false,
       backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+      onclone: (clonedDoc) => {
+        fixOklch(clonedDoc);
+        const clonedElement = clonedDoc.getElementById('persona-content');
+        if (clonedElement) {
+          clonedElement.style.overflow = 'visible';
+          clonedElement.style.height = 'auto';
+          clonedElement.style.width = `${element.scrollWidth}px`;
+        }
+      }
     });
     
     const imgData = canvas.toDataURL('image/png');
@@ -735,7 +765,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
             {templates.map(template => (
               <div key={template.id} className={`bg-white dark:bg-zinc-900 p-4 rounded-xl border transition-all ${template.isDefaultTemplate ? 'border-amber-400 ring-1 ring-amber-400' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300'}`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <img src={template.imageUrl} alt={template.name} className="w-10 h-10 rounded-full object-cover" />
+                  <img src={template.imageUrl} alt={template.name} className="w-10 h-10 rounded-full object-cover" crossOrigin="anonymous" />
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-zinc-900 dark:text-white truncate">{template.name}</h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{template.role}</p>
@@ -785,7 +815,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                 >
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <img src={persona.imageUrl} alt={persona.name} className="w-10 h-10 rounded-full object-cover border border-zinc-200 dark:border-zinc-800" />
+                      <img src={persona.imageUrl} alt={persona.name} className="w-10 h-10 rounded-full object-cover border border-zinc-200 dark:border-zinc-800" crossOrigin="anonymous" />
                       <span className="font-bold text-zinc-900 dark:text-white">{persona.name}</span>
                     </div>
                   </td>
@@ -845,7 +875,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
             <div className="bg-zinc-50 dark:bg-zinc-900 p-8 md:w-1/3 flex flex-col items-center text-center border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800 print:bg-white dark:bg-zinc-900">
             <div className="relative group">
               <div className="relative cursor-pointer" onClick={() => setSelectedImage(selectedPersona!.imageUrl)}>
-                <img src={selectedPersona!.imageUrl} alt={selectedPersona!.name} className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md mb-6 transition-all group-hover:brightness-75" referrerPolicy="no-referrer" />
+                <img src={selectedPersona!.imageUrl} alt={selectedPersona!.name} className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md mb-6 transition-all group-hover:brightness-75" referrerPolicy="no-referrer" crossOrigin="anonymous" />
                 <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity mb-6">
                   <Eye className="w-8 h-8 text-white" />
                 </div>
