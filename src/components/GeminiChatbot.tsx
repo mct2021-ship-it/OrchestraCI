@@ -281,7 +281,7 @@ export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          "w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 group",
+          "w-14 h-14 rounded-full flex items-center justify-center shadow-2xl transition-all hover:scale-110 active:scale-95 group relative",
           isOpen 
             ? "bg-zinc-900 dark:bg-white text-white dark:text-zinc-900" 
             : "bg-indigo-600 text-white"

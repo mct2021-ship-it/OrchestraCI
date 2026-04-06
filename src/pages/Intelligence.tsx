@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2 } from 'lucide-react';
+import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus } from 'lucide-react';
 import { motion } from 'motion/react';
 import { VocSection } from '../components/VocSection';
 import { NpsCalculator } from '../components/NpsCalculator';
+import { IntelligenceHub } from '../components/ReviewIntelligence';
 import { YourCompany, CompanyProfile } from '../components/YourCompany';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
@@ -12,10 +13,34 @@ interface IntelligenceProps {
   onUpdateProfile?: (updates: Partial<CompanyProfile>) => void;
   startInEditMode?: boolean;
   onSaveComplete?: () => void;
+  // State setters for Review Intelligence integration
+  setPersonas?: React.Dispatch<React.SetStateAction<any[]>>;
+  setProjects?: React.Dispatch<React.SetStateAction<any[]>>;
+  setJourneys?: React.Dispatch<React.SetStateAction<any[]>>;
+  setTasks?: React.Dispatch<React.SetStateAction<any[]>>;
+  setSprints?: React.Dispatch<React.SetStateAction<any[]>>;
+  currentUser?: any;
+  onNavigate?: (tab: string, subTab?: string) => void;
+  setActiveProjectId?: (id: string | null) => void;
+  onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
 }
 
-export function Intelligence({ companyProfile: propProfile, onUpdateProfile, startInEditMode, onSaveComplete }: IntelligenceProps) {
-  const [activeTab, setActiveTab] = React.useState<'profile' | 'overview' | 'sources' | 'analysis'>(startInEditMode ? 'profile' : 'overview');
+export function Intelligence({ 
+  companyProfile: propProfile, 
+  onUpdateProfile, 
+  startInEditMode, 
+  onSaveComplete,
+  setPersonas,
+  setProjects,
+  setJourneys,
+  setTasks,
+  setSprints,
+  currentUser,
+  onNavigate,
+  setActiveProjectId,
+  onAddToAuditLog
+}: IntelligenceProps) {
+  const [activeTab, setActiveTab] = React.useState<'profile' | 'overview' | 'reviews' | 'connectors'>(startInEditMode ? 'profile' : 'overview');
   const [isUploading, setIsUploading] = useState(false);
 
   React.useEffect(() => {
@@ -23,7 +48,7 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
     if (startInEditMode) {
       setActiveTab('profile');
     }
-  }, [startInEditMode, activeTab]);
+  }, [startInEditMode]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   
   const [uploadedData, setUploadedData] = useState([
@@ -74,19 +99,20 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
           <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
             <BrainCircuit className="w-8 h-8 text-indigo-600" />
             Intelligence Hub
+            <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase rounded-lg border border-indigo-200 dark:border-indigo-800">Pro</span>
           </h2>
           <p className="text-zinc-500 dark:text-zinc-400 mt-2 max-w-2xl">
-            Build a deep understanding of your business and customers to drive continuous improvement.
+            Fully Orchestrate your Continuous Improvement through our intelligent and automated engine.
           </p>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl w-fit">
+      <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl w-fit overflow-x-auto max-w-full">
         <button
           onClick={() => setActiveTab('overview')}
           className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap",
             activeTab === 'overview'
               ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
               : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
@@ -96,33 +122,9 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
           Overview
         </button>
         <button
-          onClick={() => setActiveTab('sources')}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
-            activeTab === 'sources'
-              ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
-              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-          )}
-        >
-          <Database className="w-4 h-4" />
-          Data Sources
-        </button>
-        <button
-          onClick={() => setActiveTab('analysis')}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
-            activeTab === 'analysis'
-              ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
-              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-          )}
-        >
-          <BarChart3 className="w-4 h-4" />
-          Analysis & Insights
-        </button>
-        <button
           onClick={() => setActiveTab('profile')}
           className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap",
             activeTab === 'profile'
               ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
               : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
@@ -131,7 +133,108 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
           <Building2 className="w-4 h-4" />
           Company Profile
         </button>
+        <button
+          onClick={() => setActiveTab('reviews')}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap relative",
+            activeTab === 'reviews'
+              ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+          )}
+        >
+          <Sparkles className="w-4 h-4" />
+          Intelligence Hub
+          <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md border border-indigo-200 dark:border-indigo-800">Pro</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('connectors')}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap relative",
+            activeTab === 'connectors'
+              ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+          )}
+        >
+          <RefreshCw className="w-4 h-4" />
+          Connectors
+          <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md border border-indigo-200 dark:border-indigo-800">Pro</span>
+        </button>
       </div>
+
+      {activeTab === 'connectors' && (
+        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                Active Connections
+              </h3>
+              <div className="grid grid-cols-1 gap-4">
+                {uploadedData.filter(d => d.source !== 'Manual').map((conn) => (
+                  <div key={conn.id} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between group hover:border-indigo-500/50 transition-all">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center p-2">
+                        <img src={`https://cdn.simpleicons.org/${conn.source.toLowerCase()}`} alt={conn.source} className="w-full h-full object-contain" />
+                      </div>
+                      <div>
+                        <h4 className="font-bold text-zinc-900 dark:text-white">{conn.source}</h4>
+                        <p className="text-xs text-zinc-500">Last synced: {conn.date}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="px-2 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold rounded-lg border border-emerald-100 dark:border-emerald-800">
+                        {conn.status}
+                      </span>
+                      <button 
+                        onClick={() => handleDeleteData(conn.id)}
+                        className="p-2 text-zinc-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+                {uploadedData.filter(d => d.source !== 'Manual').length === 0 && (
+                  <div className="p-8 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                    <p className="text-sm text-zinc-500">No active API connections. Connect an integration below.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                <Plus className="w-5 h-5 text-indigo-600" />
+                Available Integrations
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[
+                  { name: 'Trustpilot', icon: 'trustpilot', desc: 'Sync customer reviews and ratings automatically.' },
+                  { name: 'Zendesk', icon: 'zendesk', desc: 'Import support tickets and customer feedback.' },
+                  { name: 'Salesforce', icon: 'salesforce', desc: 'Connect CRM data to your customer personas.' },
+                  { name: 'Slack', icon: 'slack', desc: 'Get real-time alerts for critical customer insights.' },
+                  { name: 'Intercom', icon: 'intercom', desc: 'Sync chat transcripts and user behavior data.' },
+                  { name: 'HubSpot', icon: 'hubspot', desc: 'Import marketing and sales interaction data.' }
+                ].map((integration) => (
+                  <div key={integration.name} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 hover:shadow-lg transition-all group">
+                    <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center p-2 mb-4 group-hover:scale-110 transition-transform">
+                      <img src={`https://cdn.simpleicons.org/${integration.icon}`} alt={integration.name} className="w-full h-full object-contain" />
+                    </div>
+                    <h4 className="font-bold text-zinc-900 dark:text-white mb-1">{integration.name}</h4>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 line-clamp-2">{integration.desc}</p>
+                    <button 
+                      onClick={() => handleConnect(integration)}
+                      className="w-full py-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white text-xs font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-all"
+                    >
+                      Connect
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {activeTab === 'profile' && (
         <YourCompany 
@@ -259,166 +362,25 @@ export function Intelligence({ companyProfile: propProfile, onUpdateProfile, sta
         </div>
       )}
 
-      {activeTab === 'sources' && (
-        <div className="space-y-8">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Active Connections */}
-            <div className="lg:col-span-2 space-y-6">
-              <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Active Connections</h3>
-                    <p className="text-sm text-zinc-500 dark:text-zinc-400">Manage your integrated data streams.</p>
-                  </div>
-                  <button 
-                    onClick={handleUpload}
-                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-indigo-700 transition-colors"
-                  >
-                    <Upload className="w-4 h-4" /> Manual Upload
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                        <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Source</th>
-                        <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Last Sync</th>
-                        <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Records</th>
-                        <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
-                        <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                      {uploadedData.map((row) => (
-                        <tr key={row.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center">
-                                {row.source === 'Trustpilot' && <img src="https://cdn.simpleicons.org/trustpilot" className="w-4 h-4" />}
-                                {row.source === 'HubSpot' && <img src="https://cdn.simpleicons.org/hubspot" className="w-4 h-4" />}
-                                {row.source === 'Manual' && <FileText className="w-4 h-4 text-zinc-500" />}
-                              </div>
-                              <span className="text-sm font-bold text-zinc-900 dark:text-white">{row.source}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300">{row.date}</td>
-                          <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300 font-mono">
-                            {row.count.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3">
-                            <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 uppercase tracking-wider">
-                              {row.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
-                              <button 
-                                onClick={() => handleConnect({ name: row.source, icon: row.source.toLowerCase() })}
-                                className="p-1 text-zinc-400 hover:text-indigo-600 transition-colors" 
-                                title="Configure Connection"
-                              >
-                                <Database className="w-4 h-4" />
-                              </button>
-                              <button className="p-1 text-zinc-400 hover:text-indigo-600 transition-colors" title="Sync Now">
-                                <RefreshCw className="w-4 h-4" />
-                              </button>
-                             <button className="p-1 text-zinc-400 hover:text-rose-600 transition-colors" title="Remove" onClick={() => handleDeleteData(row.id)}>
-                               <Trash2 className="w-4 h-4" />
-                             </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Integration Grid */}
-              <div className="space-y-6">
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white px-2">Available Integrations</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {[
-                    { name: 'HubSpot', category: 'CRM', icon: 'hubspot' },
-                    { name: 'Trustpilot', category: 'Reviews', icon: 'trustpilot' },
-                    { name: 'Salesforce', category: 'CRM', icon: 'salesforce' },
-                    { name: 'Zendesk', category: 'Support', icon: 'zendesk' },
-                    { name: 'Intercom', category: 'Support', icon: 'intercom' },
-                    { name: 'SurveyMonkey', category: 'Surveys', icon: 'surveymonkey' },
-                    { name: 'Qualtrics', category: 'Surveys', icon: 'qualtrics' },
-                    { name: 'G2', category: 'Reviews', icon: 'g2' },
-                  ].map((int) => (
-                    <div 
-                      key={int.name} 
-                      onClick={() => handleConnect(int)}
-                      className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between group hover:border-indigo-500 transition-all cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center p-2">
-                          <img src={`https://cdn.simpleicons.org/${int.icon}`} alt={int.name} className="w-full h-full object-contain" />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-sm text-zinc-900 dark:text-white">{int.name}</h4>
-                          <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">{int.category}</p>
-                        </div>
-                      </div>
-                      <button className="text-xs font-bold text-indigo-600 opacity-0 group-hover:opacity-100 transition-opacity">Connect</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Manual Upload Sidebar */}
-            <div className="space-y-6">
-              <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl">
-                <h3 className="text-lg font-bold mb-4">Import Data</h3>
-                <p className="text-indigo-100 text-sm mb-6">
-                  Upload your customer research, feedback, and analytics to generate AI-powered insights.
-                </p>
-                
-                <div 
-                  className="border-2 border-dashed border-indigo-400/50 rounded-2xl p-8 text-center hover:bg-indigo-500 transition-colors cursor-pointer flex flex-col items-center justify-center bg-indigo-700/30"
-                  onClick={handleUpload}
-                >
-                  {isUploading ? (
-                    <Loader2 className="w-8 h-8 animate-spin" />
-                  ) : uploadSuccess ? (
-                    <CheckCircle2 className="w-8 h-8 text-emerald-300" />
-                  ) : (
-                    <>
-                      <Upload className="w-8 h-8 mb-2" />
-                      <span className="text-xs font-bold">Drop files here</span>
-                    </>
-                  )}
-                </div>
-                <input type="file" id="file-upload" className="hidden" />
-              </div>
-
-              <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800">
-                <h4 className="font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-indigo-600" />
-                  AI Data Mapping
-                </h4>
-                <p className="text-xs text-zinc-500 leading-relaxed">
-                  Our AI automatically maps fields from your CRM or survey exports to our standard intelligence schema. No manual mapping required.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'analysis' && (
-        <div className="space-y-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">Analysis & Insights</h3>
-              <p className="text-zinc-500 dark:text-zinc-400 mt-1">Transform raw data into actionable intelligence.</p>
-            </div>
-          </div>
-          <VocSection />
-          <NpsCalculator />
-        </div>
+      {activeTab === 'reviews' && (
+        <IntelligenceHub 
+          companyProfile={profile}
+          onUpdateProfile={onUpdateProfile}
+          setPersonas={setPersonas}
+          setProjects={setProjects}
+          setJourneys={setJourneys}
+          setTasks={setTasks}
+          setSprints={setSprints}
+          currentUser={currentUser}
+          onNavigate={onNavigate}
+          setActiveProjectId={setActiveProjectId}
+          uploadedData={uploadedData}
+          onDeleteData={handleDeleteData}
+          onUpload={handleUpload}
+          isUploading={isUploading}
+          uploadSuccess={uploadSuccess}
+          onAddToAuditLog={onAddToAuditLog}
+        />
       )}
       {/* API Configuration Modal */}
       {isConfigModalOpen && selectedIntegration && (

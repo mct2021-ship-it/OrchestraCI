@@ -22,9 +22,10 @@ interface TaskListProps {
   onAddTeamMember?: (user: User) => void;
   currentUser?: User;
   users?: User[];
+  onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
 }
 
-export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId, initialTaskId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [] }: TaskListProps) {
+export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId, initialTaskId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [], onAddToAuditLog }: TaskListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState<string>(initialAssigneeId || 'all');
   const [selectedProject, setSelectedProject] = useState<string>(initialProjectId || 'all');

@@ -40,12 +40,11 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
   const kanbanColumns = project.kanbanColumns || [
     { id: 'Backlog', title: 'Backlog', color: 'zinc', order: 0 },
     { id: 'In Progress', title: 'In Progress', color: 'blue', order: 1 },
-    { id: 'Done', title: 'Done', color: 'emerald', order: 2 },
-    { id: 'Blocked', title: 'Blocked', color: 'rose', order: 3 }
+    { id: 'Review/Test', title: 'Review/Test', color: 'purple', order: 2 },
+    { id: 'Done', title: 'Done', color: 'emerald', order: 3 }
   ];
 
-  const isBlocked = editingTask.kanbanStatus === 'Blocked' || 
-    kanbanColumns.find(c => c.id === editingTask.kanbanStatus)?.title.toLowerCase().includes('blocked');
+  const isBlocked = !!editingTask.isBlocked;
 
   return (
     <>
@@ -125,35 +124,63 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
               </select>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Owner</label>
-              <select 
-                value={editingTask.owner || ''}
-                disabled={isReadOnly}
-                onChange={(e) => {
-                  const selectedName = e.target.value;
-                  const selectedUser = users.find(u => u.name === selectedName);
-                  
-                  if (selectedUser) {
-                    const isInTeam = project.team?.some(m => m.userId === selectedUser.id || m.name === selectedUser.name);
-                    if (!isInTeam) {
-                      setPendingTeamMember(selectedUser);
-                      return;
-                    }
-                  }
-                  
-                  setEditingTask({ ...editingTask, owner: selectedName });
-                }}
-                className={cn(
-                  "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white",
-                  isReadOnly && "opacity-70 cursor-not-allowed"
-                )}
-              >
-                <option value="">Unassigned</option>
-                {users.map(u => (
-                  <option key={u.id} value={u.name}>{u.name} ({u.role})</option>
-                ))}
-              </select>
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Blocked Status</label>
+              <div className="flex items-center h-[50px]">
+                <button
+                  disabled={isReadOnly}
+                  onClick={() => setEditingTask({ ...editingTask, isBlocked: !editingTask.isBlocked })}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                    editingTask.isBlocked ? "bg-rose-600" : "bg-zinc-200 dark:bg-zinc-700",
+                    isReadOnly && "opacity-70 cursor-not-allowed"
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "inline-block h-4 w-4 transform rounded-full bg-white transition-transform",
+                      editingTask.isBlocked ? "translate-x-6" : "translate-x-1"
+                    )}
+                  />
+                </button>
+                <span className={cn(
+                  "ml-3 text-sm font-bold",
+                  editingTask.isBlocked ? "text-rose-600 dark:text-rose-400" : "text-zinc-500 dark:text-zinc-400"
+                )}>
+                  {editingTask.isBlocked ? 'Blocked' : 'Not Blocked'}
+                </span>
+              </div>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Owner</label>
+            <select 
+              value={editingTask.owner || ''}
+              disabled={isReadOnly}
+              onChange={(e) => {
+                const selectedName = e.target.value;
+                const selectedUser = users.find(u => u.name === selectedName);
+                
+                if (selectedUser) {
+                  const isInTeam = project.team?.some(m => m.userId === selectedUser.id || m.name === selectedUser.name);
+                  if (!isInTeam) {
+                    setPendingTeamMember(selectedUser);
+                    return;
+                  }
+                }
+                
+                setEditingTask({ ...editingTask, owner: selectedName });
+              }}
+              className={cn(
+                "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white",
+                isReadOnly && "opacity-70 cursor-not-allowed"
+              )}
+            >
+              <option value="">Unassigned</option>
+              {users.map(u => (
+                <option key={u.id} value={u.name}>{u.name} ({u.role})</option>
+              ))}
+            </select>
           </div>
 
           {isBlocked && (

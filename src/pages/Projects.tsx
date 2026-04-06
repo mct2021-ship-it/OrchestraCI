@@ -29,6 +29,7 @@ interface ProjectsProps {
   personas?: import('../types').Persona[];
   users?: import('../types').User[];
   setUsers?: React.Dispatch<React.SetStateAction<import('../types').User[]>>;
+  onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
 }
 
 export function Projects({ 
@@ -50,7 +51,8 @@ export function Projects({
   tasks = [],
   personas = [],
   users = [],
-  setUsers
+  setUsers,
+  onAddToAuditLog
 }: ProjectsProps & { onProjectCreated?: (id: string) => void }) {
   const { plan } = usePlan();
   const { user } = useAuth();
@@ -159,15 +161,23 @@ export function Projects({
 
   const handleArchiveProject = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
+    const project = projects.find(p => p.id === projectId);
     setProjects(projects.map(p => p.id === projectId ? { ...p, archived: true } : p));
     if (activeProjectId === projectId) {
       onSelectProject('');
+    }
+    if (project) {
+      onAddToAuditLog?.('Archived Project', `Archived project ${project.name}`, 'Delete', 'Project', projectId, 'Manual');
     }
   };
 
   const handleRestoreProject = (e: React.MouseEvent, projectId: string) => {
     e.stopPropagation();
+    const project = projects.find(p => p.id === projectId);
     setProjects(projects.map(p => p.id === projectId ? { ...p, archived: false } : p));
+    if (project) {
+      onAddToAuditLog?.('Restored Project', `Restored project ${project.name}`, 'Restore', 'Project', projectId, 'Manual');
+    }
   };
 
   const handleCreateProject = () => {
@@ -203,6 +213,7 @@ export function Projects({
     };
     setProjects([project, ...projects]);
     setCreatedProjectId(projectId);
+    onAddToAuditLog?.('Created Project', `Created project ${project.name}`, 'Create', 'Project', project.id, 'Manual');
     setStep(6); // Move to Personas step
   };
 

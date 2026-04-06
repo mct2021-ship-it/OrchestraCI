@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Users, Map, Target, GitMerge, Sparkles, Menu, X as CloseIcon, Settings, BrainCircuit, Shield, Building2, Activity, LayoutList, Briefcase, FileText, UsersRound, KanbanSquare, MonitorSmartphone, Calendar, MessageSquare, Bell } from 'lucide-react';
+import { LayoutDashboard, Users, Map, Target, GitMerge, Sparkles, Menu, X as CloseIcon, Settings, BrainCircuit, Shield, Building2, Activity, LayoutList, Briefcase, FileText, UsersRound, KanbanSquare, MonitorSmartphone, Calendar, MessageSquare, Bell, Layers } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePlan } from '../context/PlanContext';
 import { useAuth } from '../context/AuthContext';
@@ -26,12 +26,12 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
 
   const mainNav = useMemo(() => [
     { id: 'welcome', label: 'Welcome', icon: Sparkles, color: 'text-indigo-500' },
-    ...(plan !== 'starter' ? [{ id: 'intelligence', label: 'Intelligence', icon: BrainCircuit, color: 'text-purple-500' }] : []),
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
+    { id: 'intelligence', label: 'Intelligence Hub', icon: BrainCircuit, color: 'text-purple-500', badge: 'Pro' },
     { id: 'personas', label: 'Personas', icon: Users, color: 'text-rose-500' },
     { id: 'stakeholders', label: 'Stakeholders', icon: UsersRound, color: 'text-indigo-500' },
     { id: 'pricing', label: 'Pricing', icon: Target, color: 'text-blue-500' },
-  ], [plan]);
+  ], []);
 
   const projectNav = useMemo(() => [
     { id: 'project_detail', label: 'Project Overview', icon: FileText, color: 'text-cyan-500' },
@@ -41,13 +41,13 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
     { id: 'kanban', label: 'Kanban Board', icon: KanbanSquare, color: 'text-amber-500' },
     { id: 'backlog', label: 'Backlog', icon: LayoutList, color: 'text-indigo-500' },
     { id: 'sprints', label: 'Sprint Management', icon: Calendar, color: 'text-emerald-500' },
-    ...(activeProject?.features?.processMaps !== false ? [{ id: 'process_maps', label: 'Process Maps', icon: GitMerge, color: 'text-pink-500' }] : []),
+    ...(activeProject?.features?.processMaps !== false ? [{ id: 'process_maps', label: 'Process Maps', icon: GitMerge, color: 'text-pink-500', badge: 'Pro' }] : []),
     ...(activeProject?.features?.raidLog !== false ? [{ id: 'raid', label: 'RAID Log', icon: Shield, color: 'text-rose-500' }] : []),
   ], [activeProject]);
 
   const isProjectContext = currentTab === 'projects' || projectNav.some(nav => nav.id === currentTab);
 
-  const renderNavItem = (item: { id: string, label: string, icon: any, color?: string }, isNested = false) => {
+  const renderNavItem = (item: { id: string, label: string, icon: any, color?: string, badge?: string }, isNested = false) => {
     const Icon = item.icon;
     const isActive = currentTab === item.id;
     return (
@@ -58,15 +58,22 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
           onClose?.();
         }}
         className={cn(
-          "w-full flex items-center gap-3 py-2 rounded-lg font-medium transition-colors",
+          "w-full flex items-center justify-between py-2 rounded-lg font-medium transition-colors group",
           isNested ? "px-3 text-xs" : "px-3 text-sm",
           isActive 
             ? (isDarkMode ? "bg-zinc-800 text-white" : "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white")
             : (isDarkMode ? "text-zinc-400 dark:text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" : "text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 hover:text-zinc-900 dark:text-white")
         )}
       >
-        <Icon className={cn(isNested ? "w-4 h-4" : "w-5 h-5", isActive ? (isDarkMode ? "text-white" : "text-zinc-900 dark:text-white") : (item.color || "text-zinc-500 dark:text-zinc-400"))} />
-        {item.label}
+        <div className="flex items-center gap-3">
+          <Icon className={cn(isNested ? "w-4 h-4" : "w-5 h-5", isActive ? (isDarkMode ? "text-white" : "text-zinc-900 dark:text-white") : (item.color || "text-zinc-500 dark:text-zinc-400"))} />
+          {item.label}
+        </div>
+        {item.badge && (
+          <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded border border-indigo-200 dark:border-indigo-800">
+            {item.badge}
+          </span>
+        )}
       </button>
     );
   };

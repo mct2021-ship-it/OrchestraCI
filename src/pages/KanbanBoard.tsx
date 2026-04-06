@@ -92,8 +92,8 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   const defaultColumns: KanbanColumn[] = [
     { id: 'Backlog', title: 'Backlog', color: 'zinc', order: 0 },
     { id: 'In Progress', title: 'In Progress', color: 'blue', order: 1 },
-    { id: 'Done', title: 'Done', color: 'emerald', order: 2 },
-    { id: 'Blocked', title: 'Blocked', color: 'rose', order: 3 }
+    { id: 'Review/Test', title: 'Review/Test', color: 'purple', order: 2 },
+    { id: 'Done', title: 'Done', color: 'emerald', order: 3 }
   ];
 
   const columns = useMemo(() => {
@@ -161,7 +161,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   };
 
   const handleDeleteColumn = (id: string) => {
-    const persistentColumns = ['Backlog', 'In Progress', 'Done', 'Blocked'];
+    const persistentColumns = ['Backlog', 'In Progress', 'Done', 'Review/Test'];
     const columnToDelete = columns.find(c => c.id === id);
     if (columnToDelete && persistentColumns.includes(columnToDelete.id)) {
       alert('This is a persistent column and cannot be deleted.');
@@ -428,7 +428,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   };
 
   const incompleteTasks = useMemo(() => {
-    return filteredTasks.filter(t => t.kanbanStatus !== 'Done' && t.kanbanStatus !== 'Completed' && t.kanbanStatus !== 'Archived' && t.kanbanStatus !== 'Blocked' && t.kanbanStatus !== 'Backlog');
+    return filteredTasks.filter(t => t.kanbanStatus !== 'Done' && t.kanbanStatus !== 'Completed' && t.kanbanStatus !== 'Archived' && t.kanbanStatus !== 'Backlog');
   }, [filteredTasks]);
 
   const handleFinishSprint = () => {
@@ -505,7 +505,6 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
 
     const newStatus = destColumn.id === destColumn.title ? destColumn.title : destColumn.id;
     const isDoneColumn = destColumn.title.toLowerCase() === 'done' || destColumn.title.toLowerCase() === 'completed';
-    const isBlockedColumn = destColumn.title.toLowerCase().includes('blocked');
 
     const updatedTask = { 
       ...taskToUpdate, 
@@ -516,11 +515,6 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
     };
 
     handleUpdateTask(updatedTask);
-
-    if (isBlockedColumn && taskToUpdate.kanbanStatus !== newStatus) {
-      // Open the modal so the user can fill in blocker details
-      setEditingTask(updatedTask);
-    }
   };
 
   // Helper to check dark mode
@@ -814,6 +808,12 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
                                   {task.impact} Impact
                                 </span>
                                 <div className="flex items-center gap-2">
+                                  {task.isBlocked && (
+                                    <div className="flex items-center gap-1 text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-900/20 px-1.5 py-0.5 rounded" title="Blocked">
+                                      <AlertCircle className="w-3 h-3" />
+                                      Blocked
+                                    </div>
+                                  )}
                                   {isTaskOverdue(task) && (
                                     <div className="flex items-center gap-1 text-[10px] text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-900/20 px-1.5 py-0.5 rounded" title="Overdue">
                                       <AlertCircle className="w-3 h-3" />

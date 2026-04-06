@@ -39,7 +39,7 @@ export function AuditLog({ currentUser, entries }: AuditLogProps) {
   };
 
   const handleExport = () => {
-    const headers = ['Timestamp', 'User', 'Action', 'Entity', 'Details'];
+    const headers = ['Timestamp', 'User', 'Action', 'Entity', 'Source', 'Details'];
     const csvContent = [
       headers.join(','),
       ...filteredLogs.map(log => [
@@ -47,6 +47,7 @@ export function AuditLog({ currentUser, entries }: AuditLogProps) {
         `"${log.userName}"`,
         `"${log.action}"`,
         `"${log.entityType || 'System'}"`,
+        `"${log.source || 'Manual'}"`,
         `"${log.details.replace(/"/g, '""')}"`
       ].join(','))
     ].join('\n');
@@ -138,13 +139,14 @@ export function AuditLog({ currentUser, entries }: AuditLogProps) {
                     <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">User</th>
                     <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Action</th>
                     <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Entity</th>
+                    <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Source</th>
                     <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Details</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
                   {filteredLogs.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
+                      <td colSpan={6} className="px-6 py-12 text-center text-zinc-500 dark:text-zinc-400">
                         No audit logs found matching your criteria.
                       </td>
                     </tr>
@@ -178,6 +180,16 @@ export function AuditLog({ currentUser, entries }: AuditLogProps) {
                             <span className="text-zinc-900 dark:text-white font-medium">{log.entityType || 'System'}</span>
                             {log.entityId && <span className="text-zinc-500 dark:text-zinc-400 text-xs">({log.entityId})</span>}
                           </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={cn(
+                            "px-2 py-0.5 rounded text-[10px] font-bold uppercase",
+                            log.source === 'AI' ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400" :
+                            log.source === 'Data Source' ? "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400" :
+                            "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400"
+                          )}>
+                            {log.source || 'Manual'}
+                          </span>
                         </td>
                         <td className="px-6 py-4">
                           <p className="text-sm text-zinc-600 dark:text-zinc-300 truncate max-w-xs" title={log.details}>

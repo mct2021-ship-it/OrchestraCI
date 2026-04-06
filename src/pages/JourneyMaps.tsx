@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { defaultSwimlanes } from '../data/mockData';
 import { ContextualHelp } from '../components/ContextualHelp';
-import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, ChevronRight, GitMerge, Package, Layers, Printer, Map, Eye, EyeOff, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal } from 'lucide-react';
+import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, ChevronRight, GitMerge, Package, Layers, Printer, Map, Eye, EyeOff, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal, Maximize2, Minimize2, ChevronLeft } from 'lucide-react';
 
 const STAGE_ICONS = [
   { name: 'Target', icon: Target },
@@ -134,6 +134,7 @@ interface JourneyMapsProps {
   currentUser?: User;
   onDeleteItem?: (item: any, type: RecycleBinItem['type'], originalProjectId?: string) => void;
   users?: User[];
+  onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
 }
 
 export function JourneyMaps({ 
@@ -162,7 +163,8 @@ export function JourneyMaps({
     photoUrl: 'https://ui-avatars.com/api/?name=Jane+Doe&background=random' 
   }, // Default user for now
   onDeleteItem,
-  users = []
+  users = [],
+  onAddToAuditLog
 }: JourneyMapsProps) {
   const { plan } = usePlan();
   const { addToast } = useToast();
@@ -185,6 +187,7 @@ export function JourneyMaps({
   const [isViewMenuOpen, setIsViewMenuOpen] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
   const [showCarbon, setShowCarbon] = useState(false);
   const [isCalculatingCarbon, setIsCalculatingCarbon] = useState(false);
   const [isPersonaExpanded, setIsPersonaExpanded] = useState(false);
@@ -521,6 +524,7 @@ export function JourneyMaps({
     }
     setJourneys([...journeys, newJourney]);
     setActiveJourneyId(newJourney.id);
+    onAddToAuditLog?.('Duplicated Journey', `Duplicated journey ${journey.title} as ${newJourney.title}`, 'Create', 'Journey', newJourney.id, 'Manual');
   };
 
   const deleteJourney = (id: string, e: React.MouseEvent) => {
@@ -653,6 +657,7 @@ export function JourneyMaps({
                     };
                     setJourneys([...journeys, newJourney]);
                     setActiveJourneyId(newJourney.id);
+                    onAddToAuditLog?.('Created Journey', `Created journey ${newJourney.title}`, 'Create', 'Journey', newJourney.id, 'Manual');
                   }}
                   className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
                 >
@@ -1205,14 +1210,34 @@ export function JourneyMaps({
     improvement = implementedJourney.satisfaction.value - currentJourney.satisfaction.value;
   }
 
+  if (!activeJourney) return null;
+
   return (
-    <div className="p-8 max-w-[1600px] mx-auto space-y-8 print:p-0 print:max-w-none">
+    <div className={cn(
+      "p-8 mx-auto space-y-8 print:p-0 print:max-w-none",
+      isFullScreen ? "fixed inset-0 z-[100] bg-zinc-50 dark:bg-zinc-950 overflow-auto p-8" : "max-w-[1600px]"
+    )}>
       <div className="flex items-center justify-between print:hidden no-export">
-        <div>
-          <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Journey Orchestration</h2>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Design, analyze, and optimize customer pathways.</p>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => setActiveJourneyId(null)}
+            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">{activeJourney.title}</h2>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-1">{activeProject?.name}</p>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <button 
+            onClick={() => setIsFullScreen(!isFullScreen)}
+            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+            title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+          >
+            {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+          </button>
           {activeJourneyId && (
             <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
               <button 

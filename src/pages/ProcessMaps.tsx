@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Download, Share2, GitMerge, Settings2, Trash2, Sparkles, ChevronUp, ChevronDown, Wand2, MessageSquare, Clock } from 'lucide-react';
-import { ProcessMap, JourneyMap, ProcessNode, ProcessEdge, Comment, User, Project, RecycleBinItem } from '../types';
+import { Plus, Download, Share2, GitMerge, Settings2, Trash2, Sparkles, ChevronUp, ChevronDown, Wand2, MessageSquare, Clock, Maximize2, Minimize2 } from 'lucide-react';
+import { ProcessMap, JourneyMap, ProcessNode, ProcessEdge, Comment, User, Project, RecycleBinItem, Task } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { ProcessFlowEditor } from '../components/ProcessFlowEditor';
 import { AiProcessGeneratorModal } from '../components/AiProcessGeneratorModal';
@@ -19,6 +19,8 @@ interface ProcessMapsProps {
   onDeleteItem?: (item: any, type: RecycleBinItem['type'], originalProjectId?: string) => void;
   users?: User[];
   initialProcessMapId?: string | null;
+  onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
+  onAddTask?: (task: Task) => void;
 }
 
 export function ProcessMaps({ 
@@ -37,12 +39,15 @@ export function ProcessMaps({
   },
   onDeleteItem,
   users = [],
-  initialProcessMapId
+  initialProcessMapId,
+  onAddToAuditLog,
+  onAddTask
 }: ProcessMapsProps) {
   const [showIntro, setShowIntro] = React.useState(false);
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [activeCommentsMapId, setActiveCommentsMapId] = useState<string | null>(initialProcessMapId || null);
   const [activeVersionHistoryId, setActiveVersionHistoryId] = useState<string | null>(null);
+  const [fullScreenMapId, setFullScreenMapId] = useState<string | null>(null);
   
   const { canEditProjectFeature } = usePermissions();
   const activeProject = projects.find(p => p.id === activeProjectId);
@@ -64,8 +69,10 @@ export function ProcessMaps({
   }, [processMaps, onDeleteItem, activeProjectId, setProcessMaps]);
 
   const handleAiGenerate = useCallback((newProcessMap: ProcessMap) => {
-    setProcessMaps(prev => [{ ...newProcessMap, projectId: activeProjectId || 'proj1' }, ...prev]);
-  }, [activeProjectId, setProcessMaps]);
+    const pm = { ...newProcessMap, projectId: activeProjectId || 'proj1' };
+    setProcessMaps(prev => [pm, ...prev]);
+    onAddToAuditLog?.('Created AI Process Map', `Created process map ${pm.title} using AI`, 'Create', 'ProcessMap', pm.id, 'AI');
+  }, [activeProjectId, setProcessMaps, onAddToAuditLog]);
 
   const updateProcessMapData = useCallback((id: string, nodes: ProcessNode[], edges: ProcessEdge[]) => {
     setProcessMaps(prev => prev.map(pm => 
@@ -82,7 +89,8 @@ export function ProcessMaps({
       edges: []
     };
     setProcessMaps(prev => [newPM, ...prev]);
-  }, [activeProjectId, setProcessMaps]);
+    onAddToAuditLog?.('Created Process Map', `Created process map ${newPM.title}`, 'Create', 'ProcessMap', newPM.id, 'Manual');
+  }, [activeProjectId, setProcessMaps, onAddToAuditLog]);
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-8">
@@ -251,6 +259,9 @@ export function ProcessMaps({
               processMap={pm} 
               onUpdate={(nodes, edges) => updateProcessMapData(pm.id, nodes, edges)} 
               canEdit={canEdit}
+              isFullScreen={fullScreenMapId === pm.id}
+              onToggleFullScreen={() => setFullScreenMapId(fullScreenMapId === pm.id ? null : pm.id)}
+              onAddTask={onAddTask}
             />
           </div>
           );

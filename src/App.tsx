@@ -21,6 +21,7 @@ import { Pricing } from './pages/Pricing';
 import { BetaSignup } from './pages/BetaSignup';
 import { AccountSettings } from './pages/AccountSettings';
 import { TaskList } from './pages/TaskList';
+import { SingleViewOfChange } from './components/SingleViewOfChange';
 import { OnboardingTour } from './components/OnboardingTour';
 import { CompanyProfile } from './components/YourCompany';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
@@ -311,7 +312,7 @@ function AppContent() {
     photoUrl: user.photoUrl
   } : undefined, [user]);
 
-  const handleAddToAuditLog = useCallback((action: string, details: string, type: AuditEntry['type'], entityType?: string, entityId?: string) => {
+  const handleAddToAuditLog = useCallback((action: string, details: string, type: AuditEntry['type'], entityType?: string, entityId?: string, source: AuditEntry['source'] = 'Manual') => {
     if (!currentUser) return;
     const newEntry: AuditEntry = {
       id: `audit_${Date.now()}`,
@@ -321,6 +322,7 @@ function AppContent() {
       action,
       details,
       type,
+      source,
       entityType,
       entityId
     };
@@ -562,6 +564,21 @@ function AppContent() {
             users={users}
           />
         );
+      case 'single_view_of_change':
+        return (
+          <div className="p-8 max-w-7xl mx-auto space-y-8">
+            <div>
+              <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Single View of Change</h2>
+              <p className="text-zinc-500 dark:text-zinc-400 mt-1">A consolidated view of all tasks and changes across your projects.</p>
+            </div>
+            <SingleViewOfChange 
+              projects={projects}
+              tasks={tasks}
+              users={users}
+              onSelectProject={handleSelectProject}
+            />
+          </div>
+        );
       case 'project_detail':
         if (activeProject) {
           return (
@@ -609,6 +626,7 @@ function AppContent() {
             personas={personas}
             users={users}
             setUsers={handleSetUsers}
+            onAddToAuditLog={handleAddToAuditLog}
           />
         );
       case 'project_team':
@@ -648,6 +666,7 @@ function AppContent() {
             personas={personas}
             users={users}
             setUsers={handleSetUsers}
+            onAddToAuditLog={handleAddToAuditLog}
           />
         );
       case 'intelligence':
@@ -658,11 +677,20 @@ function AppContent() {
           onSaveComplete={() => {
             setShowPersonaPromptModal(true);
           }}
+          setPersonas={handleSetPersonas}
+          setProjects={handleSetProjects}
+          setJourneys={handleSetJourneys}
+          setTasks={handleSetTasks}
+          setSprints={handleSetSprints}
+          currentUser={currentUser}
+          onNavigate={handleTabChange}
+          setActiveProjectId={setActiveProjectId}
+          onAddToAuditLog={handleAddToAuditLog}
         />;
       case 'personas':
-        return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} />;
+        return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} onAddToAuditLog={handleAddToAuditLog} />;
       case 'stakeholders':
-        return <Stakeholders stakeholders={stakeholders} setStakeholders={handleSetStakeholders} onDeleteItem={handleDeleteItem} />;
+        return <Stakeholders stakeholders={stakeholders} setStakeholders={handleSetStakeholders} onDeleteItem={handleDeleteItem} onAddToAuditLog={handleAddToAuditLog} />;
       case 'journeys':
         const journeyUsers = [...mockUsers];
         if (currentUser && !journeyUsers.some(u => u.email === currentUser.email)) {
@@ -694,6 +722,7 @@ function AppContent() {
             currentUser={currentUser}
             onDeleteItem={handleDeleteItem}
             users={journeyUsers}
+            onAddToAuditLog={handleAddToAuditLog}
           />
         );
       case 'process_maps':
@@ -701,7 +730,7 @@ function AppContent() {
         if (currentUser && !processUsers.some(u => u.email === currentUser.email)) {
           processUsers.push(currentUser);
         }
-        return <ProcessMaps processMaps={filteredProcessMaps} setProcessMaps={handleSetProcessMaps} activeProjectId={activeProjectId} journeys={journeys} currentUser={currentUser} projects={projects} onDeleteItem={handleDeleteItem} users={processUsers} initialProcessMapId={activeProcessMapId} />;
+        return <ProcessMaps processMaps={filteredProcessMaps} setProcessMaps={handleSetProcessMaps} activeProjectId={activeProjectId} journeys={journeys} currentUser={currentUser} projects={projects} onDeleteItem={handleDeleteItem} users={processUsers} initialProcessMapId={activeProcessMapId} onAddToAuditLog={handleAddToAuditLog} onAddTask={(task) => handleSetTasks(prev => [...prev, task])} />;
       case 'kanban':
         if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
         
@@ -759,6 +788,7 @@ function AppContent() {
             onAddTeamMember={handleAddTeamMember}
             currentUser={currentUser}
             users={users}
+            onAddToAuditLog={handleAddToAuditLog}
           />
         );
       case 'settings':

@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
-import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle, Clock, ArrowRight } from 'lucide-react';
+import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle, Clock, ArrowRight, LayoutList } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Persona, JourneyMap, Task, ProcessMap, Project, User } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';
+import { SingleViewOfChange } from '../components/SingleViewOfChange';
 import { cn } from '../lib/utils';
 
 interface DashboardProps {
@@ -21,6 +22,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ personas, journeys, tasks, processMaps, projects, onNavigate, onSelectProject, onMentionClick, markAsRead, notifications, currentUser, users }: DashboardProps) {
+  const [activeTab, setActiveTab] = React.useState<'overview' | 'single_view'>('overview');
   const [showIntro, setShowIntro] = React.useState(true);
   const [expandedStatId, setExpandedStatId] = React.useState<string | null>(null);
   const [acknowledgedMentions, setAcknowledgedMentions] = React.useState<string[]>(() => {
@@ -168,16 +170,46 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
           <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Dashboard</h2>
           <p className="text-zinc-500 dark:text-zinc-400 mt-1">Overview of your Customer Experience program.</p>
         </div>
-        <button 
-          onClick={() => onNavigate('projects')}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
-        >
-          <Sparkles className="w-5 h-5" />
-          Start a Project
-        </button>
+        <div className="flex items-center gap-4">
+          <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                activeTab === 'overview'
+                  ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              )}
+            >
+              <LayoutList className="w-4 h-4" />
+              Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('single_view')}
+              className={cn(
+                "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                activeTab === 'single_view'
+                  ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+                  : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+              )}
+            >
+              <TrendingUp className="w-4 h-4" />
+              Single View of Change
+            </button>
+          </div>
+          <button 
+            onClick={() => onNavigate('projects')}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-colors shadow-sm"
+          >
+            <Sparkles className="w-5 h-5" />
+            Start a Project
+          </button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
+      {activeTab === 'overview' ? (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 items-start">
         {stats.map((stat, i) => {
           const Icon = stat.icon;
           const isExpanded = expandedStatId === stat.id;
@@ -521,6 +553,28 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
         </div>
         <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
           <button 
+            onClick={() => onNavigate('single_view_of_change')}
+            className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 hover:text-indigo-600 transition-colors text-left block w-full"
+          >
+            Single View of Change
+          </button>
+          <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+            <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 rounded-full flex items-center justify-center mb-4">
+              <TrendingUp className="w-8 h-8" />
+            </div>
+            <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-1">Consolidated View</h4>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-xs">View all tasks and changes across your entire portfolio in one place.</p>
+            <button 
+              onClick={() => onNavigate('single_view_of_change')}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all shadow-sm text-sm"
+            >
+              <ArrowRight className="w-4 h-4" />
+              Open Single View
+            </button>
+          </div>
+        </div>
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
+          <button 
             onClick={() => onNavigate('stakeholders')}
             className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 hover:text-indigo-600 transition-colors text-left block w-full"
           >
@@ -542,6 +596,15 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
           </div>
         </div>
       </div>
-    </div>
-  );
+    </>
+  ) : (
+    <SingleViewOfChange 
+      projects={projects}
+      tasks={tasks}
+      users={users}
+      onSelectProject={onSelectProject}
+    />
+  )}
+</div>
+);
 }

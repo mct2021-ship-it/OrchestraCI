@@ -17,6 +17,11 @@ export async function getGeminiClient(): Promise<GoogleGenAI | null> {
   // First try the standard environment variable
   let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
 
+  // If it's the string "undefined" or empty, treat as null
+  if (apiKey === 'undefined' || !apiKey) {
+    apiKey = undefined;
+  }
+
   // If no key is found and we're in the browser, check for AI Studio key selection
   if (!apiKey && typeof window !== 'undefined' && window.aistudio) {
     try {
@@ -46,12 +51,15 @@ export async function getGeminiClient(): Promise<GoogleGenAI | null> {
  */
 export async function ensureApiKey(): Promise<boolean> {
   // Check process.env (shimmed by Vite)
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-  if (apiKey) return true;
+  let apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (apiKey && apiKey !== 'undefined' && apiKey !== '') return true;
 
   // Check window.process.env directly (sometimes shims are weird)
-  if (typeof window !== 'undefined' && window.process?.env?.GEMINI_API_KEY) return true;
-  if (typeof window !== 'undefined' && window.process?.env?.API_KEY) return true;
+  if (typeof window !== 'undefined') {
+    const env = (window as any).process?.env;
+    if (env?.GEMINI_API_KEY && env.GEMINI_API_KEY !== 'undefined' && env.GEMINI_API_KEY !== '') return true;
+    if (env?.API_KEY && env.API_KEY !== 'undefined' && env.API_KEY !== '') return true;
+  }
 
   if (typeof window !== 'undefined' && window.aistudio) {
     const hasKey = await window.aistudio.hasSelectedApiKey();

@@ -8,9 +8,10 @@ interface StakeholdersProps {
   setStakeholders: (items: Stakeholder[] | ((prev: Stakeholder[]) => Stakeholder[])) => void;
   onDeleteItem: (item: any, type: any) => void;
   isDarkMode?: boolean;
+  onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
 }
 
-export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDarkMode }: StakeholdersProps) {
+export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDarkMode, onAddToAuditLog }: StakeholdersProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [isAdding, setIsAdding] = useState(false);
@@ -61,6 +62,7 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
 
     if (editingId) {
       setStakeholders(prev => prev.map(s => s.id === editingId ? { ...s, ...formData } as Stakeholder : s));
+      onAddToAuditLog?.('Updated Stakeholder', `Updated stakeholder ${formData.name}`, 'Update', 'Stakeholder', editingId, 'Manual');
       setEditingId(null);
     } else {
       const newStakeholder: Stakeholder = {
@@ -72,6 +74,7 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
         isGlobal: true
       };
       setStakeholders(prev => [...prev, newStakeholder]);
+      onAddToAuditLog?.('Created Stakeholder', `Created stakeholder ${newStakeholder.name}`, 'Create', 'Stakeholder', newStakeholder.id, 'Manual');
     }
 
     setFormData({ name: '', category: 'Executive Sponsor', organization: '', email: '', isGlobal: true });
@@ -98,6 +101,7 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <Globe className="w-7 h-7 text-indigo-600" />
             Global Stakeholder Library
+            <span className="px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase rounded-md border border-indigo-200 dark:border-indigo-800">Pro</span>
           </h1>
           <p className="text-zinc-500 dark:text-zinc-400">Manage your organization's key stakeholders across all projects.</p>
         </div>

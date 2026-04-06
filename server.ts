@@ -504,13 +504,15 @@ async function startServer() {
       try {
         const fs = await import('fs');
         let html = await fs.promises.readFile(path.join(distPath, 'index.html'), 'utf-8');
-        const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+        const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || '';
         html = html.replace(
           '</head>',
           `<script>
             window.process = window.process || {};
             window.process.env = window.process.env || {};
             window.process.env.GEMINI_API_KEY = ${JSON.stringify(apiKey)};
+            window.process.env.API_KEY = ${JSON.stringify(apiKey)};
+            window.process.env.NODE_ENV = ${JSON.stringify(process.env.NODE_ENV || 'production')};
           </script></head>`
         );
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');

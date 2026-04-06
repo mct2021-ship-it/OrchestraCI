@@ -155,6 +155,7 @@ export interface AuditEntry {
   action: string;
   details: string;
   type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login';
+  source?: 'Manual' | 'AI' | 'Data Source';
   entityType?: string;
   entityId?: string;
 }
@@ -269,6 +270,7 @@ export interface Task {
   sourceJourneyId?: string;
   sourceOpportunityId?: string;
   archived?: boolean;
+  isBlocked?: boolean;
   blockerDescription?: string;
   unblockActions?: string;
   comments?: Comment[];
@@ -280,6 +282,13 @@ export interface ProcessNode {
   data: { 
     label: string; 
     description?: string;
+    imageUrl?: string;
+    details?: string;
+    improvementOpportunity?: {
+      flagged: boolean;
+      details: string;
+      taskId?: string;
+    };
     branches?: { id: string; label: string; targetNodeId?: string }[];
   };
   position: { x: number; y: number };

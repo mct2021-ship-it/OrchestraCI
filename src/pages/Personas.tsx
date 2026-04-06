@@ -27,11 +27,12 @@ interface PersonasProps {
   startInNewMode?: boolean;
   isDarkMode?: boolean;
   onNavigate?: (tab: string) => void;
+  onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
 }
 
 import { LimitReachedModal } from '../components/LimitReachedModal';
 
-export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate }: PersonasProps) {
+export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate, onAddToAuditLog }: PersonasProps) {
   const { plan, details } = usePlan();
   const { addToast } = useToast();
   const { canEditPersonas } = usePermissions();
@@ -113,6 +114,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const handleSavePersona = (newPersona: Persona) => {
     setPersonas([newPersona, ...personas]);
     setSelectedPersonaId(newPersona.id);
+    onAddToAuditLog?.('Created Persona', `Created persona ${newPersona.name}`, 'Create', 'Persona', newPersona.id, 'Manual');
   };
 
   const handlePrint = async () => {
@@ -565,10 +567,11 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
           {canAddPersona && !selectedPersonaId && (
             <button 
               onClick={() => setIsLibraryOpen(true)}
-              className="bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
+              className="bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm relative"
             >
               <Users className="w-5 h-5" />
               <span className="hidden sm:inline">Browse Library</span>
+              <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md border border-indigo-200 dark:border-indigo-800">Pro</span>
             </button>
           )}
           {canAddPersona && !selectedPersonaId ? (
@@ -1564,7 +1567,12 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       <AiPersonaGenerator
         isOpen={isAiGeneratorOpen}
         onClose={() => setIsAiGeneratorOpen(false)}
-        onSave={(newPersonas) => setPersonas([...newPersonas, ...personas])}
+        onSave={(newPersonas) => {
+          setPersonas([...newPersonas, ...personas]);
+          newPersonas.forEach(p => {
+            onAddToAuditLog?.('Created AI Persona', `Created persona ${p.name} using AI`, 'Create', 'Persona', p.id, 'AI');
+          });
+        }}
       />
 
       <PersonaLibraryModal

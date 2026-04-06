@@ -10,10 +10,12 @@ import remarkGfm from 'remark-gfm';
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
 
-export interface CompetitorAnalysisReport {
+export interface AnalysisReport {
   id: string;
   date: string;
   content: string;
+  type?: string;
+  result?: string;
 }
 
 export interface CompanyProfile {
@@ -27,7 +29,7 @@ export interface CompanyProfile {
   measurementMethods: string[];
   goals?: string[];
   competitors?: { name: string; url: string }[];
-  pastAnalyses?: CompetitorAnalysisReport[];
+  pastAnalyses?: AnalysisReport[];
 }
 
 interface YourCompanyProps {
@@ -315,10 +317,11 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
 
       setCompetitorAnalysis(result.text);
 
-      const newReport: CompetitorAnalysisReport = {
+      const newReport: AnalysisReport = {
         id: uuidv4(),
         date: new Date().toISOString(),
-        content: result.text
+        content: result.text,
+        type: 'Competitor Analysis'
       };
       const updatedAnalyses = [newReport, ...(profile.pastAnalyses || [])];
       onUpdateProfile({ pastAnalyses: updatedAnalyses });
