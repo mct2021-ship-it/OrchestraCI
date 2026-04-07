@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { 
   ReactFlow, 
   Background, 
@@ -39,7 +39,8 @@ import {
   CheckCircle2,
   X,
   PlusCircle,
-  Flag
+  Flag,
+  GitMerge
 } from 'lucide-react';
 import { ProcessMap, ProcessNode, ProcessEdge, Task } from '../types';
 import { cn } from '../lib/utils';
@@ -206,20 +207,11 @@ export function ProcessFlowEditor({
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [editingNode, setEditingNode] = React.useState<Node | null>(null);
+  const [editingNodeId, setEditingNodeId] = React.useState<string | null>(null);
+  const [editingEdgeId, setEditingEdgeId] = React.useState<string | null>(null);
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } }, eds)),
-    [setEdges]
-  );
-
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    setEditingNode(node);
-  }, []);
-
-  const onPaneClick = useCallback(() => {
-    setEditingNode(null);
-  }, []);
+  const editingNode = useMemo(() => nodes.find(n => n.id === editingNodeId) || null, [nodes, editingNodeId]);
+  const editingEdge = useMemo(() => edges.find(e => e.id === editingEdgeId) || null, [edges, editingEdgeId]);
 
   // Sync changes back to parent
   const handleSave = useCallback(() => {
@@ -231,7 +223,8 @@ export function ProcessFlowEditor({
         description: (n.data as any).description as string,
         imageUrl: (n.data as any).imageUrl as string,
         details: (n.data as any).details as string,
-        improvementOpportunity: (n.data as any).improvementOpportunity as any
+        improvementOpportunity: (n.data as any).improvementOpportunity as any,
+        branches: (n.data as any).branches as any[]
       },
       position: n.position
     }));
@@ -245,6 +238,33 @@ export function ProcessFlowEditor({
 
     onUpdate(updatedNodes, updatedEdges);
   }, [nodes, edges, onUpdate]);
+
+  const onConnect = useCallback(
+    (params: Connection) => setEdges((eds) => addEdge({ ...params, animated: true, style: { stroke: '#6366f1', strokeWidth: 2 } }, eds)),
+    [setEdges]
+  );
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (canEdit) setEditingNodeId(node.id);
+  }, [canEdit]);
+
+  const onEdgeClick = useCallback((_: React.MouseEvent, edge: Edge) => {
+    if (canEdit) setEditingEdgeId(edge.id);
+  }, [canEdit]);
+
+  const onPaneClick = useCallback(() => {
+    setEditingNodeId(null);
+    setEditingEdgeId(null);
+    handleSave();
+  }, [handleSave]);
+
+  // Use a debounced effect to save changes automatically
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSave();
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [nodes, edges, handleSave]);
 
   const addNode = (config: typeof NODE_CONFIGS[0]) => {
     const newNode: Node = {
@@ -274,7 +294,20 @@ export function ProcessFlowEditor({
         return node;
       })
     );
-    handleSave();
+  };
+
+  const updateEdgeData = (id: string, updates: any) => {
+    setEdges((eds) => 
+      eds.map((edge) => {
+        if (edge.id === id) {
+          return {
+            ...edge,
+            ...updates,
+          };
+        }
+        return edge;
+      })
+    );
   };
 
   const [newTaskTitle, setNewTaskTitle] = React.useState('');
@@ -324,6 +357,7 @@ export function ProcessFlowEditor({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeClick={onNodeClick}
+        onEdgeClick={onEdgeClick}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
         fitView
@@ -331,6 +365,9 @@ export function ProcessFlowEditor({
         onEdgesDelete={handleSave}
         onNodesDelete={handleSave}
         onConnectEnd={handleSave}
+        nodesDraggable={canEdit}
+        nodesConnectable={canEdit}
+        elementsSelectable={canEdit}
       >
         <Background color="#ccc" variant={BackgroundVariant.Dots} />
         <Controls />
@@ -368,6 +405,84 @@ export function ProcessFlowEditor({
           )}
         </Panel>
 
+        {/* Edge Editor Modal */}
+        <AnimatePresence>
+          {editingEdge && (
+            <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                onClick={() => {
+                  setEditingEdgeId(null);
+                  handleSave();
+                }}
+                className="absolute inset-0 bg-zinc-900/60 backdrop-blur-sm"
+              />
+              <motion.div 
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+              >
+                <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                      <GitMerge size={20} />
+                    </div>
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Edit Connection</h3>
+                  </div>
+                  <button 
+                    onClick={() => {
+                      setEditingEdgeId(null);
+                      handleSave();
+                    }}
+                    className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors"
+                  >
+                    <X size={20} className="text-zinc-500" />
+                  </button>
+                </div>
+
+                <div className="p-6 space-y-4">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Connection Label</label>
+                    <input 
+                      type="text" 
+                      value={editingEdge.label as string || ''}
+                      onChange={(e) => updateEdgeData(editingEdge.id, { label: e.target.value })}
+                      className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="e.g., Yes, No, Success, Failure"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+
+                <div className="p-6 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 flex justify-end gap-3">
+                  <button 
+                    onClick={() => {
+                      setEdges(eds => eds.filter(e => e.id !== editingEdge.id));
+                      setEditingEdgeId(null);
+                      handleSave();
+                    }}
+                    className="px-4 py-2 text-sm font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-xl transition-colors"
+                  >
+                    Delete Connection
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setEditingEdgeId(null);
+                      handleSave();
+                    }}
+                    className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl font-bold text-sm hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+                  >
+                    Done
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
         {editingNode && canEdit && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
             <motion.div 
@@ -386,7 +501,10 @@ export function ProcessFlowEditor({
                   </div>
                 </div>
                 <button 
-                  onClick={() => setEditingNode(null)}
+                  onClick={() => {
+                    setEditingNodeId(null);
+                    handleSave();
+                  }}
                   className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors"
                 >
                   <X size={20} className="text-zinc-500" />
@@ -397,10 +515,35 @@ export function ProcessFlowEditor({
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-4">
                     <div className="space-y-1">
+                      <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Step Type</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {NODE_CONFIGS.map((config) => (
+                          <button
+                            key={config.type}
+                            onClick={() => updateNodeData(editingNode.id, { 
+                              type: config.type,
+                              icon: config.icon,
+                              colorClass: config.colorClass
+                            })}
+                            className={cn(
+                              "flex flex-col items-center gap-1 p-2 rounded-xl border transition-all",
+                              editingNode.data.type === config.type
+                                ? "bg-indigo-50 border-indigo-200 text-indigo-600 dark:bg-indigo-900/20 dark:border-indigo-800 dark:text-indigo-400"
+                                : "bg-white border-zinc-200 text-zinc-500 hover:bg-zinc-50 dark:bg-zinc-900 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                            )}
+                          >
+                            <config.icon className="w-4 h-4" />
+                            <span className="text-[10px] font-medium">{config.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
                       <label className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Step Label</label>
                       <input 
                         type="text" 
-                        value={editingNode.data.label as string}
+                        value={(editingNode.data.label as string) || ''}
                         onChange={(e) => updateNodeData(editingNode.id, { label: e.target.value })}
                         className="w-full px-4 py-2 rounded-xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 text-sm outline-none focus:ring-2 focus:ring-indigo-500"
                         placeholder="e.g., Customer Login"
@@ -446,6 +589,51 @@ export function ProcessFlowEditor({
                     </div>
                   </div>
                 </div>
+
+                {editingNode.data.type === 'decision' && (
+                  <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="font-bold text-sm text-zinc-900 dark:text-white">Decision Branches</h5>
+                      <button 
+                        onClick={() => {
+                          const branches = (editingNode.data as any).branches || [];
+                          updateNodeData(editingNode.id, { 
+                            branches: [...branches, { id: uuidv4(), label: 'New Branch' }] 
+                          });
+                        }}
+                        className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+                      >
+                        <Plus size={14} /> Add Branch
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {((editingNode.data as any).branches || []).map((branch: any, index: number) => (
+                        <div key={branch.id} className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-950 p-3 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                          <input 
+                            type="text"
+                            value={branch.label || ''}
+                            onChange={(e) => {
+                              const branches = [...(editingNode.data as any).branches];
+                              branches[index] = { ...branches[index], label: e.target.value };
+                              updateNodeData(editingNode.id, { branches });
+                            }}
+                            className="flex-1 bg-transparent text-sm outline-none font-medium"
+                            placeholder="Branch label (e.g., Yes)"
+                          />
+                          <button 
+                            onClick={() => {
+                              const branches = (editingNode.data as any).branches.filter((b: any) => b.id !== branch.id);
+                              updateNodeData(editingNode.id, { branches });
+                            }}
+                            className="text-zinc-400 hover:text-rose-500 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-4 bg-amber-50 dark:bg-amber-900/10 rounded-2xl border border-amber-200 dark:border-amber-900/30 space-y-3">
                   <div className="flex items-center justify-between">
@@ -516,7 +704,7 @@ export function ProcessFlowEditor({
                 <button 
                   onClick={() => {
                     setNodes((nds) => nds.filter((n) => n.id !== editingNode.id));
-                    setEditingNode(null);
+                    setEditingNodeId(null);
                     handleSave();
                   }}
                   className="px-4 py-2 rounded-xl bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400 text-sm font-bold hover:bg-rose-100 dark:hover:bg-rose-900/40 transition-colors flex items-center gap-2"
@@ -525,7 +713,10 @@ export function ProcessFlowEditor({
                   Delete Step
                 </button>
                 <button 
-                  onClick={() => setEditingNode(null)}
+                  onClick={() => {
+                    setEditingNodeId(null);
+                    handleSave();
+                  }}
                   className="px-8 py-2 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-sm font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
                 >
                   Done
