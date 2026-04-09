@@ -161,75 +161,10 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
           <hr className="my-4 border-zinc-200 dark:border-zinc-800" />
 
           <nav className="space-y-1">
-            {renderNavItem({ id: 'settings', label: 'Settings', icon: Settings })}
             {renderNavItem({ id: 'audit_log', label: 'Audit Log', icon: Activity })}
-            <button
-              onClick={() => {
-                onOpenNotifications?.();
-                onClose?.();
-              }}
-              className={cn(
-                "w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isDarkMode ? "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 hover:text-zinc-900 dark:text-white"
-              )}
-            >
-              <div className="flex items-center gap-3">
-                <Bell className={cn("w-5 h-5", isDarkMode ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400")} />
-                Notifications
-              </div>
-              {unreadNotificationsCount > 0 && (
-                <span className="bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {unreadNotificationsCount}
-                </span>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                onOpenFeedback?.();
-                onClose?.();
-              }}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                isDarkMode ? "text-zinc-400 hover:bg-zinc-900 hover:text-zinc-100" : "text-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 hover:text-zinc-900 dark:text-white"
-              )}
-            >
-              <MessageSquare className={cn("w-5 h-5", isDarkMode ? "text-zinc-400" : "text-zinc-500 dark:text-zinc-400")} />
-              Give Feedback
-            </button>
           </nav>
         </div>
 
-        <div className="p-4 border-t border-zinc-800">
-          <button 
-            onClick={() => {
-              setCurrentTab('account');
-              onClose?.();
-            }}
-            className={cn(
-              "flex items-center gap-3 w-full text-left p-2 rounded-xl transition-colors",
-              currentTab === 'account' 
-                ? (isDarkMode ? "bg-zinc-800" : "bg-zinc-100 dark:bg-zinc-800")
-                : (isDarkMode ? "hover:bg-zinc-800/50" : "hover:bg-zinc-100 dark:hover:bg-zinc-800/50")
-            )}
-          >
-            <img 
-              src={user?.photoUrl || `https://ui-avatars.com/api/?name=${user?.name || 'User'}&background=random`} 
-              alt={user?.name || 'User'} 
-              className={cn(
-                "w-10 h-10 rounded-full border",
-                isDarkMode ? "border-zinc-700" : "border-zinc-200 dark:border-zinc-700"
-              )} 
-              referrerPolicy="no-referrer" 
-            />
-            <div className="text-sm overflow-hidden">
-              <p className={cn(
-                "font-medium truncate",
-                isDarkMode ? "text-white" : "text-zinc-900 dark:text-white"
-              )}>{user?.name || 'User'}</p>
-              <p className="text-zinc-500 dark:text-zinc-400 truncate">{user?.role || 'CX Director'}</p>
-            </div>
-          </button>
-        </div>
       </div>
     </>
   );

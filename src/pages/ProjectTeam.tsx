@@ -28,6 +28,8 @@ export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate,
   const [editPhotoUrl, setEditPhotoUrl] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
+  const [customRole, setCustomRole] = useState('');
+  const [isCustomRole, setIsCustomRole] = useState(false);
 
   const isAdmin = currentUser?.role === 'Admin';
 
@@ -198,6 +200,18 @@ export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate,
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]"
+              onAnimationComplete={() => {
+                if (editingMember) {
+                  const roles = ["Project Admin", "Project Manager", "Product Owner", "Designer", "Developer", "Member"];
+                  if (editingMember.projectRole && !roles.includes(editingMember.projectRole)) {
+                    setIsCustomRole(true);
+                    setCustomRole(editingMember.projectRole);
+                  } else {
+                    setIsCustomRole(false);
+                    setCustomRole('');
+                  }
+                }
+              }}
             >
               <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
                 <h3 className="font-bold text-zinc-900 dark:text-white text-lg">
@@ -215,18 +229,18 @@ export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate,
               </div>
 
               <form 
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const formData = new FormData(e.currentTarget);
-                  const data = {
-                    name: formData.get('name') as string,
-                    jobTitle: formData.get('jobTitle') as string,
-                    projectRole: formData.get('projectRole') as string,
-                    photoUrl: editPhotoUrl,
-                  };
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const data = {
+                      name: formData.get('name') as string,
+                      jobTitle: formData.get('jobTitle') as string,
+                      projectRole: isCustomRole ? customRole : (formData.get('projectRoleSelect') as string),
+                      photoUrl: editPhotoUrl,
+                    };
 
-                  handleUpdateMember(editingMember.id, data);
-                }}
+                    handleUpdateMember(editingMember.id, data);
+                  }}
                 className="flex flex-col min-h-0"
               >
                 <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar">
@@ -261,20 +275,48 @@ export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate,
 
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Project Role</label>
-                    <div className="relative">
-                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-                      <select 
-                        name="projectRole"
-                        defaultValue={editingMember?.projectRole || 'Member'}
-                        className="w-full pl-9 pr-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white appearance-none"
-                      >
-                        <option value="Project Admin">Project Admin</option>
-                        <option value="Project Manager">Project Manager</option>
-                        <option value="Product Owner">Product Owner</option>
-                        <option value="Designer">Designer</option>
-                        <option value="Developer">Developer</option>
-                        <option value="Member">Member</option>
-                      </select>
+                    <div className="space-y-3">
+                      <div className="relative">
+                        <Shield className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                        <select 
+                          name="projectRoleSelect"
+                          value={isCustomRole ? 'Other' : (editingMember?.projectRole || 'Member')}
+                          onChange={(e) => {
+                            if (e.target.value === 'Other') {
+                              setIsCustomRole(true);
+                            } else {
+                              setIsCustomRole(false);
+                            }
+                          }}
+                          className="w-full pl-9 pr-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white appearance-none"
+                        >
+                          <option value="Project Admin">Project Admin</option>
+                          <option value="Project Manager">Project Manager</option>
+                          <option value="Product Owner">Product Owner</option>
+                          <option value="Designer">Designer</option>
+                          <option value="Developer">Developer</option>
+                          <option value="Member">Member</option>
+                          <option value="Other">Other / Custom...</option>
+                        </select>
+                      </div>
+                      
+                      {isCustomRole && (
+                        <motion.div 
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          className="relative"
+                        >
+                          <Plus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                          <input 
+                            name="customProjectRole"
+                            value={customRole}
+                            onChange={(e) => setCustomRole(e.target.value)}
+                            required
+                            className="w-full pl-9 pr-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white"
+                            placeholder="Enter custom role..."
+                          />
+                        </motion.div>
+                      )}
                     </div>
                   </div>
 

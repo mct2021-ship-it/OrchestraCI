@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Projects } from './pages/Projects';
@@ -24,6 +24,7 @@ import { TaskList } from './pages/TaskList';
 import { SingleViewOfChange } from './components/SingleViewOfChange';
 import { OnboardingTour } from './components/OnboardingTour';
 import { CompanyProfile } from './components/YourCompany';
+import { TopNav } from './components/TopNav';
 import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { GeminiChatbot } from './components/GeminiChatbot';
 import { FeedbackModal } from './components/FeedbackModal';
@@ -54,6 +55,18 @@ export default function App() {
 function AppContent() {
   const { user, token, isLoading } = useAuth();
   console.log('AppContent: Rendering...', { user: user?.email, isLoading, hasToken: !!token });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium animate-pulse">Loading Orchestra CI...</p>
+        </div>
+      </div>
+    );
+  }
+
   const [betaUser, setBetaUser] = useState<{name: string, email: string, plan: PlanType} | null>(null);
   
   // Determine plan
@@ -108,7 +121,8 @@ function AppContent() {
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
   const [hasCheckedUnreadOnLogin, setHasCheckedUnreadOnLogin] = useState(false);
   const [isLoginNotificationModalOpen, setIsLoginNotificationModalOpen] = useState(false);
-  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, addNotification } = useNotifications();
+  const prevTasksRef = useRef<Task[]>([]);
 
   // Check for unread notifications on login
   useEffect(() => {
@@ -311,6 +325,31 @@ function AppContent() {
     status: (user.status as User['status']) || 'Active',
     photoUrl: user.photoUrl
   } : undefined, [user]);
+
+  // Task assignment notifications
+  useEffect(() => {
+    if (currentUser && tasks.length > 0) {
+      const prevTasks = prevTasksRef.current;
+      
+      tasks.forEach(task => {
+        const prevTask = prevTasks.find(t => t.id === task.id);
+        
+        // If task is new and assigned to current user
+        // OR task was previously not assigned to current user but now is
+        const isAssignedToMe = task.owner === currentUser.name;
+        const wasAssignedToMe = prevTask?.owner === currentUser.name;
+
+        if (isAssignedToMe && !wasAssignedToMe) {
+          addNotification({
+            title: 'New Task Assigned',
+            message: `You have been assigned to the task: "${task.title}"`,
+            type: 'system'
+          });
+        }
+      });
+    }
+    prevTasksRef.current = tasks;
+  }, [tasks, currentUser, addNotification]);
 
   const handleAddToAuditLog = useCallback((action: string, details: string, type: AuditEntry['type'], entityType?: string, entityId?: string, source: AuditEntry['source'] = 'Manual') => {
     if (!currentUser) return;
@@ -889,26 +928,18 @@ function AppContent() {
           activeProject={activeProject}
           isDarkMode={isDarkMode}
           companyProfile={companyProfile}
-          onOpenFeedback={() => setIsFeedbackModalOpen(true)}
-          onOpenNotifications={() => setIsNotificationsModalOpen(true)}
-          unreadNotificationsCount={unreadCount}
         />
         <div className="flex-1 flex flex-col min-w-0">
-          <header className={cn(
-            "h-16 border-b flex items-center px-4 lg:hidden shrink-0 z-40 transition-colors",
-            isDarkMode ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200"
-          )}>
-            <button 
-              onClick={() => setIsSidebarOpen(true)}
-              className={cn(
-                "p-2 rounded-lg transition-colors",
-                isDarkMode ? "text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100"
-              )}
-            >
-              <Menu className="w-6 h-6" />
-            </button>
-            <Logo className="h-10 ml-3" />
-          </header>
+          <TopNav 
+            onOpenSidebar={() => setIsSidebarOpen(true)}
+            onOpenSettings={() => handleTabChange('settings')}
+            onOpenNotifications={() => setIsNotificationsModalOpen(true)}
+            onOpenFeedback={() => setIsFeedbackModalOpen(true)}
+            onOpenAccount={() => handleTabChange('account')}
+            unreadNotificationsCount={unreadCount}
+            isDarkMode={isDarkMode}
+            currentUser={currentUser}
+          />
           <main className={`flex-1 overflow-y-auto relative ${history.length > 1 ? 'pt-16' : ''}`}>
             {history.length > 1 && (
               <div className="absolute top-4 left-4 z-50">
