@@ -112,7 +112,7 @@ export function Pricing({ onSelectPlan, hideHeader }: { onSelectPlan?: (plan: st
         {!hideHeader && (
           <>
             <h1 className="text-4xl md:text-5xl font-black text-zinc-900 dark:text-white tracking-tight">
-              Pricing that scales with your <span className="text-indigo-600 dark:text-indigo-400">CX maturity</span>
+              Transformation tiers that scale with your <span className="text-indigo-600 dark:text-indigo-400">business</span>
             </h1>
             <p className="text-xl text-zinc-500 dark:text-zinc-400 leading-relaxed">
               Whether you're just starting to map journeys or orchestrating complex enterprise experiences, we have a plan for you.

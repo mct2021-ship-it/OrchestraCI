@@ -1,10 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { User, Camera, LogOut, Save, Shield, Upload, Zap, CreditCard, Building2, Users, Check } from 'lucide-react';
+import { User, Camera, LogOut, Save, Shield, Upload, Zap, CreditCard, Building2, Users, Check, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { PRESET_AVATARS } from '../constants';
 import { User as SystemUser, Project } from '../types';
+import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 
 interface AccountSettingsProps {
   isDarkMode?: boolean;
@@ -25,6 +26,7 @@ export function AccountSettings({ isDarkMode, onNavigate, users, setUsers, proje
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedUserForProjects, setSelectedUserForProjects] = useState<string | null>(null);
+  const [isAvatarGalleryOpen, setIsAvatarGalleryOpen] = useState(false);
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -159,26 +161,42 @@ export function AccountSettings({ isDarkMode, onNavigate, users, setUsers, proje
                   />
                 </div>
                 
-                <div className="w-full max-w-[200px]">
-                  <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2 text-center">Or choose an avatar</p>
-                  <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar justify-center">
-                    {PRESET_AVATARS.map((url, i) => (
-                      <button 
-                        key={i}
-                        type="button"
-                        onClick={() => setPhotoUrl(url)}
-                        className={cn(
-                          "w-8 h-8 rounded-full overflow-hidden border-2 transition-all shrink-0",
-                          photoUrl === url ? "border-indigo-600 scale-110 shadow-sm" : "border-transparent hover:border-zinc-300 dark:hover:border-zinc-600"
-                        )}
-                      >
-                        <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                      </button>
-                    ))}
-                  </div>
+                <div className="flex flex-col gap-2 w-full">
+                  <button 
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className={cn(
+                      "flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+                      isDarkMode 
+                        ? "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700" 
+                        : "bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                    )}
+                  >
+                    <Upload className="w-4 h-4" />
+                    Upload Photo
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => setIsAvatarGalleryOpen(true)}
+                    className={cn(
+                      "flex items-center justify-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+                      isDarkMode 
+                        ? "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700" 
+                        : "bg-white border-zinc-200 text-zinc-900 hover:bg-zinc-50"
+                    )}
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Use Avatar
+                  </button>
                 </div>
 
-                <div className="text-center">
+                <AvatarGalleryModal 
+                  isOpen={isAvatarGalleryOpen}
+                  onClose={() => setIsAvatarGalleryOpen(false)}
+                  onSelect={(url) => setPhotoUrl(url)}
+                />
+
+                <div className="text-center pt-2">
                   <span className={cn(
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium",
                     user?.role === 'Admin' 

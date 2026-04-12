@@ -69,6 +69,13 @@ interface InsightProject {
   description: string;
   expectedImpact: string;
   opportunities: InsightOpportunity[];
+  suggestedJourney?: {
+    stages: {
+      name: string;
+      emotion: number;
+      items: string[];
+    }[];
+  };
 }
 
 interface IntelligenceData {
@@ -190,6 +197,8 @@ export function IntelligenceHub({
 
       const prompt = `Analyze the following customer reviews and extract strategic intelligence for ${companyProfile?.name || 'our company'}.
       Company Context: ${companyProfile?.description || 'A software company'}
+      Target Emotions: ${companyProfile?.targetEmotions?.join(', ') || 'N/A'}
+      Strategic Goals: ${companyProfile?.goals?.join(', ') || 'N/A'}
       
       Reviews:
       ${reviews.map(r => `- [${r.rating} stars] ${r.text}`).join('\n')}
@@ -198,10 +207,13 @@ export function IntelligenceHub({
       1. personas: Array of 3 distinct user archetypes (name, description, painPoints, goals, role, quote).
       2. projects: Array of 2 strategic projects to address these. Each project MUST have:
          - title, description, expectedImpact
-         - opportunities: Array of 3 specific tasks/features (title, description, severity: 'high'|'medium'|'low')`;
+         - opportunities: Array of 3 specific tasks/features (title, description, severity: 'high'|'medium'|'low')
+         - suggestedJourney: An object with 'stages' array. Each stage has 'name', 'emotion' (1-5), and 'items' (array of strings for touchpoints/friction/opps).
+      
+      Ensure the insights are directly tied to the feedback in the reviews and align with the company's strategic goals.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: "gemini-1.5-flash",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -241,6 +253,22 @@ export function IntelligenceHub({
                           severity: { type: Type.STRING, enum: ['high', 'medium', 'low'] }
                         }
                       }
+                    },
+                    suggestedJourney: {
+                      type: Type.OBJECT,
+                      properties: {
+                        stages: {
+                          type: Type.ARRAY,
+                          items: {
+                            type: Type.OBJECT,
+                            properties: {
+                              name: { type: Type.STRING },
+                              emotion: { type: Type.NUMBER },
+                              items: { type: Type.ARRAY, items: { type: Type.STRING } }
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }
@@ -261,6 +289,22 @@ export function IntelligenceHub({
       
       setRawInsights(data);
       setStep('personas');
+
+      // Update analysis history immediately to enforce limit
+      if (onUpdateProfile) {
+        onUpdateProfile({
+          pastAnalyses: [
+            { 
+              id: `analysis_${Date.now()}`, 
+              date: new Date().toISOString(), 
+              type: 'Strategic Analysis Run', 
+              result: 'Analysis Completed',
+              content: `Ran strategic analysis on ${reviews.length} reviews.`
+            },
+            ...(companyProfile?.pastAnalyses || [])
+          ]
+        });
+      }
     } catch (err: any) {
       setError(err.message || "Analysis failed");
     } finally {
@@ -340,13 +384,25 @@ export function IntelligenceHub({
         status: 'In Progress',
         satisfaction: { metric: 'CSAT', value: 3 },
         swimlanes: [
-          { id: 'actions', name: 'Customer Actions', type: 'text-list', colorTheme: 'indigo' },
-          { id: 'emotion', name: 'Emotion', type: 'emotion', colorTheme: 'rose' }
+          { id: 'lane_touchpoints', name: 'Touchpoints', icon: 'Target', type: 'text-list', colorTheme: 'indigo' },
+          { id: 'lane_friction', name: 'Friction Points', icon: 'AlertCircle', type: 'text-list', colorTheme: 'rose' },
+          { id: 'lane_opportunities', name: 'Opportunities', icon: 'Lightbulb', type: 'text-list', colorTheme: 'emerald' }
         ],
-        stages: [
-          { id: 's1', name: 'Awareness', emotion: 3, laneData: { 'actions': [{ id: 'a1', title: 'Discovery' }] } },
-          { id: 's2', name: 'Onboarding', emotion: 2, laneData: { 'actions': [{ id: 'a2', title: 'Setup' }] } },
-          { id: 's3', name: 'Usage', emotion: 4, laneData: { 'actions': [{ id: 'a3', title: 'Daily Work' }] } }
+        stages: selectedProject.suggestedJourney?.stages?.map((s: any, i: number) => ({
+          id: `stage_${i + 1}`,
+          name: s.name,
+          emotion: s.emotion || 3,
+          laneData: {
+            'lane_touchpoints': s.items?.slice(0, 2).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || [],
+            'lane_friction': s.items?.slice(2, 3).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || [],
+            'lane_opportunities': s.items?.slice(3, 5).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || []
+          }
+        })) || [
+          { id: 'stage_1', name: 'Discovery', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
+          { id: 'stage_2', name: 'Engagement', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
+          { id: 'stage_3', name: 'Conversion', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
+          { id: 'stage_4', name: 'Retention', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
+          { id: 'stage_5', name: 'Advocacy', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } }
         ]
       };
       setJourneys(prev => [...prev, newJourney]);
@@ -388,16 +444,16 @@ export function IntelligenceHub({
         onAddToAuditLog?.('Created AI Task', `Created task ${t.title} using Review Intelligence`, 'Create', 'Task', t.id, 'AI');
       });
 
-      // Update company profile with analysis history
+      // Update company profile with execution history
       if (onUpdateProfile) {
         onUpdateProfile({
           pastAnalyses: [
             { 
-              id: `analysis_${Date.now()}`, 
+              id: `exec_${Date.now()}`, 
               date: new Date().toISOString(), 
-              type: 'Strategic Review', 
-              result: 'Generated Project & Personas',
-              content: `AI Analysis generated a new project: ${selectedProject.title} with ${acceptedPersonas.length} personas and ${selectedOpportunities.length} tasks.`
+              type: 'Strategic Execution', 
+              result: 'Project Implemented',
+              content: `AI Analysis executed: ${selectedProject.title} with ${acceptedPersonas.length} personas and ${selectedOpportunities.length} tasks.`
             },
             ...(companyProfile?.pastAnalyses || [])
           ]

@@ -8,12 +8,11 @@ import { JourneyMaps } from './pages/JourneyMaps';
 
 import { ProcessMaps } from './pages/ProcessMaps';
 import { KanbanBoard } from './pages/KanbanBoard';
-import { Backlog } from './pages/Backlog';
 import { RaidLog } from './pages/RaidLog';
 import { Settings } from './pages/Settings';
 import { AuditLog } from './pages/AuditLog';
 import { RecycleBin } from './pages/RecycleBin';
-import { SprintManagement } from './pages/SprintManagement';
+import { SprintBacklog } from './pages/SprintBacklog';
 import { Welcome } from './pages/Welcome';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { ProjectTeam } from './pages/ProjectTeam';
@@ -55,17 +54,6 @@ export default function App() {
 function AppContent() {
   const { user, token, isLoading } = useAuth();
   console.log('AppContent: Rendering...', { user: user?.email, isLoading, hasToken: !!token });
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
-          <p className="text-zinc-500 dark:text-zinc-400 font-medium animate-pulse">Loading Orchestra CI...</p>
-        </div>
-      </div>
-    );
-  }
 
   const [betaUser, setBetaUser] = useState<{name: string, email: string, plan: PlanType} | null>(null);
   
@@ -161,6 +149,7 @@ function AppContent() {
             if (state.stakeholders?.length) setStakeholders(state.stakeholders);
             if (state.projectStakeholders?.length) setProjectStakeholders(state.projectStakeholders);
             if (state.sprints?.length) setSprints(state.sprints);
+            if (state.companyProfile) setCompanyProfile(state.companyProfile);
             // Users are handled separately via /api/users but can be synced for UI updates
             if (state.users?.length) setUsers(state.users);
           } else if (data.type === 'COLLECTION_UPDATED') {
@@ -176,6 +165,7 @@ function AppContent() {
               case 'stakeholders': setStakeholders(items); break;
               case 'projectStakeholders': setProjectStakeholders(items); break;
               case 'sprints': setSprints(items); break;
+              case 'companyProfile': setCompanyProfile(items); break;
               case 'users': setUsers(items); break;
             }
           }
@@ -317,6 +307,14 @@ function AppContent() {
     });
   }, [syncCollection]);
 
+  const handleUpdateProfile = useCallback((updates: Partial<CompanyProfile>) => {
+    setCompanyProfile(prev => {
+      const newProfile = { ...prev, ...updates };
+      syncCollection('companyProfile', newProfile as any);
+      return newProfile;
+    });
+  }, [syncCollection]);
+
   const currentUser: User | undefined = useMemo(() => user ? {
     id: user.id,
     name: user.name || 'User',
@@ -343,7 +341,7 @@ function AppContent() {
           addNotification({
             title: 'New Task Assigned',
             message: `You have been assigned to the task: "${task.title}"`,
-            type: 'system'
+            type: 'assignment'
           });
         }
       });
@@ -419,11 +417,12 @@ function AppContent() {
     handleAddToAuditLog('Permanently Deleted', `Permanently deleted item ${itemId}`, 'Delete');
   }, [handleAddToAuditLog]);
 
-  const handleAddTeamMember = useCallback((user: User) => {
-    if (!activeProjectId) return;
+  const handleAddTeamMember = useCallback((user: User, projectId?: string) => {
+    const targetProjectId = projectId || activeProjectId;
+    if (!targetProjectId) return;
     
     setProjects(prev => prev.map(p => {
-      if (p.id === activeProjectId) {
+      if (p.id === targetProjectId) {
         const alreadyInTeam = p.team?.some(m => m.userId === user.id || m.name === user.name);
         if (alreadyInTeam) return p;
 
@@ -440,7 +439,7 @@ function AppContent() {
       return p;
     }));
     
-    handleAddToAuditLog('Added Team Member', `Added ${user.name} to project team`, 'Create', 'Project', activeProjectId);
+    handleAddToAuditLog('Added Team Member', `Added ${user.name} to project team`, 'Create', 'Project', targetProjectId);
   }, [activeProjectId, handleAddToAuditLog]);
 
   const filteredJourneys = useMemo(() => activeProjectId 
@@ -566,6 +565,21 @@ function AppContent() {
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-zinc-500 dark:text-zinc-400 font-medium animate-pulse">Loading Orchestra CI...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Login />;
+  }
+
   const renderContent = () => {
     switch (currentTab) {
       case 'account':
@@ -592,11 +606,11 @@ function AppContent() {
             onMentionClick={(type, sourceId, projectId) => {
               handleSelectProject(projectId);
               if (type === 'task') {
-                handleTabChange('backlog');
+                handleTabChange('backlog_sprints');
               } else if (type === 'journey') {
                 handleTabChange('journeys');
               } else if (type === 'process') {
-                handleTabChange('processes');
+                handleTabChange('process_maps');
               }
             }}
             currentUser={currentUser}
@@ -711,7 +725,7 @@ function AppContent() {
       case 'intelligence':
         return <Intelligence 
           companyProfile={companyProfile} 
-          onUpdateProfile={(updates) => setCompanyProfile(prev => ({ ...prev, ...updates }))} 
+          onUpdateProfile={handleUpdateProfile} 
           startInEditMode={startInEditMode}
           onSaveComplete={() => {
             setShowPersonaPromptModal(true);
@@ -779,6 +793,8 @@ function AppContent() {
             setProjects={handleSetProjects} 
             tasks={tasks} 
             setTasks={handleSetTasks} 
+            sprints={sprints}
+            setSprints={handleSetSprints}
             onNavigate={handleTabChange} 
             currentUser={currentUser}
             onDeleteItem={handleDeleteItem}
@@ -787,20 +803,22 @@ function AppContent() {
             activeTaskId={activeTaskId}
           />
         );
-      case 'backlog':
+      case 'backlog_sprints':
         if (!activeProject) return <Projects projects={projects} setProjects={handleSetProjects} onSelectProject={handleSelectProject} onOpenJourney={handleOpenJourney} onDeleteItem={handleDeleteItem} activeProjectId={activeProjectId} products={products} services={services} journeys={journeys} processMaps={processMaps} tasks={tasks} />;
         
         return (
-          <Backlog 
-            project={activeProject} 
-            setProjects={handleSetProjects}
-            tasks={tasks} 
-            setTasks={handleSetTasks} 
-            onNavigate={handleTabChange} 
+          <SprintBacklog 
+            projects={projects}
+            tasks={tasks}
+            users={users}
+            sprints={sprints}
+            setSprints={handleSetSprints}
+            setTasks={handleSetTasks}
+            activeProjectId={activeProjectId}
             currentUser={currentUser}
             onDeleteItem={handleDeleteItem}
             onAddTeamMember={handleAddTeamMember}
-            users={users}
+            onNavigate={handleTabChange}
           />
         );
       case 'raid':
@@ -818,6 +836,7 @@ function AppContent() {
           <TaskList 
             tasks={tasks} 
             projects={projects} 
+            sprints={sprints}
             initialAssigneeId={selectedAssignee || 'all'}
             initialProjectId={activeProjectId || 'all'}
             initialTaskId={activeTaskId || undefined}
@@ -842,7 +861,7 @@ function AppContent() {
             isDarkMode={isDarkMode}
             setIsDarkMode={setIsDarkMode}
             companyProfile={companyProfile}
-            onUpdateProfile={(updates) => setCompanyProfile(prev => ({ ...prev, ...updates }))}
+            onUpdateProfile={handleUpdateProfile}
             users={users}
             setUsers={handleSetUsers}
             currentUser={currentUser}
@@ -860,19 +879,17 @@ function AppContent() {
             onNavigateBack={() => setCurrentTab('settings')}
           />
         );
-      case 'sprints':
-        return (
-          <SprintManagement 
-            projects={projects} 
-            tasks={tasks} 
-            users={users} 
-            sprints={sprints} 
-            setSprints={handleSetSprints} 
-            activeProjectId={activeProjectId}
-          />
-        );
       case 'pricing':
         return <Pricing />;
+      case 'single_view_of_change':
+        return (
+          <SingleViewOfChange 
+            projects={projects}
+            tasks={tasks}
+            users={users}
+            onSelectProject={handleSelectProject}
+          />
+        );
       default:
         return (
           <Dashboard 
@@ -886,11 +903,11 @@ function AppContent() {
             onMentionClick={(type, sourceId, projectId) => {
               handleSelectProject(projectId);
               if (type === 'task') {
-                handleTabChange('backlog');
+                handleTabChange('backlog_sprints');
               } else if (type === 'journey') {
                 handleTabChange('journeys');
               } else if (type === 'process') {
-                handleTabChange('processes');
+                handleTabChange('process_maps');
               }
             }}
             currentUser={currentUser}
@@ -901,18 +918,6 @@ function AppContent() {
         );
     }
   };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-zinc-50 dark:bg-[#09090b]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <Login />;
-  }
 
   return (
     <PlanContext.Provider value={{ plan, details: planDetails }}>

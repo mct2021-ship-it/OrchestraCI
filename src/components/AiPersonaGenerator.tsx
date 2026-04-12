@@ -5,6 +5,7 @@ import { X, Sparkles, Loader2, Check, UserPlus, Upload, FileText as FileIcon } f
 import { Persona } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
+import { useToast } from '../context/ToastContext';
 
 interface AiPersonaGeneratorProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface AiPersonaGeneratorProps {
 }
 
 export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGeneratorProps) {
+  const { addToast } = useToast();
   const [data, setData] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<Partial<Persona>[]>([]);
@@ -37,7 +39,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
     try {
       const ai = await getGeminiClient();
       if (!ai) {
-        alert("Gemini API key is missing. Please select one to enable AI features.");
+        addToast("Gemini API key is missing. Please select one to enable AI features.", "error");
         await ensureApiKey();
         setIsGenerating(false);
         return;
@@ -114,7 +116,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
       setSelectedIndices(result.map((_: any, i: number) => i)); // Select all by default
     } catch (error) {
       console.error("AI Generation error:", error);
-      alert("Failed to generate personas. Please try again.");
+      addToast("Failed to generate personas. Please try again.", "error");
     } finally {
       setIsGenerating(false);
     }

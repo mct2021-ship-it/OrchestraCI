@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Target, Plus, X, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Send, UsersRound } from 'lucide-react';
-import { Task, Project, Comment, User, TeamMember } from '../types';
+import { Task, Project, Comment, User, TeamMember, Sprint } from '../types';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from './ContextualHelp';
 import { v4 as uuidv4 } from 'uuid';
@@ -12,17 +12,18 @@ import { useToast } from '../context/ToastContext';
 interface TaskModalProps {
   task: Task;
   project: Project;
+  sprints?: Sprint[];
   currentUser?: User;
   users?: User[];
   onSave: (task: Task) => void;
   onUpdate?: (task: Task) => void;
   onClose: () => void;
   onDelete?: (taskId: string) => void;
-  onAddTeamMember?: (user: User) => void;
+  onAddTeamMember?: (user: User, projectId?: string) => void;
   isReadOnly?: boolean;
 }
 
-export function TaskModal({ task, project, currentUser, users = [], onSave, onUpdate, onClose, onDelete, onAddTeamMember, isReadOnly }: TaskModalProps) {
+export function TaskModal({ task, project, sprints = [], currentUser, users = [], onSave, onUpdate, onClose, onDelete, onAddTeamMember, isReadOnly }: TaskModalProps) {
   const [editingTask, setEditingTask] = useState<Task>(task);
   const [pendingTeamMember, setPendingTeamMember] = useState<User | null>(null);
   const [showBlockerDetails, setShowBlockerDetails] = useState(true);
@@ -336,12 +337,23 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Sprint</label>
-            <input 
-              type="text"
-              value={editingTask.sprint || `Sprint ${project.currentSprint || 1}`}
-              readOnly
-              className="w-full px-4 py-3 bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl outline-none font-bold text-zinc-500 dark:text-zinc-400 cursor-not-allowed"
-            />
+            <select 
+              value={editingTask.sprint || ''}
+              disabled={isReadOnly}
+              onChange={(e) => setEditingTask({ ...editingTask, sprint: e.target.value || undefined })}
+              className={cn(
+                "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white",
+                isReadOnly && "opacity-70 cursor-not-allowed"
+              )}
+            >
+              <option value="">No Sprint (Backlog)</option>
+              {sprints
+                .filter(s => s.projectId === project.id)
+                .sort((a, b) => (b.number || 0) - (a.number || 0))
+                .map(s => (
+                  <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                ))}
+            </select>
           </div>
 
           <div className="space-y-2">
@@ -629,7 +641,7 @@ export function TaskModal({ task, project, currentUser, users = [], onSave, onUp
                 <button
                   onClick={() => {
                     if (onAddTeamMember) {
-                      onAddTeamMember(pendingTeamMember);
+                      onAddTeamMember(pendingTeamMember, project.id);
                     }
                     setEditingTask({ ...editingTask, owner: pendingTeamMember.name });
                     setPendingTeamMember(null);

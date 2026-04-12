@@ -63,6 +63,15 @@ if (stateRow) {
     services: [],
     sprints: [],
     auditLogs: [],
+    companyProfile: {
+      name: '',
+      vertical: '',
+      description: '',
+      customerBenefits: '',
+      targetEmotions: [],
+      measurementMethods: [],
+      pastAnalyses: []
+    },
     stakeholders: [
       {
         id: 'stk_1',
@@ -489,14 +498,21 @@ app.get('/api/google/reviews', async (req, res) => {
 });
 
 async function startServer() {
+  console.log('Starting server initialization...');
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
+    console.log('Initializing Vite middleware...');
+    try {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+      console.log('Vite middleware initialized.');
+    } catch (error) {
+      console.error('Failed to initialize Vite middleware:', error);
+    }
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath, { index: false }));

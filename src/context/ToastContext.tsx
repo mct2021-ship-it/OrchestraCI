@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { CheckCircle2, XCircle, Info, X } from 'lucide-react';
+import { CheckCircle2, XCircle, Info, X, AlertTriangle } from 'lucide-react';
 
-export type ToastType = 'success' | 'error' | 'info';
+export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
 interface Toast {
   id: string;
@@ -45,11 +45,13 @@ export function ToastProvider({ children }: { children: ReactNode }) {
               className={`pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border ${
                 toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-900/30 dark:border-emerald-800 dark:text-emerald-300' :
                 toast.type === 'error' ? 'bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-900/30 dark:border-rose-800 dark:text-rose-300' :
+                toast.type === 'warning' ? 'bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-300' :
                 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900/30 dark:border-blue-800 dark:text-blue-300'
               }`}
             >
               {toast.type === 'success' && <CheckCircle2 className="w-5 h-5" />}
               {toast.type === 'error' && <XCircle className="w-5 h-5" />}
+              {toast.type === 'warning' && <AlertTriangle className="w-5 h-5" />}
               {toast.type === 'info' && <Info className="w-5 h-5" />}
               <span className="text-sm font-bold">{toast.message}</span>
               <button onClick={() => removeToast(toast.id)} className="ml-2 opacity-50 hover:opacity-100 transition-opacity">

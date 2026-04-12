@@ -248,31 +248,38 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     const element = document.getElementById('persona-content');
     if (!element) return;
 
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-      backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
-      onclone: (clonedDoc) => {
-        fixOklch(clonedDoc);
-        const clonedElement = clonedDoc.getElementById('persona-content');
-        if (clonedElement) {
-          clonedElement.style.overflow = 'visible';
-          clonedElement.style.height = 'auto';
-          clonedElement.style.width = `${element.scrollWidth}px`;
+    try {
+      addToast('Generating PDF...', 'info');
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+          const clonedElement = clonedDoc.getElementById('persona-content');
+          if (clonedElement) {
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.width = `${element.scrollWidth}px`;
+          }
         }
-      }
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`${selectedPersona.name.replace(/\s+/g, '_')}_persona.pdf`);
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${selectedPersona.name.replace(/\s+/g, '_')}_persona.pdf`);
+      addToast('PDF generated successfully', 'success');
+    } catch (err) {
+      console.error('Failed to generate PDF', err);
+      addToast('Failed to generate PDF', 'error');
+    }
   };
 
   const handleGenerateStories = async () => {
@@ -290,8 +297,8 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
-        contents: `Generate 5-7 user stories for the following customer persona:
+        model: "gemini-1.5-flash",
+        contents: `Generate 5-7 high-quality user stories for the following customer persona:
         Name: ${stripPIData(selectedPersona.name)}
         Role: ${stripPIData(selectedPersona.role)}
         Goals: ${selectedPersona.goals.map(stripPIData).join(', ')}
@@ -303,8 +310,10 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         ]
         
         The "asA" field should be a variation of their role or specific context.
-        The "iWant" should be a specific action or feature.
-        The "soThat" should be the benefit or value.`,
+        The "iWant" should be a specific action or feature they need to solve their frustrations or achieve their goals.
+        The "soThat" should be the specific benefit or value they expect to receive.
+        
+        Ensure the stories are diverse, covering different aspects of their interaction with a product or service.`,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
           responseMimeType: "application/json"
@@ -419,7 +428,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       name: `${persona.name} (Template)`
     };
     setTemplates([...templates, newTemplate]);
-    alert('Persona saved as template!');
+    addToast('Persona saved as template!', 'success');
   };
 
   const handleAvatarSelect = (url: string) => {

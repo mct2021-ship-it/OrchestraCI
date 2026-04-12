@@ -9,7 +9,7 @@ export interface Notification {
   message: string;
   createdAt: string;
   read: boolean;
-  type?: 'system' | 'chat';
+  type?: 'system' | 'chat' | 'assignment';
   sourceId?: string;
   link?: {
     type: 'task' | 'journey' | 'process' | 'project';
@@ -29,7 +29,7 @@ interface NotificationsModalProps {
 }
 
 export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRead, onMarkAllAsRead, onNavigate, isDarkMode }: NotificationsModalProps) {
-  const [activeTab, setActiveTab] = useState<'all' | 'system' | 'chat'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'system' | 'chat' | 'assignment'>('all');
 
   if (!isOpen) return null;
 
@@ -116,7 +116,7 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
               "flex items-center p-1 border-b",
               isDarkMode ? "border-zinc-800 bg-zinc-900/50" : "border-zinc-200 bg-zinc-50/50"
             )}>
-              {(['all', 'system', 'chat'] as const).map((tab) => (
+              {(['all', 'system', 'chat', 'assignment'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -165,6 +165,8 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
                       <div className="w-8 h-8 rounded-lg bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0 mt-0.5">
                         {notification.type === 'chat' ? (
                           <MessageSquare className="w-4 h-4 text-indigo-500" />
+                        ) : notification.type === 'assignment' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
                         ) : (
                           <Info className="w-4 h-4 text-zinc-400" />
                         )}
@@ -179,7 +181,9 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
                           </h4>
                           <span className={cn(
                             "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800",
-                            notification.type === 'chat' ? "text-indigo-500" : "text-zinc-400"
+                            notification.type === 'chat' ? "text-indigo-500" : 
+                            notification.type === 'assignment' ? "text-emerald-500" :
+                            "text-zinc-400"
                           )}>
                             {notification.type || 'system'}
                           </span>

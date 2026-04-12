@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
+import { useToast } from '../context/ToastContext';
 
 interface StakeholderMappingProps {
   project: Project;
@@ -18,6 +19,7 @@ interface StakeholderMappingProps {
 }
 
 export function StakeholderMapping({ project, globalStakeholders, projectStakeholders, setProjectStakeholders, setGlobalStakeholders, onNavigate, isDarkMode }: StakeholderMappingProps) {
+  const { addToast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [showGlobalLibrary, setShowGlobalLibrary] = useState(false);
@@ -82,7 +84,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   const handleAddFromGlobal = (global: Stakeholder) => {
     const alreadyExists = projectStakeholders.some(ps => ps.id === global.id || (ps.name === global.name && ps.projectId === project.id));
     if (alreadyExists) {
-      alert('This stakeholder is already added to the project.');
+      addToast('This stakeholder is already added to the project.', 'info');
       return;
     }
 
@@ -193,7 +195,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
       }
     } catch (err) {
       console.error('Failed to generate strategy', err);
-      alert('Failed to generate AI strategy. Please try again.');
+      addToast('Failed to generate AI strategy. Please try again.', 'error');
     } finally {
       setIsGeneratingStrategy(null);
     }

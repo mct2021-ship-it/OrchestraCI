@@ -19,21 +19,23 @@ interface BacklogProps {
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+  sprints: Sprint[];
+  setSprints: React.Dispatch<React.SetStateAction<Sprint[]>>;
   onNavigate: (tab: string, subTab?: string) => void;
   currentUser?: any;
   onDeleteItem?: (item: any, type: any, originalProjectId?: string) => void;
-  onAddTeamMember?: (user: User) => void;
+  onAddTeamMember?: (user: User, projectId?: string) => void;
   users?: any[];
 }
 
-export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [] }: BacklogProps) {
+export function Backlog({ project, setProjects, tasks, setTasks, sprints, setSprints, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [] }: BacklogProps) {
   const [isAddingTask, setIsAddingTask] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isPrioritizing, setIsPrioritizing] = useState(false);
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [showBulkMove, setShowBulkMove] = useState(false);
   const [bulkTargetColumn, setBulkTargetColumn] = useState<string>('');
-  const [bulkTargetSprint, setBulkTargetSprint] = useState<string>('current');
+  const [bulkTargetSprint, setBulkTargetSprint] = useState<string>('');
   const { addToast } = useToast();
   
   const [showBoardPrompt, setShowBoardPrompt] = useState<{ isOpen: boolean, task: Task | null }>({ isOpen: false, task: null });
@@ -42,21 +44,22 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
   const canEdit = canEditProjectFeature(project);
 
   const ensureActiveSprint = () => {
-    if (!project.sprints || project.sprints.length === 0) {
+    const activeSprint = sprints.find(s => s.projectId === project.id && s.status === 'In Progress');
+    if (!activeSprint) {
       const newSprint: Sprint = {
         id: uuidv4(),
         projectId: project.id,
-        number: 1,
-        name: 'Sprint 1',
+        number: (sprints.filter(s => s.projectId === project.id).length || 0) + 1,
+        name: `Sprint ${(sprints.filter(s => s.projectId === project.id).length || 0) + 1}`,
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'In Progress'
       };
-      setProjects(prev => prev.map(p => 
-        p.id === project.id ? { ...p, sprints: [newSprint], currentSprint: 1 } : p
-      ));
-      addToast('Sprint 1 created and started', 'success');
+      setSprints(prev => [...prev, newSprint]);
+      addToast(`${newSprint.name} created and started`, 'success');
+      return newSprint.id;
     }
+    return activeSprint.id;
   };
 
   const kanbanColumns = project.kanbanColumns || [
@@ -153,15 +156,16 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
   const handleMoveToBoard = (taskId: string) => {
     // Move to the first column that is NOT the backlog
     const firstActiveColumnId = kanbanColumns.find(c => c.id !== 'Backlog' && c.id !== 'backlog')?.id || 'In Progress';
-    ensureActiveSprint();
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, kanbanStatus: firstActiveColumnId } : t));
+    const sprintId = ensureActiveSprint();
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, kanbanStatus: firstActiveColumnId, sprint: sprintId } : t));
   };
 
   const handleStatusChange = (taskId: string, newStatus: string) => {
+    let sprintId = undefined;
     if (newStatus !== 'Backlog' && newStatus !== 'backlog') {
-      ensureActiveSprint();
+      sprintId = ensureActiveSprint();
     }
-    setTasks(tasks.map(t => t.id === taskId ? { ...t, kanbanStatus: newStatus } : t));
+    setTasks(tasks.map(t => t.id === taskId ? { ...t, kanbanStatus: newStatus, sprint: sprintId || t.sprint } : t));
   };
 
   const handleToggleSelect = (taskId: string) => {
@@ -173,8 +177,9 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
   const handleBulkMove = () => {
     if (!bulkTargetColumn) return;
     
-    if (bulkTargetColumn !== 'Backlog' && bulkTargetColumn !== 'backlog') {
-      ensureActiveSprint();
+    let sprintId = bulkTargetSprint || undefined;
+    if (bulkTargetColumn !== 'Backlog' && bulkTargetColumn !== 'backlog' && !sprintId) {
+      sprintId = ensureActiveSprint();
     }
     
     setTasks(tasks.map(t => {
@@ -182,7 +187,7 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
         return { 
           ...t, 
           kanbanStatus: bulkTargetColumn,
-          sprint: bulkTargetSprint === 'current' ? `Sprint ${project.currentSprint || 1}` : bulkTargetSprint
+          sprint: sprintId
         };
       }
       return t;
@@ -250,7 +255,7 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
     impact: 'Medium',
     effort: 'Medium',
     moscow: 'Must',
-    sprint: `Sprint ${project.currentSprint || 1}`,
+    sprint: undefined,
     createdAt: new Date().toISOString(),
     stageHistory: [{ stage: 'Backlog', enteredAt: new Date().toISOString() }],
   });
@@ -335,9 +340,13 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
                   onChange={(e) => setBulkTargetSprint(e.target.value)}
                   className="bg-white dark:bg-zinc-900 border border-indigo-200 dark:border-indigo-700 rounded-lg text-sm font-medium text-zinc-700 dark:text-zinc-300 px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
-                  <option value="current">Current Sprint</option>
-                  <option value={`Sprint ${(project.currentSprint || 1) + 1}`}>Next Sprint (Sprint {(project.currentSprint || 1) + 1})</option>
-                  <option value={`Sprint ${(project.currentSprint || 1) + 2}`}>Future Sprint (Sprint {(project.currentSprint || 1) + 2})</option>
+                  <option value="">No Sprint (Backlog)</option>
+                  {sprints
+                    .filter(s => s.projectId === project.id)
+                    .sort((a, b) => (b.number || 0) - (a.number || 0))
+                    .map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                    ))}
                 </select>
                 <select
                   value={bulkTargetColumn}
@@ -375,6 +384,7 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
         <TaskModal
           task={createNewTask()}
           project={project}
+          sprints={sprints}
           currentUser={currentUser}
           users={users}
           isReadOnly={!canEdit}
@@ -390,6 +400,7 @@ export function Backlog({ project, setProjects, tasks, setTasks, onNavigate, cur
         <TaskModal
           task={editingTask}
           project={project}
+          sprints={sprints}
           currentUser={currentUser}
           users={users}
           isReadOnly={!canEdit}

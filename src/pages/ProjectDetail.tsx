@@ -68,6 +68,7 @@ interface ProjectDetailProps {
 }
 
 import { AddTeamMemberModal } from '../components/AddTeamMemberModal';
+import { HelpTooltip } from '../components/HelpTooltip';
 
 interface FlipTileProps {
   title: string;
@@ -263,7 +264,7 @@ export function ProjectDetail({
   const handleStageChange = (newStatus: Project['status']) => {
     setProjects(prev => prev.map(p => p.id === project.id ? { ...p, status: newStatus, updatedAt: new Date().toISOString() } : p));
     setShowStageMessage(true);
-    setTimeout(() => setShowStageMessage(false), 5000);
+    setTimeout(() => setShowStageMessage(false), 10000);
     
     if (newStatus === 'Done') {
       handleGenerateRoi();
@@ -529,12 +530,28 @@ export function ProjectDetail({
 
       {/* Double Diamond Progress Bar */}
       {project.useDoubleDiamond !== false && (
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-widest">Double Diamond Progress</h3>
-            <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-1 rounded-md">{project.status}</span>
+        <div className="mb-8 bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-widest">Project Lifecycle Stage</h3>
+              <HelpTooltip content="The stage represents the current phase of your project in the Double Diamond framework. Changing the stage helps track progress but does not affect your current navigation tab." />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mr-2">Current:</span>
+              <span className={cn(
+                "text-xs font-bold px-3 py-1 rounded-full shadow-sm border",
+                project.status === 'Discover' ? "bg-blue-50 text-blue-700 border-blue-100" :
+                project.status === 'Define' ? "bg-purple-50 text-purple-700 border-purple-100" :
+                project.status === 'Develop' ? "bg-amber-50 text-amber-700 border-amber-100" :
+                project.status === 'Deliver' ? "bg-emerald-50 text-emerald-700 border-emerald-100" :
+                "bg-zinc-100 text-zinc-700 border-zinc-200"
+              )}>
+                {project.status}
+              </span>
+            </div>
           </div>
-          <div className="relative h-4 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner">
+          
+          <div className="relative h-3 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden flex shadow-inner mb-8">
             {['Discover', 'Define', 'Develop', 'Deliver', 'Done'].map((stage, idx) => {
               const isActive = project.status === stage;
               const isPast = ['Discover', 'Define', 'Develop', 'Deliver', 'Done'].indexOf(project.status || 'Discover') > idx;
@@ -545,13 +562,19 @@ export function ProjectDetail({
                   key={stage}
                   className={cn(
                     "h-full flex-1 border-r border-white/20 last:border-0 transition-all duration-500 relative",
-                    isCurrentOrPast ? "bg-indigo-500" : "bg-transparent"
+                    isCurrentOrPast ? (
+                      stage === 'Discover' ? "bg-blue-500" :
+                      stage === 'Define' ? "bg-purple-500" :
+                      stage === 'Develop' ? "bg-amber-500" :
+                      stage === 'Deliver' ? "bg-emerald-500" :
+                      "bg-zinc-500"
+                    ) : "bg-transparent"
                   )}
                 >
                   {isActive && (
                     <motion.div 
                       layoutId="active-stage-indicator"
-                      className="absolute inset-0 bg-white/20"
+                      className="absolute inset-0 bg-white/30"
                       initial={false}
                       transition={{ type: "spring", stiffness: 300, damping: 30 }}
                     />
@@ -560,7 +583,8 @@ export function ProjectDetail({
               );
             })}
           </div>
-          <div className="flex justify-between mt-3 px-2">
+
+          <div className="grid grid-cols-5 gap-2">
             {['Discover', 'Define', 'Develop', 'Deliver', 'Done'].map((stage, idx) => {
               const isActive = project.status === stage;
               const isPast = ['Discover', 'Define', 'Develop', 'Deliver', 'Done'].indexOf(project.status || 'Discover') > idx;
@@ -571,17 +595,54 @@ export function ProjectDetail({
                   onClick={() => canEdit && handleStageChange(stage as any)}
                   disabled={!canEdit}
                   className={cn(
-                    "text-[10px] sm:text-xs font-bold uppercase tracking-wider transition-colors relative",
-                    isActive ? "text-indigo-600 dark:text-indigo-400" : 
-                    isPast ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-600 hover:text-zinc-600 dark:hover:text-zinc-400",
-                    !canEdit && "cursor-default"
+                    "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all group relative",
+                    isActive 
+                      ? "bg-indigo-50 dark:bg-indigo-900/20 border-indigo-200 dark:border-indigo-800 shadow-sm" 
+                      : "bg-transparent border-transparent hover:bg-zinc-50 dark:hover:bg-zinc-800/50",
+                    !canEdit && "opacity-50 cursor-not-allowed"
                   )}
                 >
-                  {stage}
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 transition-all",
+                    isActive ? "bg-indigo-600 border-indigo-600 text-white" :
+                    isPast ? "bg-zinc-100 dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400" :
+                    "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-400 dark:text-zinc-600 group-hover:border-zinc-300"
+                  )}>
+                    {idx + 1}
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-black uppercase tracking-widest transition-colors",
+                    isActive ? "text-indigo-600 dark:text-indigo-400" : 
+                    isPast ? "text-zinc-700 dark:text-zinc-300" : "text-zinc-400 dark:text-zinc-600 group-hover:text-zinc-600"
+                  )}>
+                    {stage}
+                  </span>
+                  {isActive && (
+                    <motion.div 
+                      layoutId="active-dot"
+                      className="absolute -top-1 -right-1 w-3 h-3 bg-indigo-600 rounded-full border-2 border-white dark:border-zinc-900"
+                    />
+                  )}
                 </button>
               );
             })}
           </div>
+          
+          <AnimatePresence>
+            {showStageMessage && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                className="mt-6 p-4 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl flex items-start gap-3"
+              >
+                <Sparkles className="w-5 h-5 text-indigo-600 shrink-0 mt-0.5" />
+                <p className="text-sm text-indigo-900 dark:text-indigo-300 font-medium leading-relaxed">
+                  {stageMessages[project.status as keyof typeof stageMessages]}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
 

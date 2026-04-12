@@ -173,6 +173,7 @@ export interface Sprint {
   stage?: 'Discover' | 'Define' | 'Develop' | 'Deliver' | 'Done' | 'Archived';
   tasks?: string[]; // IDs of tasks in this sprint
   report?: string; // Generated report content
+  completedAt?: string;
 }
 
 export interface RAIDItem {

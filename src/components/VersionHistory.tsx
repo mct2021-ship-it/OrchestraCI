@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Clock, RotateCcw, Save, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
+import { ConfirmationModal } from './ConfirmationModal';
 
 interface Version {
   id: string;
@@ -30,6 +31,7 @@ export function VersionHistory({ isOpen, onClose, entityType, entityId, currentD
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [versionMessage, setVersionMessage] = useState('');
+  const [restoreConfirm, setRestoreConfirm] = useState<Version | null>(null);
 
   const fetchVersions = async () => {
     setIsLoading(true);
@@ -84,9 +86,14 @@ export function VersionHistory({ isOpen, onClose, entityType, entityId, currentD
   };
 
   const handleRestore = (version: Version) => {
-    if (window.confirm('Are you sure you want to restore this version? Current unsaved changes will be lost.')) {
-      onRestore(version.data);
+    setRestoreConfirm(version);
+  };
+
+  const confirmRestore = () => {
+    if (restoreConfirm) {
+      onRestore(restoreConfirm.data);
       addToast('Version restored successfully', 'success');
+      setRestoreConfirm(null);
       onClose();
     }
   };
@@ -188,6 +195,16 @@ export function VersionHistory({ isOpen, onClose, entityType, entityId, currentD
               )}
             </div>
           </motion.div>
+          
+          <ConfirmationModal
+            isOpen={!!restoreConfirm}
+            title="Restore Version"
+            message="Are you sure you want to restore this version? Current unsaved changes will be lost."
+            confirmLabel="Restore"
+            type="warning"
+            onConfirm={confirmRestore}
+            onCancel={() => setRestoreConfirm(null)}
+          />
         </>
       )}
     </AnimatePresence>

@@ -5,6 +5,7 @@ import { Type, ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Markdown from 'react-markdown';
+import { PromptModal } from './PromptModal';
 
 interface VocDataPoint {
   id: string;
@@ -25,22 +26,28 @@ export function VocSection() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncSource, setSyncSource] = useState<'trustpilot' | 'google' | 'hubspot' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showTrustpilotPrompt, setShowTrustpilotPrompt] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const handleSyncSource = async (source: 'trustpilot' | 'google' | 'hubspot') => {
+    if (source === 'trustpilot') {
+      setShowTrustpilotPrompt(true);
+      return;
+    }
+    
+    await executeSync(source);
+  };
+
+  const executeSync = async (source: 'trustpilot' | 'google' | 'hubspot', domain?: string) => {
     setIsSyncing(true);
     setSyncSource(source);
     setError(null);
     try {
       let endpoint = source === 'hubspot' ? '/api/hubspot/tickets' : `/api/${source}/reviews`;
       
-      if (source === 'trustpilot') {
-        const domain = window.prompt("Enter the website domain to fetch reviews for (e.g., apple.com):");
-        if (!domain) {
-          throw new Error("Domain is required to fetch Trustpilot reviews.");
-        }
+      if (source === 'trustpilot' && domain) {
         endpoint += `?domain=${encodeURIComponent(domain)}`;
       }
 
@@ -134,7 +141,7 @@ export function VocSection() {
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-1.5-flash',
         contents: `Analyze the following Voice of Customer data for the month of ${selectedMonth}. 
         1. Determine an overall satisfaction score from 0 to 100 based on the sentiment.
         2. Provide 2-3 concise bullet points of suggestions or key insights.
@@ -362,6 +369,19 @@ export function VocSection() {
           )}
         </div>
       </div>
+      
+      <PromptModal
+        isOpen={showTrustpilotPrompt}
+        title="Trustpilot Sync"
+        message="Enter the website domain to fetch reviews for (e.g., apple.com):"
+        placeholder="example.com"
+        confirmLabel="Sync Reviews"
+        onConfirm={(domain) => {
+          setShowTrustpilotPrompt(false);
+          executeSync('trustpilot', domain).catch(err => console.error('Trustpilot sync failed:', err));
+        }}
+        onCancel={() => setShowTrustpilotPrompt(false)}
+      />
     </div>
   );
 }

@@ -53,19 +53,7 @@ export function TopNav({
         </div>
 
         <div className="flex-1 max-w-xl hidden md:block">
-          <div className="relative group">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400 group-focus-within:text-indigo-500 transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Search projects, tasks, or intelligence..." 
-              className={cn(
-                "w-full pl-10 pr-4 py-2 rounded-xl text-sm border transition-all outline-none",
-                isDarkMode 
-                  ? "bg-zinc-900 border-zinc-800 focus:border-indigo-500 text-white" 
-                  : "bg-zinc-50 border-zinc-200 focus:border-indigo-500 text-zinc-900"
-              )}
-            />
-          </div>
+          {/* Search bar removed as it was non-functional */}
         </div>
 
         <div className="flex items-center gap-1 md:gap-2">

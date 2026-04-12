@@ -28,6 +28,7 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
     { id: 'welcome', label: 'Welcome', icon: Sparkles, color: 'text-indigo-500' },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
     { id: 'intelligence', label: 'Intelligence Hub', icon: BrainCircuit, color: 'text-purple-500', badge: 'Pro' },
+    { id: 'single_view_of_change', label: 'Single View of Change', icon: Activity, color: 'text-indigo-500' },
     { id: 'personas', label: 'Personas', icon: Users, color: 'text-rose-500' },
     { id: 'stakeholders', label: 'Stakeholders', icon: UsersRound, color: 'text-indigo-500' },
     { id: 'pricing', label: 'Pricing', icon: Target, color: 'text-blue-500' },
@@ -39,13 +40,12 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
     { id: 'stakeholder_mapping', label: 'Stakeholder Mapping', icon: Target, color: 'text-purple-500' },
     { id: 'journeys', label: 'Journey Maps', icon: Map, color: 'text-orange-500' },
     { id: 'kanban', label: 'Kanban Board', icon: KanbanSquare, color: 'text-amber-500' },
-    { id: 'backlog', label: 'Backlog', icon: LayoutList, color: 'text-indigo-500' },
-    { id: 'sprints', label: 'Sprint Management', icon: Calendar, color: 'text-emerald-500' },
+    { id: 'backlog_sprints', label: 'Backlog & Sprints', icon: LayoutList, color: 'text-indigo-500' },
     ...(activeProject?.features?.processMaps !== false ? [{ id: 'process_maps', label: 'Process Maps', icon: GitMerge, color: 'text-pink-500', badge: 'Pro' }] : []),
     ...(activeProject?.features?.raidLog !== false ? [{ id: 'raid', label: 'RAID Log', icon: Shield, color: 'text-rose-500' }] : []),
   ], [activeProject]);
 
-  const isProjectContext = currentTab === 'projects' || projectNav.some(nav => nav.id === currentTab);
+  const isProjectContext = currentTab === 'projects' || currentTab === 'tasks' || projectNav.some(nav => nav.id === currentTab);
 
   const renderNavItem = (item: { id: string, label: string, icon: any, color?: string, badge?: string }, isNested = false) => {
     const Icon = item.icon;
@@ -149,11 +149,19 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
             <nav className="space-y-1">
               {renderNavItem({ id: 'projects', label: 'Projects', icon: Briefcase, color: 'text-amber-500' })}
             </nav>
-            {activeProject?.name && isProjectContext && (
-              <div className="ml-[22px] pl-3 mt-1 space-y-1 border-l border-zinc-200 dark:border-zinc-800">
-                <nav className="space-y-1">
-                  {projectNav.map(item => renderNavItem(item, true))}
-                </nav>
+            {activeProject?.name && (
+              <div className="mt-2 space-y-1">
+                <div className="px-3 py-2 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-zinc-400 dark:text-zinc-500 uppercase tracking-[0.2em] truncate">
+                    Active: {activeProject.name}
+                  </span>
+                </div>
+                <div className="ml-[22px] pl-3 space-y-1 border-l border-zinc-200 dark:border-zinc-800">
+                  <nav className="space-y-1">
+                    {projectNav.map(item => renderNavItem(item, true))}
+                  </nav>
+                </div>
               </div>
             )}
           </div>

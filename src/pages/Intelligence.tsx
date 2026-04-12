@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus } from 'lucide-react';
+import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { VocSection } from '../components/VocSection';
 import { NpsCalculator } from '../components/NpsCalculator';
@@ -7,6 +7,10 @@ import { IntelligenceHub } from '../components/ReviewIntelligence';
 import { YourCompany, CompanyProfile } from '../components/YourCompany';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
+import { useToast } from '../context/ToastContext';
+import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { Type } from '@google/genai';
+import { AnimatePresence } from 'motion/react';
 
 interface IntelligenceProps {
   companyProfile?: CompanyProfile;
@@ -40,6 +44,7 @@ export function Intelligence({
   setActiveProjectId,
   onAddToAuditLog
 }: IntelligenceProps) {
+  const { addToast } = useToast();
   const [activeTab, setActiveTab] = React.useState<'profile' | 'overview' | 'reviews' | 'connectors'>(startInEditMode ? 'profile' : 'overview');
   const [isUploading, setIsUploading] = useState(false);
 
@@ -57,6 +62,85 @@ export function Intelligence({
   ]);
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [selectedIntegration, setSelectedIntegration] = useState<any>(null);
+
+  const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
+  const [aiInsights, setAiInsights] = useState<any[]>([]);
+
+  const handleGenerateInsights = async () => {
+    if (!profile.name || !profile.description) {
+      addToast("Please complete your company profile first to generate strategic insights.", "info");
+      return;
+    }
+
+    setIsGeneratingInsights(true);
+    try {
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        addToast("Gemini API key is required.", "error");
+        setIsGeneratingInsights(false);
+        return;
+      }
+
+      const ai = await getGeminiClient();
+      if (!ai) {
+        addToast("Failed to initialize AI client", "error");
+        setIsGeneratingInsights(false);
+        return;
+      }
+
+      const prompt = `Based on the following company profile, generate 3 strategic insights or opportunities for improving the customer experience.
+      Company: ${profile.name}
+      Vertical: ${profile.vertical}
+      Description: ${profile.description}
+      Benefits: ${profile.customerBenefits}
+      Target Emotions: ${profile.targetEmotions?.join(', ')}
+      Goals: ${profile.goals?.join(', ')}
+
+      Provide a JSON object with an 'insights' array. Each insight should have:
+      - title: A short, punchy title.
+      - description: A clear explanation of the insight and how it aligns with the company's goals and target emotions.
+      - impact: One of 'High', 'Medium', 'Low'.
+      - category: One of 'Intelligence', 'Success', 'Effort', 'Emotion'.
+      
+      Ensure the insights are actionable and specific to the vertical and description provided.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              insights: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    impact: { type: Type.STRING, enum: ['High', 'Medium', 'Low'] },
+                    category: { type: Type.STRING, enum: ['Intelligence', 'Success', 'Effort', 'Emotion'] }
+                  },
+                  required: ["title", "description", "impact", "category"]
+                }
+              }
+            },
+            required: ["insights"]
+          }
+        }
+      });
+
+      const data = JSON.parse(result.text || '{}');
+      setAiInsights(data.insights || []);
+      addToast('Strategic insights generated successfully', 'success');
+    } catch (err: any) {
+      console.error(err);
+      addToast(err.message || "Failed to generate insights", "error");
+    } finally {
+      setIsGeneratingInsights(false);
+    }
+  };
 
   const handleDeleteData = (id: number) => {
     setUploadedData(uploadedData.filter(d => d.id !== id));
@@ -298,6 +382,70 @@ export function Intelligence({
                   Understanding how your customers feel versus how you want them to feel.
                 </p>
               </div>
+            </div>
+          </div>
+
+          {/* AI Strategic Insights */}
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-indigo-600" />
+                  AI Strategic Insights
+                </h3>
+                <p className="text-sm text-zinc-500">Personalized opportunities based on your company profile.</p>
+              </div>
+              <button
+                onClick={handleGenerateInsights}
+                disabled={isGeneratingInsights}
+                className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-lg hover:bg-indigo-500 transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                {isGeneratingInsights ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Generate Insights
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <AnimatePresence mode="popLayout">
+                {aiInsights.length > 0 ? (
+                  aiInsights.map((insight, i) => (
+                    <motion.div
+                      key={i}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: i * 0.1 }}
+                      className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 relative group hover:border-indigo-500/50 transition-all"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <span className={cn(
+                          "px-2 py-1 rounded-md text-[10px] font-black uppercase tracking-wider border",
+                          insight.category === 'Intelligence' ? 'bg-indigo-50 text-indigo-600 border-indigo-100' :
+                          insight.category === 'Success' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' :
+                          insight.category === 'Effort' ? 'bg-amber-50 text-amber-600 border-amber-100' :
+                          'bg-rose-50 text-rose-600 border-rose-100'
+                        )}>
+                          {insight.category}
+                        </span>
+                        <span className={cn(
+                          "text-[10px] font-bold uppercase tracking-wider",
+                          insight.impact === 'High' ? 'text-rose-600' :
+                          insight.impact === 'Medium' ? 'text-amber-600' :
+                          'text-emerald-600'
+                        )}>
+                          {insight.impact} Impact
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-zinc-900 dark:text-white mb-2">{insight.title}</h4>
+                      <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">{insight.description}</p>
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="col-span-full py-12 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
+                    <Sparkles className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+                    <p className="text-sm text-zinc-500">Click generate to see AI-powered strategic insights for your company.</p>
+                  </div>
+                )}
+              </AnimatePresence>
             </div>
           </div>
 

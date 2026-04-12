@@ -7,6 +7,15 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 
 console.log('Main entry point reached');
 
+if (typeof window !== 'undefined') {
+  window.onerror = function(message, source, lineno, colno, error) {
+    console.error('Global Error Caught:', { message, source, lineno, colno, error });
+  };
+  window.onunhandledrejection = function(event) {
+    console.error('Unhandled Rejection Caught:', event.reason);
+  };
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>

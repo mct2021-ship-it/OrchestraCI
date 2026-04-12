@@ -43,7 +43,28 @@ export async function getGeminiClient(): Promise<GoogleGenAI | null> {
     return null;
   }
 
-  return new GoogleGenAI({ apiKey });
+  const genAI = new GoogleGenAI({ apiKey });
+  
+  // Shim for the pattern used in the app
+  return {
+    ...genAI,
+    models: {
+      generateContent: async (options: any) => {
+        const model = genAI.getGenerativeModel({ 
+          model: options.model,
+          generationConfig: options.config,
+          systemInstruction: options.config?.systemInstruction
+        });
+        
+        const result = await model.generateContent(options.contents);
+        const response = await result.response;
+        return {
+          text: response.text(),
+          response
+        };
+      }
+    }
+  };
 }
 
 /**
@@ -62,11 +83,16 @@ export async function ensureApiKey(): Promise<boolean> {
   }
 
   if (typeof window !== 'undefined' && window.aistudio) {
-    const hasKey = await window.aistudio.hasSelectedApiKey();
-    if (hasKey) return true;
-    
-    await window.aistudio.openSelectKey();
-    return true; // Assume success after opening dialog
+    try {
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (hasKey) return true;
+      
+      await window.aistudio.openSelectKey();
+      return true; // Assume success after opening dialog
+    } catch (error) {
+      console.error('Error in ensureApiKey:', error);
+      return false;
+    }
   }
 
   return false;

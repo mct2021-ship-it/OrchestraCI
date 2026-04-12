@@ -8,6 +8,7 @@ import { ContextualHelp } from '../components/ContextualHelp';
 import { usePermissions } from '../hooks/usePermissions';
 import { AddTeamMemberModal } from '../components/AddTeamMemberModal';
 import { PRESET_AVATARS } from '../constants';
+import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 
 interface ProjectTeamProps {
   project: Project;
@@ -30,6 +31,7 @@ export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate,
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
   const [customRole, setCustomRole] = useState('');
   const [isCustomRole, setIsCustomRole] = useState(false);
+  const [isAvatarGalleryOpen, setIsAvatarGalleryOpen] = useState(false);
 
   const isAdmin = currentUser?.role === 'Admin';
 
@@ -330,7 +332,7 @@ export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate,
                           <User className="w-6 h-6" />
                         </div>
                       )}
-                      <div className="flex gap-2">
+                      <div className="flex flex-col gap-2 w-full">
                         <input 
                           type="file" 
                           id="edit-team-photo-upload"
@@ -375,30 +377,31 @@ export function ProjectTeam({ project, projects, setProjects, tasks, onNavigate,
                             }
                           }}
                         />
-                        <label 
-                          htmlFor="edit-team-photo-upload"
-                          className="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors cursor-pointer"
-                          title="Upload Photo"
-                        >
-                          <Upload className="w-4 h-4" />
-                        </label>
+                        <div className="flex items-center gap-2">
+                          <label 
+                            htmlFor="edit-team-photo-upload"
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors cursor-pointer text-sm font-medium flex-1"
+                          >
+                            <Upload className="w-4 h-4" />
+                            Upload Photo
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setIsAvatarGalleryOpen(true)}
+                            className="flex items-center justify-center gap-2 px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-lg transition-colors text-sm font-medium flex-1"
+                          >
+                            <User className="w-4 h-4" />
+                            Use Avatar
+                          </button>
+                        </div>
                       </div>
                     </div>
-                    <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-                      {PRESET_AVATARS.map((url, i) => (
-                        <button 
-                          key={i}
-                          type="button"
-                          onClick={() => setEditPhotoUrl(url)}
-                          className={cn(
-                            "w-8 h-8 rounded-full overflow-hidden border-2 transition-all shrink-0",
-                            editPhotoUrl === url ? "border-indigo-600 scale-110 shadow-sm" : "border-transparent hover:border-zinc-300 dark:hover:border-zinc-600"
-                          )}
-                        >
-                          <img src={url} alt={`Avatar ${i}`} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        </button>
-                      ))}
-                    </div>
+                    
+                    <AvatarGalleryModal 
+                      isOpen={isAvatarGalleryOpen}
+                      onClose={() => setIsAvatarGalleryOpen(false)}
+                      onSelect={(url) => setEditPhotoUrl(url)}
+                    />
                   </div>
                 </div>
                 </div>

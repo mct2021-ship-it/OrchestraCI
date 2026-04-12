@@ -20,8 +20,8 @@ import {
 import { Project, Sprint, Task, User } from '../types';
 import { cn } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
-import { ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
+import { v4 as uuidv4 } from 'uuid';
 
 interface SprintManagementProps {
   projects: Project[];
@@ -29,12 +29,13 @@ interface SprintManagementProps {
   users: User[];
   sprints: Sprint[];
   setSprints: React.Dispatch<React.SetStateAction<Sprint[]>>;
+  setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   activeProjectId?: string | null;
 }
 
-export function SprintManagement({ projects, tasks, users, sprints, setSprints, activeProjectId }: SprintManagementProps) {
+export function SprintManagement({ projects, tasks, users, sprints, setSprints, setTasks, activeProjectId }: SprintManagementProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'All' | 'In Progress' | 'Done' | 'Not Started'>('In Progress');
+  const [statusFilter, setStatusFilter] = useState<'All' | 'In Progress' | 'Done' | 'Not Started'>('All');
   const [projectFilter, setProjectFilter] = useState<string>(activeProjectId || 'All');
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -52,12 +53,17 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
 
   const handleAddSprint = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSprintData.name || !newSprintData.projectId) return;
+    const projectId = newSprintData.projectId || (projectFilter !== 'All' ? projectFilter : (activeProjectId || projects[0]?.id));
+    
+    if (!newSprintData.name || !projectId) {
+      console.error('Missing required sprint data:', { name: newSprintData.name, projectId });
+      return;
+    }
 
     const newSprint: Sprint = {
-      id: `spr_${Date.now()}`,
-      projectId: newSprintData.projectId,
-      number: sprints.filter(s => s.projectId === newSprintData.projectId).length + 1,
+      id: uuidv4(),
+      projectId: projectId,
+      number: sprints.filter(s => s.projectId === projectId).length + 1,
       name: newSprintData.name,
       goal: newSprintData.goal,
       startDate: newSprintData.startDate!,
@@ -78,6 +84,41 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
       stage: 'Discover',
       tasks: []
     });
+  };
+
+  const handleAddTaskToSprint = (sprintId: string, taskId: string) => {
+    setSprints(prev => prev.map(s => {
+      if (s.id === sprintId) {
+        const tasks = s.tasks || [];
+        if (!tasks.includes(taskId)) {
+          return { ...s, tasks: [...tasks, taskId] };
+        }
+      }
+      return s;
+    }));
+
+    setTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        return { ...t, sprint: sprintId };
+      }
+      return t;
+    }));
+  };
+
+  const handleRemoveTaskFromSprint = (sprintId: string, taskId: string) => {
+    setSprints(prev => prev.map(s => {
+      if (s.id === sprintId) {
+        return { ...s, tasks: (s.tasks || []).filter(id => id !== taskId) };
+      }
+      return s;
+    }));
+
+    setTasks(prev => prev.map(t => {
+      if (t.id === taskId) {
+        return { ...t, sprint: undefined };
+      }
+      return t;
+    }));
   };
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
@@ -167,15 +208,11 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
       - Ensure the members involved and tasks completed are accurately reflected based ONLY on the provided task list.
       - Format as professional Markdown.`;
 
-      const response = await ai.models.generateContent({
+      const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: prompt,
-        config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.LOW }
-        }
       });
-
-      const report = response.text || 'Failed to generate report.';
+      const report = result.text || 'Failed to generate report.';
       
       setSprints(prev => prev.map(s => s.id === sprint.id ? { ...s, report } : s));
       setSelectedSprint({ ...sprint, report });
@@ -540,7 +577,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                       </p>
                     </div>
 
-                    <div className="space-y-4">
+            <div className="space-y-4">
                       <div className="flex items-center justify-between">
                         <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Sprint Backlog</h4>
                         <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded-md text-[10px] font-bold text-zinc-500">
@@ -549,7 +586,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                       </div>
                       <div className="space-y-3">
                         {getSprintTasks(selectedSprint.id).map(task => (
-                          <div key={task.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl hover:border-indigo-500/30 transition-all">
+                          <div key={task.id} className="flex items-center justify-between p-4 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-2xl hover:border-indigo-500/30 transition-all group">
                             <div className="flex items-center gap-4">
                               <div className={cn(
                                 "w-2 h-2 rounded-full",
@@ -567,9 +604,45 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                               )}>
                                 {task.impact}
                               </span>
+                              <button 
+                                onClick={() => handleRemoveTaskFromSprint(selectedSprint.id, task.id)}
+                                className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg opacity-0 group-hover:opacity-100 transition-all"
+                              >
+                                <Plus className="w-4 h-4 rotate-45" />
+                              </button>
                             </div>
                           </div>
                         ))}
+
+                        {/* Add Task to Sprint Section */}
+                        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                          <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Add from Project Backlog</h5>
+                          <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                            {tasks
+                              .filter(t => t.projectId === selectedSprint.projectId && (!t.sprint || t.sprint !== selectedSprint.id) && t.kanbanStatus !== 'Done')
+                              .map(task => (
+                                <button
+                                  key={task.id}
+                                  onClick={() => handleAddTaskToSprint(selectedSprint.id, task.id)}
+                                  className="w-full flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-transparent hover:border-indigo-500/30 rounded-xl transition-all text-left group"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-zinc-300 dark:bg-zinc-600" />
+                                    <div>
+                                      <p className="text-xs font-bold text-zinc-900 dark:text-white">{task.title}</p>
+                                      <p className="text-[9px] text-zinc-500">{task.kanbanStatus}</p>
+                                    </div>
+                                  </div>
+                                  <div className="p-1 bg-white dark:bg-zinc-700 rounded-md text-zinc-400 group-hover:text-indigo-600 transition-colors">
+                                    <Plus className="w-3.5 h-3.5" />
+                                  </div>
+                                </button>
+                              ))}
+                            {tasks.filter(t => t.projectId === selectedSprint.projectId && (!t.sprint || t.sprint !== selectedSprint.id) && t.kanbanStatus !== 'Done').length === 0 && (
+                              <p className="text-center py-4 text-xs text-zinc-500 italic">No available tasks in backlog.</p>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { Task, Project, User, RecycleBinItem } from '../types';
-import { Target, Search, Filter, AlertCircle, LayoutList, CheckCircle2, Clock } from 'lucide-react';
+import { Task, Project, User, RecycleBinItem, Sprint } from '../types';
+import { Target, Search, Filter, AlertCircle, LayoutList, CheckCircle2, Clock, CheckSquare, User as UserIcon, Calendar, Trash2 as TrashIcon, UsersRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
@@ -10,6 +10,7 @@ import { usePermissions } from '../hooks/usePermissions';
 interface TaskListProps {
   tasks: Task[];
   projects: Project[];
+  sprints: Sprint[];
   initialAssigneeId?: string;
   initialProjectId?: string;
   initialTaskId?: string;
@@ -19,17 +20,22 @@ interface TaskListProps {
   onUpdateTask?: (task: Task) => void;
   onDeleteTask?: (taskId: string) => void;
   onDeleteItem?: (item: any, type: RecycleBinItem['type'], originalProjectId?: string) => void;
-  onAddTeamMember?: (user: User) => void;
+  onAddTeamMember?: (user: User, projectId?: string) => void;
   currentUser?: User;
   users?: User[];
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
 }
 
-export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId, initialTaskId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [], onAddToAuditLog }: TaskListProps) {
+export function TaskList({ tasks, projects, sprints, initialAssigneeId, initialProjectId, initialTaskId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [], onAddToAuditLog }: TaskListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState<string>(initialAssigneeId || 'all');
   const [selectedProject, setSelectedProject] = useState<string>(initialProjectId || 'all');
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [bulkAssignee, setBulkAssignee] = useState<string>('');
+  const [bulkSprint, setBulkSprint] = useState<string>('');
+  const [pendingTeamMember, setPendingTeamMember] = useState<User | null>(null);
+  const [pendingTasksForTeam, setPendingTasksForTeam] = useState<Task[]>([]);
 
   const { canEditProjectFeature } = usePermissions();
 
@@ -54,26 +60,21 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
     }
   }, [initialProjectId]);
 
-  // Extract all unique assignees from tasks and project teams
-  const assignees = useMemo(() => {
-    const users = new Map<string, string>();
-    
-    // Add from tasks
+  // Available assignees from all users
+  const availableAssignees = useMemo(() => {
+    return users.map(u => u.name).sort();
+  }, [users]);
+
+  // Extract all unique assignees currently assigned to tasks (for filtering)
+  const taskAssignees = useMemo(() => {
+    const names = new Set<string>();
     tasks.forEach(task => {
       if (task.owner) {
-        users.set(task.owner, task.owner);
+        names.add(task.owner);
       }
     });
-    
-    // Add from project teams
-    projects.forEach(project => {
-      project.team?.forEach(member => {
-        users.set(member.name, member.name);
-      });
-    });
-    
-    return Array.from(users.values()).sort();
-  }, [tasks, projects]);
+    return Array.from(names).sort();
+  }, [tasks]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter(task => {
@@ -107,6 +108,60 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
 
   const getProjectName = (projectId: string) => {
     return projects.find(p => p.id === projectId)?.name || 'Unknown Project';
+  };
+
+  const handleBulkUpdate = (updates: Partial<Task>) => {
+    if (!onUpdateTask) return;
+
+    if (updates.owner) {
+      const selectedUser = users.find(u => u.name === updates.owner);
+      if (selectedUser) {
+        const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
+        const projectsToUpdate = new Set<string>();
+        
+        selectedTasks.forEach(task => {
+          const project = projects.find(p => p.id === task.projectId);
+          if (project) {
+            const isInTeam = project.team?.some(m => m.userId === selectedUser.id || m.name === selectedUser.name);
+            if (!isInTeam) {
+              projectsToUpdate.add(project.id);
+            }
+          }
+        });
+
+        if (projectsToUpdate.size > 0) {
+          setPendingTeamMember(selectedUser);
+          setPendingTasksForTeam(selectedTasks);
+          return;
+        }
+      }
+    }
+    
+    selectedTaskIds.forEach(id => {
+      const task = tasks.find(t => t.id === id);
+      if (task) {
+        onUpdateTask({ ...task, ...updates });
+      }
+    });
+    
+    setSelectedTaskIds([]);
+    setBulkAssignee('');
+    setBulkSprint('');
+  };
+
+  const toggleTaskSelection = (taskId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedTaskIds(prev => 
+      prev.includes(taskId) ? prev.filter(id => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedTaskIds.length === filteredTasks.length) {
+      setSelectedTaskIds([]);
+    } else {
+      setSelectedTaskIds(filteredTasks.map(t => t.id));
+    }
   };
 
   const content = (
@@ -152,7 +207,7 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
             >
               <option value="all">All Assignees</option>
               <option value="unassigned">Unassigned</option>
-              {assignees.map(assignee => (
+              {taskAssignees.map(assignee => (
                 <option key={assignee} value={assignee}>{assignee}</option>
               ))}
             </select>
@@ -177,11 +232,83 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
         </div>
       </div>
 
+      <AnimatePresence>
+        {selectedTaskIds.length > 0 && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            className="overflow-hidden"
+          >
+            <div className="bg-indigo-600 rounded-2xl p-4 flex flex-wrap items-center gap-6 text-white shadow-lg">
+              <div className="flex items-center gap-3 pr-6 border-r border-white/20">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center font-bold">
+                  {selectedTaskIds.length}
+                </div>
+                <span className="font-bold">Tasks Selected</span>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-4 flex-1">
+                <div className="flex items-center gap-2">
+                  <UserIcon className="w-4 h-4 text-indigo-200" />
+                  <select 
+                    value={bulkAssignee}
+                    onChange={(e) => {
+                      setBulkAssignee(e.target.value);
+                      if (e.target.value) handleBulkUpdate({ owner: e.target.value });
+                    }}
+                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm font-bold outline-none focus:ring-2 focus:ring-white/50"
+                  >
+                    <option value="" className="text-zinc-900">Assign to...</option>
+                    {availableAssignees.map(a => <option key={a} value={a} className="text-zinc-900">{a}</option>)}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-indigo-200" />
+                  <select 
+                    value={bulkSprint}
+                    onChange={(e) => {
+                      setBulkSprint(e.target.value);
+                      if (e.target.value) handleBulkUpdate({ sprint: e.target.value });
+                    }}
+                    className="bg-white/10 border border-white/20 rounded-lg px-3 py-1.5 text-sm font-bold outline-none focus:ring-2 focus:ring-white/50"
+                  >
+                    <option value="" className="text-zinc-900">Move to Sprint...</option>
+                    {sprints.map(s => <option key={s.id} value={s.name} className="text-zinc-900">{s.name}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <button 
+                onClick={() => setSelectedTaskIds([])}
+                className="text-sm font-bold hover:text-indigo-200 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 overflow-hidden flex-1 flex flex-col min-h-0">
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse">
             <thead className="sticky top-0 bg-zinc-50 dark:bg-zinc-900/50 z-10 shadow-sm">
               <tr className="border-b border-zinc-200 dark:border-zinc-800">
+                <th className="px-6 py-4 w-10">
+                  <button 
+                    onClick={toggleAllSelection}
+                    className={cn(
+                      "w-5 h-5 rounded border flex items-center justify-center transition-all",
+                      selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0
+                        ? "bg-indigo-600 border-indigo-600 text-white"
+                        : "bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700"
+                    )}
+                  >
+                    {selectedTaskIds.length === filteredTasks.length && filteredTasks.length > 0 && <CheckCircle2 className="w-3.5 h-3.5" />}
+                  </button>
+                </th>
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Task</th>
                 {!isEmbedded && <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Project</th>}
                 <th className="px-6 py-4 text-xs font-bold text-zinc-500 uppercase tracking-wider">Sprint</th>
@@ -208,8 +335,21 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
                         setEditingTask(task);
                       }
                     }}
-                    className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer"
+                    className={cn(
+                      "hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors cursor-pointer",
+                      selectedTaskIds.includes(task.id) && "bg-indigo-50/50 dark:bg-indigo-900/10"
+                    )}
                   >
+                    <td className="px-6 py-4" onClick={(e) => toggleTaskSelection(task.id, e)}>
+                      <div className={cn(
+                        "w-5 h-5 rounded border flex items-center justify-center transition-all",
+                        selectedTaskIds.includes(task.id)
+                          ? "bg-indigo-600 border-indigo-600 text-white"
+                          : "bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-700"
+                      )}>
+                        {selectedTaskIds.includes(task.id) && <CheckCircle2 className="w-3.5 h-3.5" />}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <div className="font-bold text-zinc-900 dark:text-white">{task.title}</div>
@@ -274,6 +414,7 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
           <TaskModal
             task={editingTask}
             project={projects.find(p => p.id === editingTask.projectId) || projects[0]}
+            sprints={sprints}
             currentUser={currentUser}
             users={users}
             isReadOnly={!canEditProjectFeature(projects.find(p => p.id === editingTask.projectId) || projects[0])}
@@ -300,6 +441,78 @@ export function TaskList({ tasks, projects, initialAssigneeId, initialProjectId,
               setEditingTask(null);
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Add to Team Prompt for Bulk Assignment */}
+      <AnimatePresence>
+        {pendingTeamMember && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl p-8 max-w-sm w-full shadow-2xl border border-zinc-200 dark:border-zinc-800 text-center"
+            >
+              <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center mx-auto mb-6">
+                <UsersRound className="w-8 h-8" />
+              </div>
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Add to Project Teams?</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-8 leading-relaxed">
+                <span className="font-bold text-zinc-900 dark:text-white">{pendingTeamMember.name}</span> is not currently on some of the project teams for the selected tasks. Would you like me to add them?
+              </p>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    setPendingTeamMember(null);
+                    setPendingTasksForTeam([]);
+                    setBulkAssignee('');
+                  }}
+                  className="px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-xl font-bold hover:bg-zinc-200 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (onAddTeamMember) {
+                      // Find all projects that need this user
+                      const projectsToUpdate = new Set<string>();
+                      pendingTasksForTeam.forEach(task => {
+                        const project = projects.find(p => p.id === task.projectId);
+                        if (project) {
+                          const isInTeam = project.team?.some(m => m.userId === pendingTeamMember.id || m.name === pendingTeamMember.name);
+                          if (!isInTeam) {
+                            projectsToUpdate.add(project.id);
+                          }
+                        }
+                      });
+
+                      // Add them to each project
+                      projectsToUpdate.forEach(pid => {
+                        onAddTeamMember(pendingTeamMember, pid);
+                      });
+                    }
+
+                    // Proceed with bulk update
+                    pendingTasksForTeam.forEach(task => {
+                      if (onUpdateTask) {
+                        onUpdateTask({ ...task, owner: pendingTeamMember.name });
+                      }
+                    });
+
+                    setPendingTeamMember(null);
+                    setPendingTasksForTeam([]);
+                    setSelectedTaskIds([]);
+                    setBulkAssignee('');
+                    setBulkSprint('');
+                  }}
+                  className="px-4 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+                >
+                  Add & Assign
+                </button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

@@ -21,10 +21,12 @@ interface KanbanBoardProps {
   setProjects: React.Dispatch<React.SetStateAction<Project[]>>;
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+  sprints: Sprint[];
+  setSprints: React.Dispatch<React.SetStateAction<Sprint[]>>;
   onNavigate?: (tab: string) => void;
   currentUser?: any;
   onDeleteItem?: (item: any, type: any, originalProjectId?: string) => void;
-  onAddTeamMember?: (user: any) => void;
+  onAddTeamMember?: (user: any, projectId?: string) => void;
   users?: any[];
   activeTaskId?: string | null;
 }
@@ -39,7 +41,7 @@ const COLUMN_COLORS = [
   { id: 'emerald', name: 'Emerald', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', text: 'text-emerald-700 dark:text-emerald-300', headerBg: 'bg-emerald-100 dark:bg-emerald-800' },
 ];
 
-export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [], activeTaskId }: KanbanBoardProps) {
+export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, setSprints, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [], activeTaskId }: KanbanBoardProps) {
   const { addToast } = useToast();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -87,7 +89,15 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
     };
   }, []);
   
-  const [selectedSprintId, setSelectedSprintId] = useState<number | 'current'>('current');
+  const [selectedSprintId, setSelectedSprintId] = useState<string | 'all'>('all');
+  
+  useEffect(() => {
+    // Set default sprint to the first 'In Progress' sprint of the project
+    const activeSprint = sprints.find(s => s.projectId === project.id && s.status === 'In Progress');
+    if (activeSprint) {
+      setSelectedSprintId(activeSprint.id);
+    }
+  }, [project.id]);
   
   const defaultColumns: KanbanColumn[] = [
     { id: 'Backlog', title: 'Backlog', color: 'zinc', order: 0 },
@@ -101,15 +111,14 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   }, [project.kanbanColumns]);
 
   const filteredTasks = useMemo(() => {
-    if (selectedSprintId === 'current') {
+    if (selectedSprintId === 'all') {
       return tasks.filter(t => t.projectId === project.id && !t.archived);
     } else {
-      const snapshot = project.sprintSnapshots?.find(s => s.sprintNumber === selectedSprintId);
-      return snapshot ? snapshot.tasks : [];
+      return tasks.filter(t => t.projectId === project.id && t.sprint === selectedSprintId && !t.archived);
     }
-  }, [tasks, project.id, selectedSprintId, project.sprintSnapshots]);
+  }, [tasks, project.id, selectedSprintId]);
 
-  const isReadOnly = selectedSprintId !== 'current';
+  const isReadOnly = false; // Allow editing even in past sprints for now, or we can check sprint status
 
   const getColumnColor = (colorId: string) => {
     return COLUMN_COLORS.find(c => c.id === colorId) || COLUMN_COLORS[0];
@@ -164,12 +173,12 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
     const persistentColumns = ['Backlog', 'In Progress', 'Done', 'Review/Test'];
     const columnToDelete = columns.find(c => c.id === id);
     if (columnToDelete && persistentColumns.includes(columnToDelete.id)) {
-      alert('This is a persistent column and cannot be deleted.');
+      addToast('This is a persistent column and cannot be deleted.', 'info');
       return;
     }
 
     if (filteredTasks.some(t => t.kanbanStatus === id || t.kanbanStatus === columnToDelete?.title)) {
-      alert('Cannot delete column with tasks. Please move tasks first.');
+      addToast('Cannot delete column with tasks. Please move tasks first.', 'info');
       return;
     }
     const updatedColumns = columns.filter(c => c.id !== id);
@@ -195,38 +204,38 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
 
 
   const ensureActiveSprint = () => {
-    if (!project.sprints || project.sprints.length === 0) {
+    const activeSprint = sprints.find(s => s.projectId === project.id && s.status === 'In Progress');
+    if (!activeSprint) {
       const newSprint: Sprint = {
         id: uuidv4(),
         projectId: project.id,
-        number: 1,
-        name: 'Sprint 1',
+        number: (sprints.filter(s => s.projectId === project.id).length || 0) + 1,
+        name: `Sprint ${(sprints.filter(s => s.projectId === project.id).length || 0) + 1}`,
         startDate: new Date().toISOString(),
         endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
         status: 'In Progress'
       };
-      setProjects(prev => prev.map(p => 
-        p.id === project.id ? { ...p, sprints: [newSprint], currentSprint: 1 } : p
-      ));
-      addToast('Sprint 1 created and started', 'success');
+      setSprints(prev => [...prev, newSprint]);
+      addToast(`${newSprint.name} created and started`, 'success');
+      return newSprint.id;
     }
+    return activeSprint.id;
   };
 
   const handleCreateInitialSprint = () => {
     const newSprint: Sprint = {
       id: uuidv4(),
       projectId: project.id,
-      number: 1,
-      name: 'Sprint 1',
+      number: (sprints.filter(s => s.projectId === project.id).length || 0) + 1,
+      name: `Sprint ${(sprints.filter(s => s.projectId === project.id).length || 0) + 1}`,
       description: initialSprintDescription,
       startDate: new Date().toISOString(),
       endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       status: 'In Progress'
     };
-    setProjects(prev => prev.map(p => 
-      p.id === project.id ? { ...p, sprints: [newSprint], currentSprint: 1 } : p
-    ));
-    addToast('Sprint 1 created and started', 'success');
+    setSprints(prev => [...prev, newSprint]);
+    setSelectedSprintId(newSprint.id);
+    addToast(`${newSprint.name} created and started`, 'success');
     setIsInitialSprintModalOpen(false);
     
     // Create the task directly instead of calling handleAddTask to avoid race condition
@@ -243,7 +252,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
       impact: 'Medium',
       effort: 'Medium',
       owner: '',
-      sprint: 'Sprint 1',
+      sprint: newSprint.id,
       createdAt: new Date().toISOString(),
       stageHistory: [{ stage: status, enteredAt: new Date().toISOString() }],
     };
@@ -278,8 +287,10 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
     const column = columns.find(c => c.id === columnId || c.title === columnId);
     const status = column ? (column.id === column.title ? column.title : column.id) : columnId;
 
-    if (status !== 'Backlog' && status !== 'backlog') {
-      ensureActiveSprint();
+    let sprintId = selectedSprintId === 'all' ? undefined : selectedSprintId;
+
+    if (status !== 'Backlog' && status !== 'backlog' && !sprintId) {
+      sprintId = ensureActiveSprint();
     }
 
     const newTask: Task = {
@@ -292,7 +303,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
       impact: 'Medium',
       effort: 'Medium',
       owner: '',
-      sprint: `Sprint ${project.currentSprint || 1}`,
+      sprint: sprintId,
       createdAt: new Date().toISOString(),
       stageHistory: [{ stage: status, enteredAt: new Date().toISOString() }],
     };
@@ -432,15 +443,16 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
   }, [filteredTasks]);
 
   const handleFinishSprint = () => {
-    const currentSprintNum = project.currentSprint || 1;
-    const currentSprintTasks = tasks.filter(t => t.projectId === project.id && (t.sprint === `Sprint ${currentSprintNum}` || !t.sprint)); // Fallback to current project tasks if no sprint
+    const activeSprint = sprints.find(s => s.projectId === project.id && s.status === 'In Progress');
+    if (!activeSprint) return;
+
+    const currentSprintTasks = tasks.filter(t => t.projectId === project.id && t.sprint === activeSprint.id);
     
     const completedTasks = currentSprintTasks.filter(t => t.kanbanStatus === 'Done' || t.kanbanStatus === 'Completed' || t.kanbanStatus === 'Archived');
     const incompleteTasksInSprint = currentSprintTasks.filter(t => t.kanbanStatus !== 'Done' && t.kanbanStatus !== 'Completed' && t.kanbanStatus !== 'Archived' && t.kanbanStatus !== 'Backlog');
 
     // Move incomplete tasks to Backlog and clear their sprint
     const updatedTasks = tasks.map(t => {
-      // Check if task is one of the incomplete tasks in this sprint
       if (incompleteTasksInSprint.some(it => it.id === t.id)) {
         return { 
           ...t, 
@@ -455,34 +467,24 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
 
     setTasks(updatedTasks);
     
-    // Save sprint snapshot
-    const newSnapshot: SprintSnapshot = {
-      sprintNumber: currentSprintNum,
-      name: `Sprint ${currentSprintNum}`,
-      description: project.currentSprintDescription || '',
-      tasks: completedTasks,
-      completedAt: new Date().toISOString()
-    };
-    
-    setProjects(prev => prev.map(p => {
-      if (p.id === project.id) {
+    // Update sprint status
+    setSprints(prev => prev.map(s => {
+      if (s.id === activeSprint.id) {
         return {
-          ...p,
-          sprintSnapshots: [...(p.sprintSnapshots || []), newSnapshot],
-          currentSprint: currentSprintNum + 1,
-          currentSprintDescription: '',
-          // If the user wants a new sprint started immediately, they can do it via 'Add Task' or 'Manage Sprints'
+          ...s,
+          status: 'Done',
+          completedAt: new Date().toISOString()
         };
       }
-      return p;
+      return s;
     }));
 
     setIsFinishSprintModalOpen(false);
-    addToast(`Sprint ${currentSprintNum} finished successfully. ${completedTasks.length} tasks completed.`, 'success');
+    addToast(`${activeSprint.name} finished successfully. ${completedTasks.length} tasks completed.`, 'success');
     
     if (generateReportOnFinish) {
       setTimeout(() => {
-        setSelectedSprintId(currentSprintNum);
+        setSelectedSprintId(activeSprint.id);
         setIsReportModalOpen(true);
       }, 500); 
     }
@@ -543,44 +545,49 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
         />
       </div>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 shrink-0 print:mb-8">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-sm font-bold text-indigo-600 uppercase tracking-widest">
-            <Target className="w-4 h-4" />
-            Project Execution
-          </div>
-          <div className="flex items-center gap-4">
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
             <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Kanban Board</h2>
-            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-medium border border-indigo-200 dark:border-indigo-500/30">
-              {project.name}
-            </span>
-            <span className="px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-bold border border-indigo-200 dark:border-indigo-800">
-              Stage: {project.status}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold border border-indigo-100 dark:border-indigo-500/20">
+                {project.name}
+              </span>
+              <select
+                value={selectedSprintId}
+                onChange={(e) => setSelectedSprintId(e.target.value)}
+                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1 text-sm font-bold text-zinc-700 dark:text-zinc-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer shadow-sm"
+              >
+                <option value="all">All Project Tasks</option>
+                {sprints
+                  .filter(s => s.projectId === project.id)
+                  .sort((a, b) => (b.number || 0) - (a.number || 0))
+                  .map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                  ))}
+              </select>
+              <span className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg text-sm font-bold border border-zinc-200 dark:border-zinc-700">
+                {project.status}
+              </span>
+            </div>
           </div>
-          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl">
-            Track and manage tasks for <span className="text-indigo-600 font-semibold">{project.name}</span>.
+          <p className="text-zinc-500 dark:text-zinc-400 max-w-2xl text-sm">
+            Manage and track execution for <span className="text-zinc-900 dark:text-white font-semibold">{project.name}</span>.
           </p>
-          <div className="mt-4 max-w-2xl">
+          <div className="max-w-2xl">
             <textarea
               placeholder={isReadOnly ? "No description provided for this sprint." : "Add a description or goals for this sprint..."}
               value={
-                selectedSprintId === 'current' 
-                  ? (project.currentSprintDescription || '') 
-                  : (project.sprintSnapshots?.find(s => s.sprintNumber === selectedSprintId)?.description || '')
+                selectedSprintId === 'all' 
+                  ? (project.description || '') 
+                  : (sprints.find(s => s.id === selectedSprintId)?.description || '')
               }
               onChange={(e) => {
-                if (selectedSprintId === 'current') {
-                  setProjects(prev => prev.map(p => p.id === project.id ? { ...p, currentSprintDescription: e.target.value } : p));
+                if (selectedSprintId === 'all') {
+                  setProjects(prev => prev.map(p => p.id === project.id ? { ...p, description: e.target.value } : p));
                 } else {
-                  setProjects(prev => prev.map(p => {
-                    if (p.id === project.id) {
-                      const updatedSnapshots = p.sprintSnapshots?.map(s => 
-                        s.sprintNumber === selectedSprintId ? { ...s, description: e.target.value } : s
-                      );
-                      return { ...p, sprintSnapshots: updatedSnapshots };
-                    }
-                    return p;
-                  }));
+                  setSprints(prev => prev.map(s => 
+                    s.id === selectedSprintId ? { ...s, description: e.target.value } : s
+                  ));
                 }
               }}
               className="w-full px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-zinc-700 dark:text-zinc-300 resize-none min-h-[60px]"
@@ -677,14 +684,14 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           </div>
 
           <button 
-            onClick={() => onNavigate && onNavigate('sprints')}
+            onClick={() => onNavigate && onNavigate('backlog_sprints')}
             className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm"
           >
             <Target className="w-4 h-4" />
             <span className="hidden sm:inline">Manage Sprints</span>
           </button>
 
-          {!isReadOnly && project.sprints && project.sprints.length > 0 && (
+          {!isReadOnly && sprints.some(s => s.projectId === project.id) && (
             <button 
               onClick={() => setIsFinishSprintModalOpen(true)}
               className="bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-sm"
@@ -697,7 +704,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           {!isReadOnly && (
             <button 
               onClick={() => {
-                if (!project.sprints || project.sprints.length === 0) {
+                if (!sprints.some(s => s.projectId === project.id)) {
                   setIsInitialSprintModalOpen(true);
                 } else {
                   handleAddTask('Backlog');
@@ -725,7 +732,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           {!isReadOnly && (
             <button 
               onClick={() => {
-                if (!project.sprints || project.sprints.length === 0) {
+                if (!sprints.some(s => s.projectId === project.id)) {
                   setIsInitialSprintModalOpen(true);
                 } else {
                   handleAddTask(columns[0].id);
@@ -743,6 +750,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           <TaskList 
             tasks={filteredTasks} 
             projects={[project]} 
+            sprints={sprints}
             initialProjectId={project.id} 
             isEmbedded={true} 
             onTaskClick={(task) => setEditingTask(task)}
@@ -938,6 +946,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
           <TaskModal
             task={editingTask}
             project={project}
+            sprints={sprints}
             currentUser={currentUser}
             users={users}
             isReadOnly={!canEdit}
@@ -1087,9 +1096,10 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, onNavigate,
       </AnimatePresence>
       </div>
 
-      {isReportModalOpen && selectedSprintId !== 'current' && (
+      {isReportModalOpen && selectedSprintId !== 'all' && (
         <SprintReportModal
-          sprint={project.sprintSnapshots?.find(s => s.sprintNumber === selectedSprintId)!}
+          sprint={sprints.find(s => s.id === selectedSprintId)!}
+          tasks={tasks.filter(t => t.sprint === selectedSprintId)}
           project={project}
           onClose={() => setIsReportModalOpen(false)}
         />

@@ -362,16 +362,51 @@ export function JourneyMaps({
     if (!element) return;
 
     try {
-      // Basic HTML export for Word
+      // Basic HTML export for Word with some styling
       const html = `
         <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
         <head>
           <meta charset='utf-8'>
           <title>${activeJourney.title}</title>
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; }
+            h1 { color: #4f46e5; border-bottom: 2px solid #e5e7eb; padding-bottom: 10px; }
+            h2 { color: #1f2937; margin-top: 20px; }
+            .stage-container { margin-bottom: 30px; border: 1px solid #e5e7eb; padding: 15px; border-radius: 8px; }
+            .stage-header { font-weight: bold; font-size: 1.2em; margin-bottom: 10px; }
+            .lane-title { font-weight: bold; color: #6b7280; text-transform: uppercase; font-size: 0.8em; margin-top: 10px; }
+            .item-list { margin-left: 20px; }
+            .item-title { font-weight: bold; }
+            .item-desc { color: #4b5563; font-size: 0.9em; }
+          </style>
         </head>
         <body>
-          <h1>${activeJourney.title}</h1>
-          ${element.innerHTML}
+          <h1>Journey Map: ${activeJourney.title}</h1>
+          <p><strong>Project:</strong> ${activeProject.name}</p>
+          <p><strong>State:</strong> ${activeJourney.state}</p>
+          <p><strong>Satisfaction:</strong> ${activeJourney.satisfaction.value} (${activeJourney.satisfaction.metric})</p>
+          <p><strong>Total Carbon:</strong> ${activeJourney.carbonFootprint?.toFixed(2) || 0} kg CO2e</p>
+          
+          <hr />
+          
+          ${activeJourney.stages.map(stage => `
+            <div class="stage-container">
+              <div class="stage-header">Stage: ${stage.name}</div>
+              <p>Emotion Score: ${stage.emotion}/5</p>
+              
+              ${activeJourney.swimlanes.map(lane => `
+                <div class="lane-title">${lane.name}</div>
+                <ul class="item-list">
+                  ${(stage.laneData[lane.id] || []).map(item => `
+                    <li>
+                      <span class="item-title">${item.title}</span>
+                      ${item.description ? `<br/><span class="item-desc">${item.description}</span>` : ''}
+                    </li>
+                  `).join('')}
+                </ul>
+              `).join('')}
+            </div>
+          `).join('')}
         </body>
         </html>
       `;
@@ -397,31 +432,38 @@ export function JourneyMaps({
     const element = document.getElementById('journey-map-content');
     if (!element) return;
 
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      allowTaint: false,
-      logging: false,
-      backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
-      onclone: (clonedDoc) => {
-        fixOklch(clonedDoc);
-        const clonedElement = clonedDoc.getElementById('journey-map-content');
-        if (clonedElement) {
-          clonedElement.style.overflow = 'visible';
-          clonedElement.style.height = 'auto';
-          clonedElement.style.width = `${element.scrollWidth}px`;
+    try {
+      addToast('Generating PDF...', 'info');
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: false,
+        logging: false,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+          const clonedElement = clonedDoc.getElementById('journey-map-content');
+          if (clonedElement) {
+            clonedElement.style.overflow = 'visible';
+            clonedElement.style.height = 'auto';
+            clonedElement.style.width = `${element.scrollWidth}px`;
+          }
         }
-      }
-    });
-    
-    const imgData = canvas.toDataURL('image/png');
-    const pdf = new jsPDF('l', 'mm', 'a4');
-    const imgProps = pdf.getImageProperties(imgData);
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-    
-    pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-    pdf.save(`${activeJourney.title.replace(/\s+/g, '_')}.pdf`);
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF('l', 'mm', 'a4');
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${activeJourney.title.replace(/\s+/g, '_')}.pdf`);
+      addToast('PDF generated successfully', 'success');
+    } catch (err) {
+      console.error('Failed to generate PDF', err);
+      addToast('Failed to generate PDF', 'error');
+    }
   };
 
   const handleAssessBenefits = async () => {
@@ -431,11 +473,12 @@ export function JourneyMaps({
     const otherMap = journeys.find(j => 
       j.projectId === activeProjectId && 
       j.id !== activeJourneyId && 
-      j.status === 'Complete'
+      j.state !== activeJourney.state && // Specifically look for the opposite state
+      !j.archived
     );
 
     if (!otherMap) {
-      alert("To assess benefits, you need both a 'Current' and a 'Proposed' journey map marked as 'Complete' for this project.");
+      addToast(`To assess benefits, you need both a 'Current' and a 'Proposed' journey map for this project.`, 'warning');
       return;
     }
 
@@ -498,6 +541,17 @@ export function JourneyMaps({
     } finally {
       setIsAssessing(false);
     }
+  };
+
+  const handleShare = () => {
+    setIsExportMenuOpen(false);
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      addToast('Link copied to clipboard', 'success');
+    }).catch(err => {
+      console.error('Failed to copy link', err);
+      addToast('Failed to copy link', 'error');
+    });
   };
 
   const handleExport = () => {
@@ -1026,20 +1080,29 @@ export function JourneyMaps({
   const updateCarbonValue = (stageId: string, laneId: string, itemIndex: number, value: number) => {
     setJourneys(journeys.map(j => {
       if (j.id === activeJourneyId) {
+        const updatedStages = j.stages.map(s => {
+          if (s.id === stageId) {
+            const newCarbonData = { ...(s.carbonData || {}) };
+            const laneCarbon = [...(newCarbonData[laneId] || [])];
+            // Ensure the array is long enough
+            while (laneCarbon.length <= itemIndex) laneCarbon.push(0);
+            laneCarbon[itemIndex] = value;
+            newCarbonData[laneId] = laneCarbon;
+            return { ...s, carbonData: newCarbonData };
+          }
+          return s;
+        });
+
+        // Recalculate total carbon
+        const totalCarbon = updatedStages.reduce((total, stage) => {
+          const stageCarbon = Object.values(stage.carbonData || {}).reduce((s, lane) => s + lane.reduce((l, val) => l + val, 0), 0);
+          return total + stageCarbon;
+        }, 0);
+
         return {
           ...j,
-          stages: j.stages.map(s => {
-            if (s.id === stageId) {
-              const newCarbonData = { ...(s.carbonData || {}) };
-              const laneCarbon = [...(newCarbonData[laneId] || [])];
-              // Ensure the array is long enough
-              while (laneCarbon.length <= itemIndex) laneCarbon.push(0);
-              laneCarbon[itemIndex] = value;
-              newCarbonData[laneId] = laneCarbon;
-              return { ...s, carbonData: newCarbonData };
-            }
-            return s;
-          })
+          stages: updatedStages,
+          carbonFootprint: totalCarbon
         };
       }
       return j;
@@ -1685,6 +1748,13 @@ export function JourneyMaps({
                       >
                         <FileText className="w-4 h-4 text-zinc-400" /> Export to Word
                       </button>
+                      <div className="h-px bg-zinc-100 dark:bg-zinc-800 my-1" />
+                      <button 
+                        onClick={handleShare}
+                        className="w-full px-4 py-2.5 text-left text-sm font-medium text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 flex items-center gap-2"
+                      >
+                        <Share2 className="w-4 h-4" /> Share Link
+                      </button>
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -2239,7 +2309,7 @@ export function JourneyMaps({
                           }
                         });
                         setPendingTaskData(null);
-                        alert(`Task added to ${col}!`);
+                        addToast(`Task added to ${col}!`, 'success');
                       }}
                       className="flex items-center justify-between px-6 py-4 bg-zinc-50 dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-200 rounded-2xl transition-all group"
                     >

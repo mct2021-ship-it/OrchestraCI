@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Sparkles, Loader2, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
-import { SprintSnapshot, Project } from '../types';
+import { Sprint, Project, Task } from '../types';
 import { ThinkingLevel } from '@google/genai';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
@@ -9,12 +9,13 @@ import { useToast } from '../context/ToastContext';
 import Markdown from 'react-markdown';
 
 interface SprintReportModalProps {
-  sprint: SprintSnapshot;
+  sprint: Sprint;
+  tasks: Task[];
   project: Project;
   onClose: () => void;
 }
 
-export function SprintReportModal({ sprint, project, onClose }: SprintReportModalProps) {
+export function SprintReportModal({ sprint, tasks, project, onClose }: SprintReportModalProps) {
   const [report, setReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const { addToast } = useToast();
@@ -32,10 +33,10 @@ export function SprintReportModal({ sprint, project, onClose }: SprintReportModa
 Generate a professional, nicely formatted sprint report for "${stripPIData(project.name)}" - ${stripPIData(sprint.name)}.
 
 Sprint Description/Goals: ${stripPIData(sprint.description || 'No specific goals provided.')}
-Completed At: ${new Date(sprint.completedAt).toLocaleDateString()}
+Completed At: ${sprint.completedAt ? new Date(sprint.completedAt).toLocaleDateString() : 'N/A'}
 
 Here are the tasks that were part of this sprint:
-${sprint.tasks.map(t => `- [${t.kanbanStatus}] ${stripPIData(t.title)} (${t.impact} Impact, ${t.effort} Effort, Owner: ${t.owner ? stripPIData(t.owner) : 'Unassigned'})
+${tasks.map(t => `- [${t.kanbanStatus}] ${stripPIData(t.title)} (${t.impact} Impact, ${t.effort} Effort, Owner: ${t.owner ? stripPIData(t.owner) : 'Unassigned'})
   Description: ${stripPIData(t.description || 'N/A')}`).join('\n')}
 
 Please provide a summary of the work completed, highlighting key achievements, high impact items, and overall progress. Use markdown formatting.
