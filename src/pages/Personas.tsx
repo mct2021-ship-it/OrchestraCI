@@ -297,7 +297,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: `Generate 5-7 high-quality user stories for the following customer persona:
         Name: ${stripPIData(selectedPersona.name)}
         Role: ${stripPIData(selectedPersona.role)}

@@ -141,7 +141,7 @@ export function VocSection() {
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
+        model: 'gemini-3-flash-preview',
         contents: `Analyze the following Voice of Customer data for the month of ${selectedMonth}. 
         1. Determine an overall satisfaction score from 0 to 100 based on the sentiment.
         2. Provide 2-3 concise bullet points of suggestions or key insights.

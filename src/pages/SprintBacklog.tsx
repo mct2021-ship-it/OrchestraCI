@@ -298,7 +298,7 @@ export function SprintBacklog({
       Tasks: ${sprintTasks.map(t => `- ${stripPIData(t.title)} (${t.kanbanStatus})`).join('\n')}`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: prompt,
       });
       const report = result.text || 'Failed to generate report.';

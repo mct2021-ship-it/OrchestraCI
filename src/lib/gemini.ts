@@ -43,28 +43,7 @@ export async function getGeminiClient(): Promise<GoogleGenAI | null> {
     return null;
   }
 
-  const genAI = new GoogleGenAI({ apiKey });
-  
-  // Shim for the pattern used in the app
-  return {
-    ...genAI,
-    models: {
-      generateContent: async (options: any) => {
-        const model = genAI.getGenerativeModel({ 
-          model: options.model,
-          generationConfig: options.config,
-          systemInstruction: options.config?.systemInstruction
-        });
-        
-        const result = await model.generateContent(options.contents);
-        const response = await result.response;
-        return {
-          text: response.text(),
-          response
-        };
-      }
-    }
-  };
+  return new GoogleGenAI({ apiKey });
 }
 
 /**

@@ -217,7 +217,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const result = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -304,7 +304,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const result = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
