@@ -64,7 +64,8 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
         }
       });
 
-      const suggestions = JSON.parse(response.text);
+      const text = response.text || '[]';
+      const suggestions = JSON.parse(text);
       setSuggestedItems(suggestions);
       addToast(`Suggested ${activeTab}s generated`, 'success');
     } catch (error) {

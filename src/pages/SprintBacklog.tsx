@@ -26,7 +26,7 @@ import {
   User as UserIcon
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
 import { v4 as uuidv4 } from 'uuid';
@@ -220,7 +220,7 @@ export function SprintBacklog({
       if (!ai) throw new Error('AI client not initialized');
 
       const response = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3-flash-preview",
         contents: `Prioritize the following project tasks using the MoSCoW method (Must, Should, Could, Wont).
         Project: ${stripPIData(activeProject?.name || '')}
         Description: ${stripPIData(activeProject?.description || '')}
@@ -234,7 +234,8 @@ export function SprintBacklog({
         }
       });
 
-      const priorities = JSON.parse(response.text);
+      const text = response.text || '{}';
+      const priorities = JSON.parse(text);
       setTasks(prev => prev.map(t => priorities[t.id] ? { ...t, moscow: priorities[t.id] } : t));
       addToast('Backlog prioritized with AI', 'success');
     } catch (error) {
@@ -585,7 +586,7 @@ export function SprintBacklog({
                       <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
                         <div className="flex items-center gap-1.5">
                           <Clock className="w-3.5 h-3.5" />
-                          <span>{sprint.endDate}</span>
+                          <span>{formatDate(sprint.startDate)} - {formatDate(sprint.endDate)}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Target className="w-3.5 h-3.5" />

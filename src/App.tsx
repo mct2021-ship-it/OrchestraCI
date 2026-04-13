@@ -62,6 +62,7 @@ function AppContent() {
   const planDetails = PLAN_DETAILS[plan];
 
   const [currentTab, setCurrentTab] = useState('welcome');
+  const [activeSubTab, setActiveSubTab] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>(['welcome']);
   const [activeJourneyId, setActiveJourneyId] = useState<string | null>(null);
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null);
@@ -459,6 +460,17 @@ function AppContent() {
     : [], [projectStakeholders, activeProjectId]);
 
   const handleTabChange = useCallback((tab: string, subTab?: string) => {
+    if (tab === 'taxonomy') {
+      setCurrentTab('intelligence');
+      setActiveSubTab('taxonomy');
+      setHistory(prev => [...prev, 'intelligence']);
+      return;
+    }
+
+    if (tab === 'intelligence') {
+      setActiveSubTab(subTab || null);
+    }
+
     if (tab === currentTab && !subTab) {
       if (tab === 'journeys') setActiveJourneyId(null);
       if (tab === 'tasks') {
@@ -727,6 +739,7 @@ function AppContent() {
           companyProfile={companyProfile} 
           onUpdateProfile={handleUpdateProfile} 
           startInEditMode={startInEditMode}
+          initialTab={activeSubTab as any}
           onSaveComplete={() => {
             setShowPersonaPromptModal(true);
           }}

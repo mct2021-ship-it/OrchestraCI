@@ -15,10 +15,11 @@ import {
   Target,
   ArrowRight,
   Download,
-  MoreVertical
+  MoreVertical,
+  Info
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
-import { cn } from '../lib/utils';
+import { cn, formatDate } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
 import { v4 as uuidv4 } from 'uuid';
@@ -66,6 +67,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
       number: sprints.filter(s => s.projectId === projectId).length + 1,
       name: newSprintData.name,
       goal: newSprintData.goal,
+      description: newSprintData.description,
       startDate: newSprintData.startDate!,
       endDate: newSprintData.endDate!,
       status: newSprintData.status as any,
@@ -336,7 +338,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                 <div className="flex items-center gap-4 text-xs text-zinc-500 dark:text-zinc-400 mb-6">
                   <div className="flex items-center gap-1.5">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>{sprint.startDate} - {sprint.endDate}</span>
+                    <span>{formatDate(sprint.startDate)} - {formatDate(sprint.endDate)}</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Target className="w-3.5 h-3.5" />
@@ -436,12 +438,44 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
-                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Sprint Goal</label>
-                    <textarea
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                        Sprint Goal
+                        <div className="group relative">
+                          <Info className="w-3.5 h-3.5 text-zinc-300 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            The high-level objective for this sprint.
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                    <input
+                      type="text"
                       value={newSprintData.goal}
                       onChange={(e) => setNewSprintData({ ...newSprintData, goal: e.target.value })}
                       placeholder="What do we want to achieve in this sprint?"
-                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px]"
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                        Sprint Description
+                        <div className="group relative">
+                          <Info className="w-3.5 h-3.5 text-zinc-300 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                            Detailed context about the work being done.
+                          </div>
+                        </div>
+                      </label>
+                    </div>
+                    <textarea
+                      value={newSprintData.description}
+                      onChange={(e) => setNewSprintData({ ...newSprintData, description: e.target.value })}
+                      placeholder="Add more context about this sprint..."
+                      rows={3}
+                      className="w-full px-4 py-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-950 outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
                     />
                   </div>
 
@@ -570,11 +604,56 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                   {/* Left Column: Info & Tasks */}
                   <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800">
-                      <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Sprint Goal</h4>
-                      <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                        {selectedSprint.goal || 'No goal defined for this sprint.'}
-                      </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                            Sprint Goal
+                            <div className="group relative">
+                              <Info className="w-3.5 h-3.5 text-zinc-300 cursor-help" />
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                The high-level objective for this sprint.
+                              </div>
+                            </div>
+                          </h4>
+                        </div>
+                        <input
+                          type="text"
+                          value={selectedSprint.goal || ''}
+                          onChange={(e) => {
+                            const updated = { ...selectedSprint, goal: e.target.value };
+                            setSelectedSprint(updated);
+                            setSprints(prev => prev.map(s => s.id === updated.id ? updated : s));
+                          }}
+                          placeholder="Set a sprint goal..."
+                          className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        />
+                      </div>
+
+                      <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-1.5">
+                            Description
+                            <div className="group relative">
+                              <Info className="w-3.5 h-3.5 text-zinc-300 cursor-help" />
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
+                                Detailed context and scope of the sprint.
+                              </div>
+                            </div>
+                          </h4>
+                        </div>
+                        <textarea
+                          value={selectedSprint.description || ''}
+                          onChange={(e) => {
+                            const updated = { ...selectedSprint, description: e.target.value };
+                            setSelectedSprint(updated);
+                            setSprints(prev => prev.map(s => s.id === updated.id ? updated : s));
+                          }}
+                          placeholder="Add a detailed description..."
+                          rows={2}
+                          className="w-full px-3 py-2 bg-white dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-800 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none resize-none"
+                        />
+                      </div>
                     </div>
 
             <div className="space-y-4">

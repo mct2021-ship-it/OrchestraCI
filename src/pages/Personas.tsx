@@ -320,7 +320,8 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         }
       });
 
-      const stories = JSON.parse(response.text);
+      const text = response.text || '[]';
+      const stories = JSON.parse(text);
       const storiesWithIds = stories.map((s: any) => ({ ...s, id: uuidv4() }));
       
       updatePersonaField(selectedPersona.id, 'userStories', [...(selectedPersona.userStories || []), ...storiesWithIds]);
