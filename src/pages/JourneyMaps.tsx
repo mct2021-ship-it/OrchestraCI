@@ -1500,9 +1500,9 @@ export function JourneyMaps({
       {/* Persona Details Section */}
       {activeJourney.personaIds && activeJourney.personaIds.length > 0 && (
         <div className="mb-8 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
-          <button 
+          <div 
             onClick={() => setIsPersonaExpanded(!isPersonaExpanded)}
-            className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+            className="w-full px-4 py-3 flex items-center justify-between text-sm font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
           >
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
@@ -1535,7 +1535,7 @@ export function JourneyMaps({
               </button>
               {isPersonaExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </div>
-          </button>
+          </div>
           
           <AnimatePresence>
             {isPersonaExpanded && (
