@@ -39,7 +39,7 @@ import { PlanContext, PLAN_DETAILS, PlanType } from './context/PlanContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
 import { Login } from './pages/Login';
-import { Logo } from './components/Logo';
+import { useToast } from './context/ToastContext';
 
 export default function App() {
   return (
@@ -53,7 +53,21 @@ export default function App() {
 
 function AppContent() {
   const { user, token, isLoading } = useAuth();
+  const { addToast } = useToast();
   console.log('AppContent: Rendering...', { user: user?.email, isLoading, hasToken: !!token });
+
+  // Global error handling for unhandled rejections
+  useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled Rejection Caught:', event.reason);
+      addToast('An unexpected error occurred. Please try again.', 'error');
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, [addToast]);
 
   const [betaUser, setBetaUser] = useState<{name: string, email: string, plan: PlanType} | null>(null);
   

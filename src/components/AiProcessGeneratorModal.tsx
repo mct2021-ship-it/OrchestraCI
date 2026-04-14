@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, Upload, Wand2, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type, ThinkingLevel } from "@google/genai";
+import { useToast } from '../context/ToastContext';
 import { ProcessMap } from '../types';
 import { v4 as uuidv4 } from 'uuid';
 import * as pdfjsLib from 'pdfjs-dist';
@@ -19,6 +20,7 @@ interface AiProcessGeneratorModalProps {
 }
 
 export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId }: AiProcessGeneratorModalProps) {
+  const { addToast } = useToast();
   const [file, setFile] = useState<File | null>(null);
   const [textInput, setTextInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -187,6 +189,7 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
     } catch (err) {
       console.error('AI Generation Error:', err);
       setError('Failed to generate process map. Please try again.');
+      addToast('Failed to generate process map. Please try again.', 'error');
     } finally {
       setIsGenerating(false);
     }

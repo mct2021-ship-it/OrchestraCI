@@ -36,6 +36,7 @@ import { CompanyProfile } from './YourCompany';
 import { Persona, Project, JourneyMap, Task, Sprint } from '../types';
 import { VocSection } from './VocSection';
 import { NpsCalculator } from './NpsCalculator';
+import { useToast } from '../context/ToastContext';
 
 interface Review {
   id: string;
@@ -122,6 +123,7 @@ export function IntelligenceHub({
   uploadSuccess: uploadSuccessProp,
   onAddToAuditLog
 }: ReviewIntelligenceProps) {
+  const { addToast } = useToast();
   const [step, setStep] = useState<Step>('input');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -307,6 +309,7 @@ export function IntelligenceHub({
       }
     } catch (err: any) {
       setError(err.message || "Analysis failed");
+      addToast(err.message || "Analysis failed", "error");
     } finally {
       setIsAnalyzing(false);
     }

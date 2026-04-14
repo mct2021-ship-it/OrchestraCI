@@ -5,6 +5,7 @@ import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type, ThinkingLevel } from "@google/genai";
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
+import { useToast } from '../context/ToastContext';
 import { Persona, DemographicSlider } from '../types';
 import { personaTemplates } from '../data/mockData';
 import { personaLibrary, PersonaFolder } from '../data/personaLibrary';
@@ -29,6 +30,7 @@ interface CreatePersonaModalProps {
 }
 
 export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaModalProps) {
+  const { addToast } = useToast();
   const [mode, setMode] = useState<'manual' | 'ai' | 'template' | 'library'>('manual');
   const [isGenerating, setIsGenerating] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -165,6 +167,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
       onClose();
     } catch (error) {
       console.error('AI Generation failed:', error);
+      addToast('AI Generation failed. Please try again.', 'error');
     } finally {
       setIsGenerating(false);
     }
