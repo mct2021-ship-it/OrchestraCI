@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { mockPersonas, personaTemplates } from '../data/mockData';
-import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List } from 'lucide-react';
+import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen } from 'lucide-react';
 import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { AiPersonaGenerator } from '../components/AiPersonaGenerator';
@@ -9,6 +9,7 @@ import { PersonaLibraryModal } from '../components/PersonaLibraryModal';
 import { EditableText } from '../components/EditableText';
 import { VersionHistory } from '../components/VersionHistory';
 import { Persona, DemographicSlider } from '../types';
+import { CompanyProfile } from '../components/YourCompany';
 import { v4 as uuidv4 } from 'uuid';
 import { cn, fixOklch } from '../lib/utils';
 import { jsPDF } from 'jspdf';
@@ -28,11 +29,12 @@ interface PersonasProps {
   isDarkMode?: boolean;
   onNavigate?: (tab: string) => void;
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
+  companyProfile?: CompanyProfile;
 }
 
 import { LimitReachedModal } from '../components/LimitReachedModal';
 
-export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate, onAddToAuditLog }: PersonasProps) {
+export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate, onAddToAuditLog, companyProfile }: PersonasProps) {
   const { plan, details } = usePlan();
   const { addToast } = useToast();
   const { canEditPersonas } = usePermissions();
@@ -42,6 +44,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [isCreationWizardOpen, setIsCreationWizardOpen] = useState(false);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [personaToUpdateAvatar, setPersonaToUpdateAvatar] = useState<string | null>(null);
@@ -98,7 +101,31 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       setShowLimitModal(true);
       return;
     }
-    setIsModalOpen(true);
+    setIsCreationWizardOpen(true);
+  };
+
+  const handleCreateBlankPersona = () => {
+    const newPersona: Persona = {
+      id: uuidv4(),
+      name: 'New Persona',
+      type: 'Standard',
+      role: 'Customer',
+      age: 30,
+      gender: 'Female',
+      quote: 'I want a better experience.',
+      goals: [],
+      frustrations: [],
+      motivations: [],
+      sentiment: 3,
+      imageUrl: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000)}?w=400&h=400&fit=crop`,
+      demographics: [
+        { id: uuidv4(), label: 'Tech Savvy', value: 50 },
+        { id: uuidv4(), label: 'Brand Loyalty', value: 50 },
+        { id: uuidv4(), label: 'Price Sensitivity', value: 50 }
+      ]
+    };
+    handleSavePersona(newPersona);
+    setIsCreationWizardOpen(false);
   };
 
   const handleOpenAiGenerator = () => {
@@ -1571,7 +1598,8 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       <CreatePersonaModal 
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
-        onSave={handleSavePersona} 
+        onSave={handleSavePersona}
+        companyProfile={companyProfile}
       />
 
       <AiPersonaGenerator
@@ -1583,6 +1611,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
             onAddToAuditLog?.('Created AI Persona', `Created persona ${p.name} using AI`, 'Create', 'Persona', p.id, 'AI');
           });
         }}
+        companyProfile={companyProfile}
       />
 
       <PersonaLibraryModal
@@ -1626,6 +1655,96 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         onClose={() => setIsAvatarModalOpen(false)}
         onSelect={handleAvatarSelect}
       />
+
+      {/* Creation Wizard Selection Modal */}
+      <AnimatePresence>
+        {isCreationWizardOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl border border-zinc-200 dark:border-zinc-800"
+            >
+              <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                <div>
+                  <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">Create New Persona</h3>
+                  <p className="text-zinc-500 dark:text-zinc-400">Choose how you'd like to build your customer profile</p>
+                </div>
+                <button onClick={() => setIsCreationWizardOpen(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
+                  <X className="w-6 h-6 text-zinc-400" />
+                </button>
+              </div>
+
+              <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {/* Browse Library */}
+                <button
+                  onClick={() => {
+                    if (plan === 'starter') {
+                      addToast("Persona Library is a Pro feature. Upgrade to unlock.", "info");
+                      return;
+                    }
+                    setIsLibraryOpen(true);
+                    setIsCreationWizardOpen(false);
+                  }}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-indigo-600 hover:bg-indigo-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <BookOpen className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Browse Library</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Choose from pre-built industry templates</p>
+                  {plan === 'starter' && (
+                    <span className="mt-3 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded uppercase tracking-wider">Pro Feature</span>
+                  )}
+                </button>
+
+                {/* Use a Template */}
+                <button
+                  onClick={() => {
+                    setShowTemplates(true);
+                    setIsCreationWizardOpen(false);
+                  }}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-blue-600 hover:bg-blue-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <LayoutTemplate className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Use a Template</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Start with a structured persona framework</p>
+                </button>
+
+                {/* Create New Persona (Manual) */}
+                <button
+                  onClick={handleCreateBlankPersona}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-emerald-600 hover:bg-emerald-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <User className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Create New</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Start with a blank profile and edit manually</p>
+                </button>
+
+                {/* Use AI */}
+                <button
+                  onClick={() => {
+                    setIsAiGeneratorOpen(true);
+                    setIsCreationWizardOpen(false);
+                  }}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-purple-600 hover:bg-purple-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Use AI</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Generate personas from research data</p>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {selectedPersonaId && (
         <VersionHistory

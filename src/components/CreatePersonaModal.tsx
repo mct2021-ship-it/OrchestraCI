@@ -7,6 +7,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 import { Persona, DemographicSlider } from '../types';
+import { CompanyProfile } from './YourCompany';
 import { personaTemplates } from '../data/mockData';
 import { personaLibrary, PersonaFolder } from '../data/personaLibrary';
 import { AvatarGalleryModal } from './AvatarGalleryModal';
@@ -27,9 +28,10 @@ interface CreatePersonaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (persona: Persona) => void;
+  companyProfile?: CompanyProfile;
 }
 
-export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaModalProps) {
+export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: CreatePersonaModalProps) {
   const { addToast } = useToast();
   const [mode, setMode] = useState<'manual' | 'ai' | 'template' | 'library'>('manual');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -106,6 +108,15 @@ export function CreatePersonaModal({ isOpen, onClose, onSave }: CreatePersonaMod
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: `Create a detailed customer persona based on this description: "${stripPIData(prompt)}". 
+        
+        ${companyProfile ? `Context about the company:
+        Name: ${companyProfile.name}
+        Industry: ${companyProfile.vertical}
+        Description: ${companyProfile.description}
+        Customer Benefits: ${companyProfile.customerBenefits}
+        Goals: ${companyProfile.goals?.join(', ')}
+        ` : ''}
+
         ${uploadData ? `Use this demographic data as context: ${stripPIData(uploadData)}` : ''}
         Also, generate 3 relevant user stories for this persona in the format: "As a [persona], I want [action], so that [benefit]".
         Provide the persona in JSON format.`,

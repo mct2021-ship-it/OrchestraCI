@@ -3,6 +3,7 @@ import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type, ThinkingLevel } from "@google/genai";
 import { X, Sparkles, Loader2, Check, UserPlus, Upload, FileText as FileIcon } from 'lucide-react';
 import { Persona } from '../types';
+import { CompanyProfile } from './YourCompany';
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
@@ -11,10 +12,17 @@ interface AiPersonaGeneratorProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (personas: Persona[]) => void;
+  companyProfile?: CompanyProfile;
 }
 
-export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGeneratorProps) {
+export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: AiPersonaGeneratorProps) {
   const { addToast } = useToast();
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [questions, setQuestions] = useState({
+    audience: '',
+    challenges: '',
+    goals: ''
+  });
   const [data, setData] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<Partial<Persona>[]>([]);
@@ -34,7 +42,6 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
   };
 
   const handleGenerate = async () => {
-    if (!data.trim()) return;
     setIsGenerating(true);
     try {
       const ai = await getGeminiClient();
@@ -45,7 +52,24 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
         return;
       }
       const prompt = `
-        Analyze the following customer data/research and suggest up to 5 distinct user personas.
+        Analyze the following context and customer data/research to suggest up to 5 distinct user personas.
+        
+        ${companyProfile ? `Context about the company:
+        Name: ${companyProfile.name}
+        Industry: ${companyProfile.vertical}
+        Description: ${companyProfile.description}
+        Customer Benefits: ${companyProfile.customerBenefits}
+        Goals: ${companyProfile.goals?.join(', ')}
+        ` : ''}
+
+        User Provided Context:
+        Target Audience: ${questions.audience}
+        Primary Challenges: ${questions.challenges}
+        Persona Goals: ${questions.goals}
+
+        ${data ? `Additional Research Data:
+        ${stripPIData(data)}` : ''}
+
         For each persona, provide:
         - Name
         - Role/Archetype
@@ -56,9 +80,6 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
         - 3-5 Frustrations
         - 3 Demographic sliders (label and value 0-100)
         - 3 User Stories in the format: "As a [persona], I want [action], so that [benefit]"
-        
-        Customer Data:
-        ${stripPIData(data)}
       `;
 
       const response = await ai.models.generateContent({
@@ -114,6 +135,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
       const result = JSON.parse(response.text || '[]');
       setSuggestions(result);
       setSelectedIndices(result.map((_: any, i: number) => i)); // Select all by default
+      setStep(3);
     } catch (error) {
       console.error("AI Generation error:", error);
       addToast("Failed to generate personas. Please try again.", "error");
@@ -142,14 +164,14 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-        <div className="p-6 border-b border-zinc-100 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
+        <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-600 rounded-xl text-white">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">AI Persona Generator</h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Paste research data or upload files to generate personas.</p>
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">AI Persona Wizard</h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Step {step} of 3: {step === 1 ? 'Define Context' : step === 2 ? 'Add Research' : 'Review Suggestions'}</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-full transition-colors">
@@ -158,11 +180,55 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
         </div>
 
         <div className="flex-1 overflow-y-auto p-8">
-          {suggestions.length === 0 ? (
-            <div className="space-y-6">
+          {step === 1 && (
+            <div className="space-y-6 max-w-2xl mx-auto">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">Who is your target audience?</label>
+                  <textarea 
+                    value={questions.audience}
+                    onChange={(e) => setQuestions({ ...questions, audience: e.target.value })}
+                    placeholder="e.g. Small business owners in the UK, or parents of toddlers..."
+                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">What are their primary challenges?</label>
+                  <textarea 
+                    value={questions.challenges}
+                    onChange={(e) => setQuestions({ ...questions, challenges: e.target.value })}
+                    placeholder="e.g. Lack of time, high costs, or difficulty finding reliable information..."
+                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm"
+                    rows={3}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">What is the main goal of this persona?</label>
+                  <textarea 
+                    value={questions.goals}
+                    onChange={(e) => setQuestions({ ...questions, goals: e.target.value })}
+                    placeholder="e.g. To automate their workflow, or to find a safe community for their children..."
+                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <button 
+                onClick={() => setStep(2)}
+                disabled={!questions.audience || !questions.challenges || !questions.goals}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg"
+              >
+                Next: Add Research Data
+              </button>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-6 max-w-2xl mx-auto">
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Customer Data / Research Notes</label>
+                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Customer Data / Research Notes (Optional)</label>
                   <button 
                     onClick={() => fileInputRef.current?.click()}
                     className="flex items-center gap-2 text-xs font-bold text-indigo-600 hover:text-indigo-700"
@@ -181,32 +247,42 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
                 <textarea 
                   value={data}
                   onChange={(e) => setData(e.target.value)}
-                  placeholder="Paste interview transcripts, survey results, or market research here..."
+                  placeholder="Paste interview transcripts, survey results, or market research here to make the personas more accurate..."
                   className="w-full h-64 p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm leading-relaxed"
                 />
                 <p className="text-[10px] text-zinc-500 dark:text-zinc-400 mt-1">
                   Please do not upload or enter Personally Identifiable Information (PII). The system will automatically strip common PII formats before processing.
                 </p>
               </div>
-              <button 
-                onClick={handleGenerate}
-                disabled={isGenerating || !data.trim()}
-                className="w-full py-4 bg-zinc-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-zinc-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    Analyzing Data...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-5 h-5" />
-                    Generate Personas
-                  </>
-                )}
-              </button>
+              <div className="flex gap-4">
+                <button 
+                  onClick={() => setStep(1)}
+                  className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                >
+                  Back
+                </button>
+                <button 
+                  onClick={handleGenerate}
+                  disabled={isGenerating}
+                  className="flex-[2] py-4 bg-zinc-900 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-zinc-800 transition-all disabled:opacity-50 shadow-lg"
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Generating Personas...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5" />
+                      Generate Personas
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
-          ) : (
+          )}
+
+          {step === 3 && (
             <div className="space-y-8">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {suggestions.map((s, i) => (
@@ -240,9 +316,9 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave }: AiPersonaGenerat
                 ))}
               </div>
               
-              <div className="flex items-center justify-between pt-6 border-t border-zinc-100">
+              <div className="flex items-center justify-between pt-6 border-t border-zinc-100 dark:border-zinc-800">
                 <button 
-                  onClick={() => setSuggestions([])}
+                  onClick={() => setStep(2)}
                   className="text-sm font-bold text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:text-white"
                 >
                   Back to Data

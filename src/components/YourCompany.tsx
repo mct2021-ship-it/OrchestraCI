@@ -442,6 +442,15 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                     >
                       Continue
                     </button>
+                    <button 
+                      onClick={() => {
+                        setIsEditing(true);
+                        setWizardStep(null);
+                      }}
+                      className="text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 font-bold transition-colors"
+                    >
+                      Skip to manual edit
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -482,6 +491,15 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                         Continue
                       </button>
                     </div>
+                    <button 
+                      onClick={() => {
+                        setIsEditing(true);
+                        setWizardStep(null);
+                      }}
+                      className="w-full text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 font-bold transition-colors"
+                    >
+                      Skip to manual edit
+                    </button>
                   </div>
                 </motion.div>
               )}
@@ -525,6 +543,15 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                         Continue
                       </button>
                     </div>
+                    <button 
+                      onClick={() => {
+                        setIsEditing(true);
+                        setWizardStep(null);
+                      }}
+                      className="w-full text-sm text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 font-bold transition-colors"
+                    >
+                      Skip to manual edit
+                    </button>
                   </div>
                 </motion.div>
               )}

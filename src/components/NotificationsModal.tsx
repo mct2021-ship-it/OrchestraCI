@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Bell, CheckCircle2, MessageSquare, Info } from 'lucide-react';
+import { X, Bell, CheckCircle2, MessageSquare, Info, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -24,11 +24,23 @@ interface NotificationsModalProps {
   notifications: Notification[];
   onMarkAsRead: (id: string) => void;
   onMarkAllAsRead: () => void;
+  onRemoveNotification: (id: string) => void;
+  onClearNotifications: () => void;
   onNavigate?: (tab: string, subTab?: string) => void;
   isDarkMode?: boolean;
 }
 
-export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRead, onMarkAllAsRead, onNavigate, isDarkMode }: NotificationsModalProps) {
+export function NotificationsModal({ 
+  isOpen, 
+  onClose, 
+  notifications, 
+  onMarkAsRead, 
+  onMarkAllAsRead, 
+  onRemoveNotification,
+  onClearNotifications,
+  onNavigate, 
+  isDarkMode 
+}: NotificationsModalProps) {
   const [activeTab, setActiveTab] = useState<'all' | 'system' | 'chat' | 'assignment'>('all');
 
   if (!isOpen) return null;
@@ -92,6 +104,14 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {notifications.length > 0 && (
+                  <button
+                    onClick={onClearNotifications}
+                    className="text-xs font-medium text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 transition-colors mr-2"
+                  >
+                    Clear all
+                  </button>
+                )}
                 {notifications.some(n => !n.read) && (
                   <button
                     onClick={onMarkAllAsRead}
@@ -179,14 +199,25 @@ export function NotificationsModal({ isOpen, onClose, notifications, onMarkAsRea
                           )}>
                             {notification.title}
                           </h4>
-                          <span className={cn(
-                            "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800",
-                            notification.type === 'chat' ? "text-indigo-500" : 
-                            notification.type === 'assignment' ? "text-emerald-500" :
-                            "text-zinc-400"
-                          )}>
-                            {notification.type || 'system'}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={cn(
+                              "text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800",
+                              notification.type === 'chat' ? "text-indigo-500" : 
+                              notification.type === 'assignment' ? "text-emerald-500" :
+                              "text-zinc-400"
+                            )}>
+                              {notification.type || 'system'}
+                            </span>
+                            <button 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onRemoveNotification(notification.id);
+                              }}
+                              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded transition-all text-zinc-400 hover:text-rose-500"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                         <p className={cn(
                           "text-sm leading-relaxed",

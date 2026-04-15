@@ -535,12 +535,14 @@ app.use('/api/*', (req, res) => {
 
 async function startServer() {
   console.log('Starting server initialization...');
+  let vite: any;
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== 'production') {
     console.log('Initializing Vite middleware...');
     try {
       const { createServer: createViteServer } = await import('vite');
-      const vite = await createViteServer({
+      vite = await createViteServer({
         server: { middlewareMode: true },
         appType: 'spa',
       });
@@ -585,7 +587,19 @@ async function startServer() {
   });
 
   // WebSocket Server for Real-Time Collaboration
-  const wss = new WebSocketServer({ server });
+  const wss = new WebSocketServer({ noServer: true });
+
+  server.on('upgrade', (request, socket, head) => {
+    const { pathname } = new URL(request.url!, `http://${request.headers.host}`);
+    
+    if (vite && pathname === '/vite-hmr') {
+      vite.ws.handleUpgrade(request, socket, head);
+    } else {
+      wss.handleUpgrade(request, socket, head, (ws) => {
+        wss.emit('connection', ws, request);
+      });
+    }
+  });
 
   wss.on('connection', (ws, req) => {
     // Send initial state to the newly connected client

@@ -124,7 +124,7 @@ function AppContent() {
   const [isNotificationsModalOpen, setIsNotificationsModalOpen] = useState(false);
   const [hasCheckedUnreadOnLogin, setHasCheckedUnreadOnLogin] = useState(false);
   const [isLoginNotificationModalOpen, setIsLoginNotificationModalOpen] = useState(false);
-  const { notifications, unreadCount, markAsRead, markAllAsRead, addNotification } = useNotifications();
+  const { notifications, unreadCount, markAsRead, markAllAsRead, removeNotification, clearNotifications, addNotification } = useNotifications();
   const prevTasksRef = useRef<Task[]>([]);
 
   // Check for unread notifications on login
@@ -778,7 +778,7 @@ function AppContent() {
           onAddToAuditLog={handleAddToAuditLog}
         />;
       case 'personas':
-        return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} onAddToAuditLog={handleAddToAuditLog} />;
+        return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} />;
       case 'stakeholders':
         return <Stakeholders stakeholders={stakeholders} setStakeholders={handleSetStakeholders} onDeleteItem={handleDeleteItem} onAddToAuditLog={handleAddToAuditLog} />;
       case 'journeys':
@@ -1038,6 +1038,9 @@ function AppContent() {
             notifications={notifications}
             onMarkAsRead={markAsRead}
             onMarkAllAsRead={markAllAsRead}
+            onRemoveNotification={removeNotification}
+            onClearNotifications={clearNotifications}
+            onNavigate={handleTabChange}
             isDarkMode={isDarkMode}
           />
 
