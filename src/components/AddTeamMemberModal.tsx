@@ -27,6 +27,7 @@ export function AddTeamMemberModal({ isOpen, onClose, project, projects, setProj
   const [projectRole, setProjectRole] = useState('Member');
   const [customRole, setCustomRole] = useState('');
   const [isCustomRole, setIsCustomRole] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const allAvailableUsers = React.useMemo(() => {
     const list = [...users];
@@ -36,6 +37,12 @@ export function AddTeamMemberModal({ isOpen, onClose, project, projects, setProj
 
   const handleCreateAndAddUser = () => {
     if (!newUser.name || !newUser.email) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newUser.email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
 
     const userObj: User = {
       id: `usr_${Date.now()}`,
@@ -138,6 +145,11 @@ export function AddTeamMemberModal({ isOpen, onClose, project, projects, setProj
         </div>
 
         <div className="p-8 space-y-6 overflow-y-auto custom-scrollbar">
+          {error && (
+            <div className="p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-600 dark:text-rose-400">
+              {error}
+            </div>
+          )}
           {isCreatingUser ? (
             <div className="space-y-6">
               <div className="space-y-4">

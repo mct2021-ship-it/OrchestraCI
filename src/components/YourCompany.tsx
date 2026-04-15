@@ -30,6 +30,7 @@ export interface CompanyProfile {
   goals?: string[];
   competitors?: { name: string; url: string }[];
   pastAnalyses?: AnalysisReport[];
+  wizardCompleted?: boolean;
 }
 
 interface YourCompanyProps {
@@ -89,14 +90,24 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
 
   useEffect(() => {
     if (startInEditMode) {
+      if (profile.wizardCompleted) {
+        setIsEditing(true);
+        setWizardStep(null);
+      } else {
+        setIsEditing(true);
+        setWizardStep(1);
+      }
+    }
+  }, [startInEditMode, profile.wizardCompleted]);
+
+  const handleStartWizard = () => {
+    if (profile.wizardCompleted) {
+      setIsEditing(true);
+      setWizardStep(null);
+    } else {
       setIsEditing(true);
       setWizardStep(1);
     }
-  }, [startInEditMode]);
-
-  const handleStartWizard = () => {
-    setIsEditing(true);
-    setWizardStep(1);
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -141,7 +152,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
   };
 
   const handleSave = () => {
-    onUpdateProfile(tempProfile);
+    onUpdateProfile({ ...tempProfile, wizardCompleted: true });
     setIsEditing(false);
     if (onSaveComplete) {
       onSaveComplete();
@@ -263,8 +274,8 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
         goals: data.goals || prev.goals
       }));
       
-      if (wizardStep === 4) {
-        setWizardStep(5);
+      if (wizardStep === 6) {
+        setWizardStep(7);
       }
     } catch (error: any) {
       console.error("Error analyzing website:", error);
@@ -397,7 +408,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
               </div>
               <div>
                 <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">Company Setup</h3>
-                <p className="text-zinc-500 text-sm">Step {wizardStep} of 5</p>
+                <p className="text-zinc-500 text-sm">Step {wizardStep} of 7</p>
               </div>
             </div>
 
@@ -405,7 +416,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
               <motion.div 
                 className="bg-indigo-600 h-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${(wizardStep / 5) * 100}%` }}
+                animate={{ width: `${(wizardStep / 7) * 100}%` }}
               />
             </div>
 
@@ -562,6 +573,108 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Target Customer Emotions</h4>
+                    <p className="text-zinc-500">How do you want your customers to feel when interacting with your brand?</p>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="flex flex-wrap gap-2 justify-center">
+                      {EMOTIONS.map(emotion => (
+                        <button
+                          key={emotion}
+                          onClick={() => toggleEmotion(emotion)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-sm font-bold transition-all border",
+                            (tempProfile.targetEmotions || []).includes(emotion)
+                              ? "bg-indigo-600 text-white border-indigo-600 shadow-lg shadow-indigo-500/20"
+                              : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-indigo-300"
+                          )}
+                        >
+                          {emotion}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setWizardStep(3)}
+                        className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                      >
+                        Back
+                      </button>
+                      <button 
+                        onClick={() => setWizardStep(5)}
+                        className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {wizardStep === 5 && (
+                <motion.div 
+                  key="step5"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Measurement Methods</h4>
+                    <p className="text-zinc-500">How do you currently measure the customer experience?</p>
+                  </div>
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {MEASUREMENTS.map(method => (
+                        <button
+                          key={method}
+                          onClick={() => toggleMeasurement(method)}
+                          className={cn(
+                            "p-4 rounded-xl text-sm font-bold transition-all border text-left flex items-center gap-3",
+                            (tempProfile.measurementMethods || []).includes(method)
+                              ? "bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                              : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-emerald-300"
+                          )}
+                        >
+                          <div className={cn(
+                            "w-5 h-5 rounded border flex items-center justify-center shrink-0",
+                            (tempProfile.measurementMethods || []).includes(method)
+                              ? "bg-emerald-600 border-emerald-600 text-white"
+                              : "border-zinc-300 dark:border-zinc-600"
+                          )}>
+                            {(tempProfile.measurementMethods || []).includes(method) && <CheckCircle2 className="w-3.5 h-3.5" />}
+                          </div>
+                          {method}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setWizardStep(4)}
+                        className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                      >
+                        Back
+                      </button>
+                      <button 
+                        onClick={() => setWizardStep(6)}
+                        className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {wizardStep === 6 && (
+                <motion.div 
+                  key="step6"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
                   className="space-y-8"
                 >
                   <div className="text-center space-y-2">
@@ -599,18 +712,26 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                     )}
                   </div>
 
-                  <button 
-                    onClick={() => setWizardStep(5)}
-                    className="w-full py-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-sm font-bold transition-colors"
-                  >
-                    Skip and enter manually
-                  </button>
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => setWizardStep(5)}
+                      className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                    >
+                      Back
+                    </button>
+                    <button 
+                      onClick={() => setWizardStep(7)}
+                      className="flex-[2] py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                    >
+                      Skip and enter manually
+                    </button>
+                  </div>
                 </motion.div>
               )}
 
-              {wizardStep === 5 && (
+              {wizardStep === 7 && (
                 <motion.div 
-                  key="step5"
+                  key="step7"
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}

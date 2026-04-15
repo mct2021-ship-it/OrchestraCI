@@ -6,6 +6,7 @@ import { PlanType } from '../context/PlanContext';
 export function BetaSignup({ onComplete }: { onComplete: (user: { name: string, email: string, plan: PlanType }) => void }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(1);
 
   if (step === 1) {
@@ -19,7 +20,21 @@ export function BetaSignup({ onComplete }: { onComplete: (user: { name: string, 
           <h1 className="text-3xl font-black text-zinc-900 dark:text-white mb-2">Join the Beta</h1>
           <p className="text-zinc-500 dark:text-zinc-400 mb-8">Enter your details to access the Orchestra CI beta platform.</p>
           
-          <form onSubmit={(e) => { e.preventDefault(); setStep(2); }} className="space-y-4">
+          <form onSubmit={(e) => { 
+            e.preventDefault(); 
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+              setError('Please enter a valid email address.');
+              return;
+            }
+            setError(null);
+            setStep(2); 
+          }} className="space-y-4">
+            {error && (
+              <div className="p-3 bg-rose-50 dark:bg-rose-900/20 border border-rose-200 dark:border-rose-800 rounded-xl text-xs text-rose-600 dark:text-rose-400">
+                {error}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-bold text-zinc-700 dark:text-zinc-300 mb-1">Name</label>
               <input 

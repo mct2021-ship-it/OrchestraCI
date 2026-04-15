@@ -1109,7 +1109,7 @@ export function ProjectDetail({
             )}
           </div>
 
-          <div className="flex overflow-x-auto pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 gap-4 snap-x">
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
             {(project.team || []).map(member => {
               const linkedUser = member.userId ? users.find(u => u.id === member.userId) : null;
               const displayName = linkedUser ? linkedUser.name : member.name;
@@ -1118,7 +1118,7 @@ export function ProjectDetail({
               return (
                 <div 
                   key={member.id}
-                  className="flex-none w-64 flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-2xl border border-transparent hover:border-zinc-200 dark:border-zinc-800 hover:bg-white dark:bg-zinc-900 hover:shadow-md transition-all group snap-start"
+                  className="p-4 rounded-2xl border border-zinc-100 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col items-center text-center gap-3 relative group"
                 >
                   <img 
                     src={displayPhoto || `https://i.pravatar.cc/150?u=${member.id}`} 
@@ -1127,23 +1127,23 @@ export function ProjectDetail({
                     referrerPolicy="no-referrer"
                   />
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-zinc-900 dark:text-white truncate">{displayName}</p>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{member.jobTitle}</p>
+                    <p className="text-xs font-bold text-zinc-900 dark:text-white truncate">{displayName}</p>
+                    <p className="text-[10px] text-zinc-500 dark:text-zinc-400 truncate">{member.jobTitle}</p>
                     <span className="inline-block mt-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded text-[10px] font-bold uppercase tracking-wider">
                       {member.projectRole}
                     </span>
                   </div>
                   {canEdit && (
-                    <div className="flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                    <div className="absolute top-2 right-2 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
                       <button 
                         onClick={() => setEditingMember(member)}
-                        className="p-1.5 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+                        className="p-1.5 text-zinc-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-zinc-800 rounded-lg transition-all shadow-sm"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
                       <button 
                         onClick={() => handleRemoveTeamMember(member.id)}
-                        className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
+                        className="p-1.5 text-zinc-400 hover:text-rose-600 hover:bg-white dark:hover:bg-zinc-800 rounded-lg transition-all shadow-sm"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1153,7 +1153,7 @@ export function ProjectDetail({
               );
             })}
             {(project.team || []).length === 0 && (
-              <div className="w-full text-center py-8 text-zinc-400 text-sm">No team members added yet.</div>
+              <div className="col-span-full py-8 text-center text-zinc-400 text-sm">No team members added yet.</div>
             )}
           </div>
         </div>
@@ -1251,6 +1251,22 @@ export function ProjectDetail({
             onExplore={() => onNavigate('journeys')}
           />
           <FlipTile 
+            title="Sprint and Backlogs" 
+            icon={Clock} 
+            colorClass="bg-blue-100" 
+            iconColorClass="text-blue-600"
+            description="Plan sprints and manage your product backlog to keep development on track."
+            onExplore={() => onNavigate('kanban')}
+          />
+          <FlipTile 
+            title="Kanban Board" 
+            icon={KanbanSquare} 
+            colorClass="bg-indigo-100" 
+            iconColorClass="text-indigo-600"
+            description="Manage tasks and track progress through customizable workflows."
+            onExplore={() => onNavigate('kanban')}
+          />
+          <FlipTile 
             title="Process Maps" 
             icon={GitMerge} 
             colorClass="bg-rose-100" 
@@ -1265,14 +1281,6 @@ export function ProjectDetail({
             iconColorClass="text-rose-600"
             description="Track Risks, Assumptions, Issues, and Dependencies to ensure successful project delivery."
             onExplore={() => onNavigate('raid')}
-          />
-          <FlipTile 
-            title="Kanban Board" 
-            icon={KanbanSquare} 
-            colorClass="bg-indigo-100" 
-            iconColorClass="text-indigo-600"
-            description="Manage tasks and track progress through customizable workflows."
-            onExplore={() => onNavigate('kanban')}
           />
         </div>
       <AnimatePresence mode="wait">

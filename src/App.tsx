@@ -92,7 +92,8 @@ function AppContent() {
     customerBenefits: '',
     targetEmotions: [],
     measurementMethods: [],
-    pastAnalyses: []
+    pastAnalyses: [],
+    wizardCompleted: false
   });
 
   // Global State
@@ -765,7 +766,9 @@ function AppContent() {
           startInEditMode={startInEditMode}
           initialTab={activeSubTab as any}
           onSaveComplete={() => {
-            setShowPersonaPromptModal(true);
+            if (!companyProfile.wizardCompleted) {
+              setShowPersonaPromptModal(true);
+            }
           }}
           setPersonas={handleSetPersonas}
           setProjects={handleSetProjects}

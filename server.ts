@@ -221,6 +221,11 @@ app.post('/api/auth/register', (req, res) => {
     return res.status(400).json({ error: 'Missing required fields' });
   }
 
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address format' });
+  }
+
   try {
     const existingUser = db.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existingUser) {
@@ -324,6 +329,15 @@ app.get('/api/users', (req, res) => {
 app.post('/api/users', (req, res) => {
   const { name, email, role, password } = req.body;
   
+  if (!name || !email) {
+    return res.status(400).json({ error: 'Name and email are required' });
+  }
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email address format' });
+  }
+
   try {
     // Enforce 10 user limit for beta
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
