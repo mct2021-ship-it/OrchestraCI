@@ -497,6 +497,42 @@ app.get('/api/google/reviews', async (req, res) => {
   }
 });
 
+// HubSpot Integration Proxy
+app.get('/api/hubspot/tickets', async (req, res) => {
+  const apiKey = process.env.HUBSPOT_ACCESS_TOKEN;
+
+  if (!apiKey) {
+    return res.status(400).json({ 
+      error: 'HubSpot configuration missing. Please set HUBSPOT_ACCESS_TOKEN in secrets.' 
+    });
+  }
+
+  try {
+    const gaxios = new Gaxios();
+    const response = await gaxios.request({
+      url: `https://api.hubapi.com/crm/v3/objects/tickets`,
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    res.json({ tickets: response.data.results });
+  } catch (error: any) {
+    console.error('HubSpot API error:', error.response?.data || error.message);
+    res.status(error.response?.status || 500).json({ 
+      error: 'Failed to fetch tickets from HubSpot',
+      details: error.response?.data?.message || error.message
+    });
+  }
+});
+
+// Handle 404 for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.originalUrl}` });
+});
+
 async function startServer() {
   console.log('Starting server initialization...');
   // Vite middleware for development

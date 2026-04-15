@@ -52,6 +52,14 @@ export function VocSection() {
       }
 
       const response = await fetch(endpoint);
+      
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await response.text();
+        console.error('Non-JSON response received:', text);
+        throw new Error(`Server returned an unexpected response format. Please check if the API route is correctly configured.`);
+      }
+
       if (!response.ok) {
         const data = await response.json();
         throw new Error(data.error || `Failed to sync with ${source}`);

@@ -37,6 +37,12 @@ export function VersionHistory({ isOpen, onClose, entityType, entityId, currentD
     setIsLoading(true);
     try {
       const response = await fetch(`/api/versions/${entityType}/${entityId}`);
+      
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error('Server returned an unexpected response format.');
+      }
+
       if (!response.ok) throw new Error('Failed to fetch versions');
       const data = await response.json();
       setVersions(data);
@@ -71,6 +77,11 @@ export function VersionHistory({ isOpen, onClose, entityType, entityId, currentD
           versionMessage
         })
       });
+
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error('Server returned an unexpected response format.');
+      }
 
       if (!response.ok) throw new Error('Failed to save version');
       

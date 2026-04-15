@@ -17,7 +17,7 @@ interface IntelligenceProps {
   onUpdateProfile?: (updates: Partial<CompanyProfile>) => void;
   startInEditMode?: boolean;
   onSaveComplete?: () => void;
-  initialTab?: 'profile' | 'overview' | 'reviews' | 'connectors' | 'taxonomy';
+  initialTab?: 'profile' | 'overview' | 'reviews' | 'connectors';
   // State setters for Review Intelligence integration
   setPersonas?: React.Dispatch<React.SetStateAction<any[]>>;
   setProjects?: React.Dispatch<React.SetStateAction<any[]>>;
@@ -47,7 +47,7 @@ export function Intelligence({
   onAddToAuditLog
 }: IntelligenceProps) {
   const { addToast } = useToast();
-  const [activeTab, setActiveTab] = React.useState<'profile' | 'overview' | 'reviews' | 'connectors' | 'taxonomy'>(initialTab || (startInEditMode ? 'profile' : 'overview'));
+  const [activeTab, setActiveTab] = React.useState<'profile' | 'overview' | 'reviews' | 'connectors'>(initialTab || (startInEditMode ? 'profile' : 'overview'));
   const [isUploading, setIsUploading] = useState(false);
 
   React.useEffect(() => {
@@ -58,12 +58,6 @@ export function Intelligence({
       setActiveTab(initialTab);
     }
   }, [startInEditMode, initialTab]);
-
-  React.useEffect(() => {
-    if (onNavigate && activeTab === 'taxonomy') {
-      // Keep state in sync if needed
-    }
-  }, [activeTab]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   
   const [uploadedData, setUploadedData] = useState([
@@ -251,19 +245,6 @@ export function Intelligence({
         >
           <RefreshCw className="w-4 h-4" />
           Connectors
-          <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md border border-indigo-200 dark:border-indigo-800">Pro</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('taxonomy')}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap relative",
-            activeTab === 'taxonomy'
-              ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
-              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-          )}
-        >
-          <Layers className="w-4 h-4" />
-          Taxonomy
           <span className="ml-1 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded-md border border-indigo-200 dark:border-indigo-800">Pro</span>
         </button>
       </div>
@@ -528,53 +509,6 @@ export function Intelligence({
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'taxonomy' && (
-        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-indigo-600" />
-                  Global Taxonomy
-                </h3>
-                <p className="text-sm text-zinc-500">Standardize your language and data structures across the organization.</p>
-              </div>
-              <button className="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold hover:bg-indigo-500 transition-all flex items-center gap-2">
-                <Plus className="w-4 h-4" />
-                Add Category
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                { title: 'Product Categories', items: ['SaaS', 'Hardware', 'Professional Services', 'Support'] },
-                { title: 'Customer Segments', items: ['Enterprise', 'SMB', 'Individual', 'Government'] },
-                { title: 'Interaction Types', items: ['Support Ticket', 'Sales Call', 'Onboarding', 'Renewal'] },
-                { title: 'Sentiment Tags', items: ['Frustrated', 'Delighted', 'Neutral', 'Confused'] },
-                { title: 'Project Stages', items: ['Discover', 'Define', 'Develop', 'Deliver'] },
-                { title: 'RAID Types', items: ['Risk', 'Assumption', 'Issue', 'Dependency'] }
-              ].map((cat, i) => (
-                <div key={i} className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                  <h4 className="font-bold text-zinc-900 dark:text-white mb-4 flex items-center justify-between">
-                    {cat.title}
-                    <button className="p-1 text-zinc-400 hover:text-indigo-600 transition-colors">
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </h4>
-                  <div className="flex flex-wrap gap-2">
-                    {cat.items.map((item, j) => (
-                      <span key={j} className="px-2 py-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-xs font-medium text-zinc-600 dark:text-zinc-400">
-                        {item}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
         </div>

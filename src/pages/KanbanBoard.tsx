@@ -575,18 +575,18 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
           </p>
           <div className="max-w-2xl">
             <textarea
-              placeholder={isReadOnly ? "No description provided for this sprint." : "Add a description or goals for this sprint..."}
+              placeholder={isReadOnly ? "No goal provided for this sprint." : "Add a goal for this sprint..."}
               value={
                 selectedSprintId === 'all' 
                   ? (project.description || '') 
-                  : (sprints.find(s => s.id === selectedSprintId)?.description || '')
+                  : (sprints.find(s => s.id === selectedSprintId)?.goal || '')
               }
               onChange={(e) => {
                 if (selectedSprintId === 'all') {
                   setProjects(prev => prev.map(p => p.id === project.id ? { ...p, description: e.target.value } : p));
                 } else {
                   setSprints(prev => prev.map(s => 
-                    s.id === selectedSprintId ? { ...s, description: e.target.value } : s
+                    s.id === selectedSprintId ? { ...s, goal: e.target.value } : s
                   ));
                 }
               }}

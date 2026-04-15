@@ -211,7 +211,13 @@ function AppContent() {
   useEffect(() => {
     if (user) {
       fetch('/api/users')
-        .then(res => res.json())
+        .then(res => {
+          const contentType = res.headers.get("content-type");
+          if (!contentType || !contentType.includes("application/json")) {
+            throw new Error('Server returned an unexpected response format.');
+          }
+          return res.json();
+        })
         .then(data => setUsers(data))
         .catch(err => console.error('Failed to fetch users', err));
     }
@@ -475,13 +481,17 @@ function AppContent() {
 
   const handleTabChange = useCallback((tab: string, subTab?: string) => {
     if (tab === 'taxonomy') {
-      setCurrentTab('intelligence');
+      setCurrentTab('settings');
       setActiveSubTab('taxonomy');
-      setHistory(prev => [...prev, 'intelligence']);
+      setHistory(prev => [...prev, 'settings']);
       return;
     }
 
     if (tab === 'intelligence') {
+      setActiveSubTab(subTab || null);
+    }
+
+    if (tab === 'settings') {
       setActiveSubTab(subTab || null);
     }
 
@@ -893,6 +903,7 @@ function AppContent() {
             setUsers={handleSetUsers}
             currentUser={currentUser}
             onDeleteItem={handleDeleteItem}
+            initialSection={activeSubTab as any}
           />
         );
       case 'audit_log':

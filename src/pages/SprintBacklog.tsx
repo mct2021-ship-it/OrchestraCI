@@ -104,11 +104,12 @@ export function SprintBacklog({
     });
   }, [sprints, searchQuery, statusFilter, projectFilter]);
 
-  const handleAddSprint = (e?: React.FormEvent, initialTasks: string[] = []) => {
+  const handleAddSprint = (e?: React.FormEvent, initialTasks: string[] = [], overrideData?: Partial<Sprint>) => {
     if (e) e.preventDefault();
-    const projectId = newSprintData.projectId || (projectFilter !== 'All' ? projectFilter : (activeProjectId || projects[0]?.id));
+    const data = { ...newSprintData, ...overrideData };
+    const projectId = data.projectId || (projectFilter !== 'All' ? projectFilter : (activeProjectId || projects[0]?.id));
     
-    if (!newSprintData.name || !projectId) {
+    if (!data.name || !projectId) {
       addToast('Missing required sprint data', 'error');
       return;
     }
@@ -117,12 +118,12 @@ export function SprintBacklog({
       id: uuidv4(),
       projectId: projectId,
       number: sprints.filter(s => s.projectId === projectId).length + 1,
-      name: newSprintData.name,
-      goal: newSprintData.goal,
-      startDate: newSprintData.startDate!,
-      endDate: newSprintData.endDate!,
-      status: newSprintData.status as any,
-      stage: newSprintData.stage as any,
+      name: data.name!,
+      goal: data.goal,
+      startDate: data.startDate!,
+      endDate: data.endDate!,
+      status: data.status as any,
+      stage: data.stage as any,
       tasks: initialTasks
     };
 
@@ -161,8 +162,8 @@ export function SprintBacklog({
     // Dragging from Backlog to New Sprint box
     if (source.droppableId === 'backlog' && destination.droppableId === 'new-sprint') {
       const sprintName = `Sprint ${(sprints.filter(s => s.projectId === activeProject?.id).length || 0) + 1}`;
-      setNewSprintData(prev => ({ ...prev, name: sprintName, projectId: activeProject?.id || undefined }));
-      handleAddSprint(undefined, [draggableId]);
+      const projectId = activeProject?.id || projects[0]?.id;
+      handleAddSprint(undefined, [draggableId], { name: sprintName, projectId });
     }
   };
 
@@ -796,9 +797,16 @@ export function SprintBacklog({
                 <div className="lg:col-span-2 space-y-8">
                   <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800">
                     <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Sprint Goal</h4>
-                    <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                      {selectedSprint.goal || 'No goal defined for this sprint.'}
-                    </p>
+                    <textarea
+                      value={selectedSprint.goal || ''}
+                      onChange={(e) => {
+                        const newGoal = e.target.value;
+                        setSprints(prev => prev.map(s => s.id === selectedSprint.id ? { ...s, goal: newGoal } : s));
+                        setSelectedSprint(prev => prev ? { ...prev, goal: newGoal } : null);
+                      }}
+                      placeholder="What do we want to achieve in this sprint?"
+                      className="w-full bg-transparent border-none outline-none text-zinc-700 dark:text-zinc-300 leading-relaxed resize-none min-h-[100px] focus:ring-0 p-0"
+                    />
                   </div>
 
                   <div className="space-y-4">

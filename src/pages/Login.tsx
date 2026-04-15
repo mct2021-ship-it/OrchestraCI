@@ -29,6 +29,11 @@ export function Login() {
         body: JSON.stringify(body),
       });
 
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        throw new Error('Server returned an unexpected response format.');
+      }
+
       const data = await response.json();
 
       if (!response.ok) {

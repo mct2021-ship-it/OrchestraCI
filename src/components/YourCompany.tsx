@@ -70,6 +70,7 @@ const MEASUREMENTS = [
 
 export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveComplete }: YourCompanyProps) {
   const [isEditing, setIsEditing] = useState(startInEditMode || false);
+  const [wizardStep, setWizardStep] = useState<number | null>(null);
   const [tempProfile, setTempProfile] = useState<CompanyProfile>(profile);
   const [logoPreview, setLogoPreview] = useState<string | null>(profile.logoUrl || null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -89,8 +90,14 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
   useEffect(() => {
     if (startInEditMode) {
       setIsEditing(true);
+      setWizardStep(1);
     }
   }, [startInEditMode]);
+
+  const handleStartWizard = () => {
+    setIsEditing(true);
+    setWizardStep(1);
+  };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -210,6 +217,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
       - description: A concise description of what the company does (max 3 sentences).
       - customerBenefits: Key benefits customers get from this company (max 3 sentences).
       - vertical: The industry vertical this company belongs to.
+      - goals: A list of 3-5 strategic customer experience goals for this company based on their mission and services.
       
       If the vertical is not one of these: ${VERTICALS.join(', ')}, provide a new suitable vertical name.`;
 
@@ -226,9 +234,14 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
             properties: {
               description: { type: Type.STRING, description: "A concise description of what the company does (max 3 sentences)." },
               customerBenefits: { type: Type.STRING, description: "Key benefits customers get from this company (max 3 sentences)." },
-              vertical: { type: Type.STRING, description: "The industry vertical this company belongs to." }
+              vertical: { type: Type.STRING, description: "The industry vertical this company belongs to." },
+              goals: { 
+                type: Type.ARRAY, 
+                items: { type: Type.STRING },
+                description: "A list of 3-5 strategic customer experience goals."
+              }
             },
-            required: ["description", "customerBenefits", "vertical"]
+            required: ["description", "customerBenefits", "vertical", "goals"]
           },
           tools: [{ googleSearch: {} }]
         }
@@ -246,8 +259,13 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
         ...prev,
         description: data.description || prev.description,
         customerBenefits: data.customerBenefits || prev.customerBenefits,
-        vertical: data.vertical || prev.vertical
+        vertical: data.vertical || prev.vertical,
+        goals: data.goals || prev.goals
       }));
+      
+      if (wizardStep === 4) {
+        setWizardStep(5);
+      }
     } catch (error: any) {
       console.error("Error analyzing website:", error);
       setAiError(error.message || "Failed to analyze website");
@@ -353,6 +371,300 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     
     doc.save(`${profile.name.replace(/\s+/g, '_')}_Competitor_Analysis.pdf`);
   };
+
+  if (isEditing && wizardStep !== null) {
+    return (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 overflow-y-auto">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl max-w-2xl w-full p-10 border border-zinc-200 dark:border-zinc-800 relative"
+        >
+          <button 
+            onClick={() => {
+              setIsEditing(false);
+              setWizardStep(null);
+            }}
+            className="absolute top-8 right-8 p-2 text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-colors"
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+          <div className="space-y-8">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="w-12 h-12 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Building2 className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">Company Setup</h3>
+                <p className="text-zinc-500 text-sm">Step {wizardStep} of 5</p>
+              </div>
+            </div>
+
+            <div className="w-full bg-zinc-100 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden">
+              <motion.div 
+                className="bg-indigo-600 h-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${(wizardStep / 5) * 100}%` }}
+              />
+            </div>
+
+            <AnimatePresence mode="wait">
+              {wizardStep === 1 && (
+                <motion.div 
+                  key="step1"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Upload your logo</h4>
+                    <p className="text-zinc-500">Make your profile recognizable with your brand logo.</p>
+                  </div>
+                  <div className="flex flex-col items-center gap-6">
+                    <div className="w-40 h-40 rounded-3xl bg-zinc-50 dark:bg-zinc-800 border-2 border-dashed border-zinc-200 dark:border-zinc-700 flex items-center justify-center overflow-hidden relative group shadow-inner">
+                      {logoPreview ? (
+                        <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-4" />
+                      ) : (
+                        <Upload className="w-12 h-12 text-zinc-300" />
+                      )}
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="absolute inset-0 opacity-0 cursor-pointer"
+                      />
+                    </div>
+                    <button 
+                      onClick={() => setWizardStep(2)}
+                      className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20"
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+
+              {wizardStep === 2 && (
+                <motion.div 
+                  key="step2"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">What's your company name?</h4>
+                    <p className="text-zinc-500">Enter the official name of your organization.</p>
+                  </div>
+                  <div className="space-y-4">
+                    <input
+                      type="text"
+                      autoFocus
+                      value={tempProfile.name}
+                      onChange={(e) => setTempProfile({ ...tempProfile, name: e.target.value })}
+                      className="w-full px-6 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-lg text-zinc-900 dark:text-white text-center"
+                      placeholder="e.g. Acme Corp"
+                    />
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setWizardStep(1)}
+                        className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                      >
+                        Back
+                      </button>
+                      <button 
+                        onClick={() => setWizardStep(3)}
+                        disabled={!tempProfile.name}
+                        className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {wizardStep === 3 && (
+                <motion.div 
+                  key="step3"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Your website address</h4>
+                    <p className="text-zinc-500">We'll use this to help AI understand your business.</p>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="relative">
+                      <Globe className="absolute left-6 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" />
+                      <input
+                        type="url"
+                        autoFocus
+                        value={tempProfile.websiteUrl || ''}
+                        onChange={(e) => setTempProfile({ ...tempProfile, websiteUrl: e.target.value })}
+                        className="w-full pl-14 pr-6 py-4 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-lg text-zinc-900 dark:text-white"
+                        placeholder="https://www.acme.com"
+                      />
+                    </div>
+                    <div className="flex gap-3">
+                      <button 
+                        onClick={() => setWizardStep(2)}
+                        className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                      >
+                        Back
+                      </button>
+                      <button 
+                        onClick={() => setWizardStep(4)}
+                        disabled={!tempProfile.websiteUrl}
+                        className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {wizardStep === 4 && (
+                <motion.div 
+                  key="step4"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-8"
+                >
+                  <div className="text-center space-y-2">
+                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">AI Analysis</h4>
+                    <p className="text-zinc-500">Let our AI analyze your website to automatically generate your company vertical, description, benefits, and goals.</p>
+                  </div>
+                  
+                  <div className="p-8 bg-indigo-50 dark:bg-indigo-900/20 rounded-[2rem] border border-indigo-100 dark:border-indigo-800 flex flex-col items-center gap-6">
+                    <div className="w-20 h-20 bg-white dark:bg-zinc-900 rounded-3xl flex items-center justify-center shadow-xl">
+                      <Sparkles className={cn("w-10 h-10 text-indigo-600", isAnalyzing && "animate-pulse")} />
+                    </div>
+                    <div className="text-center">
+                      <p className="font-bold text-zinc-900 dark:text-white">Ready to analyze</p>
+                      <p className="text-sm text-zinc-500">{tempProfile.websiteUrl}</p>
+                    </div>
+                    <button 
+                      onClick={handleAnalyzeWebsite}
+                      disabled={isAnalyzing}
+                      className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20 flex items-center justify-center gap-3"
+                    >
+                      {isAnalyzing ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-5 h-5" />
+                          Run AI Analysis
+                        </>
+                      )}
+                    </button>
+                    {aiError && (
+                      <p className="text-xs text-rose-500 font-medium text-center">{aiError}</p>
+                    )}
+                  </div>
+
+                  <button 
+                    onClick={() => setWizardStep(5)}
+                    className="w-full py-3 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-sm font-bold transition-colors"
+                  >
+                    Skip and enter manually
+                  </button>
+                </motion.div>
+              )}
+
+              {wizardStep === 5 && (
+                <motion.div 
+                  key="step5"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  className="space-y-6"
+                >
+                  <div className="text-center space-y-2">
+                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Review & Complete</h4>
+                    <p className="text-zinc-500">Review the generated profile and make any final adjustments.</p>
+                  </div>
+
+                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Vertical</label>
+                      <input
+                        type="text"
+                        value={tempProfile.vertical}
+                        onChange={(e) => setTempProfile({ ...tempProfile, vertical: e.target.value })}
+                        className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Description</label>
+                      <textarea
+                        value={tempProfile.description}
+                        onChange={(e) => setTempProfile({ ...tempProfile, description: e.target.value })}
+                        rows={3}
+                        className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-zinc-700 dark:text-zinc-300"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Goals</label>
+                      <div className="space-y-2">
+                        {(tempProfile.goals || []).map((goal, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={goal}
+                              onChange={(e) => {
+                                const newGoals = [...(tempProfile.goals || [])];
+                                newGoals[i] = e.target.value;
+                                setTempProfile({ ...tempProfile, goals: newGoals });
+                              }}
+                              className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm"
+                            />
+                            <button onClick={() => removeGoal(goal)} className="text-zinc-400 hover:text-rose-500">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button 
+                      onClick={() => {
+                        setIsEditing(true);
+                        setWizardStep(null); // Go to full edit mode
+                      }}
+                      className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
+                    >
+                      Advanced Edit
+                    </button>
+                    <button 
+                      onClick={() => {
+                        handleSave();
+                        setWizardStep(null);
+                      }}
+                      className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20"
+                    >
+                      Finish Setup
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </motion.div>
+      </div>
+    );
+  }
 
   if (isEditing) {
     return (
@@ -768,7 +1080,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
             </div>
           </div>
           <button
-            onClick={() => setIsEditing(true)}
+            onClick={handleStartWizard}
             className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl text-sm font-bold shadow-lg hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all"
           >
             Edit Profile

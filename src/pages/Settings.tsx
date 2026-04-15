@@ -24,11 +24,18 @@ interface SettingsProps {
   setUsers: (users: User[] | ((prev: User[]) => User[])) => void;
   currentUser?: User | null;
   onDeleteItem?: (item: any, type: any) => void;
+  initialSection?: 'general' | 'taxonomy' | 'company' | 'users' | 'billing';
 }
 
-export function Settings({ projects, setProjects, products, setProducts, services, setServices, isDarkMode, setIsDarkMode, companyProfile, onUpdateProfile, users, setUsers, currentUser, onDeleteItem }: SettingsProps) {
+export function Settings({ projects, setProjects, products, setProducts, services, setServices, isDarkMode, setIsDarkMode, companyProfile, onUpdateProfile, users, setUsers, currentUser, onDeleteItem, initialSection }: SettingsProps) {
   const { updateUser } = useAuth();
-  const [activeSection, setActiveSection] = useState<'general' | 'taxonomy' | 'company' | 'users' | 'billing'>('general');
+  const [activeSection, setActiveSection] = useState<'general' | 'taxonomy' | 'company' | 'users' | 'billing'>(initialSection || 'general');
+
+  React.useEffect(() => {
+    if (initialSection) {
+      setActiveSection(initialSection);
+    }
+  }, [initialSection]);
 
   // General Settings State
   const [generalSettings, setGeneralSettings] = useState({
@@ -46,8 +53,16 @@ export function Settings({ projects, setProjects, products, setProducts, service
   const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  const validateEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  };
+
   const handleAddUser = async () => {
     if (newUser.name && newUser.email) {
+      if (!validateEmail(newUser.email)) {
+        setError('Please enter a valid email address.');
+        return;
+      }
       try {
         const res = await fetch('/api/users', {
           method: 'POST',
@@ -55,6 +70,11 @@ export function Settings({ projects, setProjects, products, setProducts, service
           body: JSON.stringify(newUser)
         });
         
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error('Server returned an unexpected response format.');
+        }
+
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Failed to create user');
@@ -93,7 +113,11 @@ export function Settings({ projects, setProjects, products, setProducts, service
   };
 
   const handleEditUser = async () => {
-    if (editingUser && editingUser.name) {
+    if (editingUser && editingUser.name && editingUser.email) {
+      if (!validateEmail(editingUser.email)) {
+        setError('Please enter a valid email address.');
+        return;
+      }
       try {
         const res = await fetch(`/api/users/${editingUser.id}`, {
           method: 'PUT',
@@ -101,6 +125,11 @@ export function Settings({ projects, setProjects, products, setProducts, service
           body: JSON.stringify(editingUser)
         });
         
+        const contentType = res.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+          throw new Error('Server returned an unexpected response format.');
+        }
+
         if (!res.ok) {
           const data = await res.json();
           throw new Error(data.error || 'Failed to update user');
