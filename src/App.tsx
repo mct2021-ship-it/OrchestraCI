@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { DecarbDashboard } from './pages/DecarbDashboard';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Projects } from './pages/Projects';
@@ -28,7 +29,7 @@ import { DeleteConfirmationModal } from './components/DeleteConfirmationModal';
 import { GeminiChatbot } from './components/GeminiChatbot';
 import { FeedbackModal } from './components/FeedbackModal';
 import { NotificationsModal } from './components/NotificationsModal';
-import { Menu, ChevronLeft, Users, Bell, CheckCircle2 } from 'lucide-react';
+import { Menu, ChevronLeft, Users, Bell, CheckCircle2, Leaf } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { mockPersonas, mockJourneyMaps, mockTasks, mockProcessMaps, mockProducts, mockServices, mockProjects, mockUsers, mockSprints, mockStakeholders, mockProjectStakeholders } from './data/mockData';
@@ -654,6 +655,14 @@ function AppContent() {
             users={users}
           />
         );
+      case 'decarb':
+        return (
+          <DecarbDashboard 
+            journeys={journeys}
+            projects={projects}
+            onNavigate={handleTabChange}
+          />
+        );
       case 'single_view_of_change':
         return (
           <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -766,9 +775,7 @@ function AppContent() {
           startInEditMode={startInEditMode}
           initialTab={activeSubTab as any}
           onSaveComplete={() => {
-            if (!companyProfile.wizardCompleted) {
-              setShowPersonaPromptModal(true);
-            }
+            // User requested to suppress this prompt after wizard completion
           }}
           setPersonas={handleSetPersonas}
           setProjects={handleSetProjects}

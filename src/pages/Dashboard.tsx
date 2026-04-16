@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle, Clock, ArrowRight, LayoutList } from 'lucide-react';
+import { Users, Map, Target, TrendingUp, GitMerge, Sparkles, ChevronUp, ChevronDown, FolderOpen, Plus, CheckSquare, Briefcase, AlertCircle, Clock, ArrowRight, LayoutList, Leaf } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Persona, JourneyMap, Task, ProcessMap, Project, User } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';
@@ -143,6 +143,14 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
       color: 'bg-zinc-800',
       items: (tasks || []).filter(t => t.status !== 'Deliver' && !t.archived).map(t => ({ id: t.id, name: t.title, projectId: t.projectId }))
     },
+    { 
+      id: 'decarb', 
+      label: 'Carbon Footprint', 
+      value: `${(journeys || []).reduce((sum, j) => sum + (j.carbonFootprint || 0), 0).toFixed(1)}kg`, 
+      icon: Leaf, 
+      color: 'bg-emerald-600',
+      items: (journeys || []).filter(j => (j.carbonFootprint || 0) > 0).map(j => ({ id: j.id, name: `${j.title} (${j.carbonFootprint?.toFixed(1)}kg)`, projectId: j.projectId }))
+    },
   ], [activeProjects, journeys, processMaps, tasks]);
 
   const handleStatClick = (statId: string) => {
@@ -272,7 +280,7 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       onSelectProject(item.projectId);
-                                      if (stat.id === 'journeys') onNavigate('journeys');
+                                      if (stat.id === 'journeys' || stat.id === 'decarb') onNavigate('journeys');
                                       else if (stat.id === 'process_maps') onNavigate('process_maps');
                                       else if (stat.id === 'tasks') onNavigate('tasks');
                                     }}
@@ -549,6 +557,28 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                 </button>
               </div>
             )}
+          </div>
+        </div>
+        <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">
+          <button 
+            onClick={() => onNavigate('decarb')}
+            className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 hover:text-indigo-600 transition-colors text-left block w-full"
+          >
+            Decarb Insights
+          </button>
+          <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
+            <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mb-4">
+              <Leaf className="w-8 h-8" />
+            </div>
+            <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-1">Sustainability Impact</h4>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-4 max-w-xs">Track and reduce the carbon footprint of your digital and physical customer journeys.</p>
+            <button 
+              onClick={() => onNavigate('decarb')}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition-all shadow-sm text-sm"
+            >
+              <ArrowRight className="w-4 h-4" />
+              View Decarb Dashboard
+            </button>
           </div>
         </div>
         <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 p-6">

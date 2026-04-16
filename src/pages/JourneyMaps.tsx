@@ -495,25 +495,27 @@ export function JourneyMaps({
       const currentMap = activeJourney.state === 'Current' ? activeJourney : otherMap;
       const proposedMap = activeJourney.state === 'Proposed' ? activeJourney : otherMap;
 
+      const getMapSummary = (map: JourneyMap) => {
+        return map.stages.map(s => ({
+          name: stripPIData(s.name),
+          emotion: s.emotion,
+          friction: stripPIData(Object.values(s.laneData).flat().filter(i => typeof i !== 'string' && i.title.toLowerCase().includes('friction')).map(i => typeof i === 'string' ? i : i.title).join(', ')),
+          carbon: Object.values(s.laneData).flat().reduce((sum, item) => {
+            const val = typeof item === 'string' ? 0 : (item.carbonData?.calculatedValue || 0);
+            return sum + val;
+          }, 0)
+        }));
+      };
+
       const prompt = `
         As a CX and Sustainability Strategist, assess the benefits of moving from the "Current" journey to the "Proposed" journey for the project: "${stripPIData(activeProject.name)}".
         
         Project Goals: ${activeProject.goals.map(stripPIData).join(', ')}
         
-        Current Journey: ${JSON.stringify(currentMap.stages.map(s => ({ 
-          name: stripPIData(s.name), 
-          emotion: s.emotion, 
-          friction: stripPIData(s.laneData['lane_friction']?.map(i => i.title).join(', ') || ''),
-          carbon: s.carbonData?.['lane_touchpoints']?.reduce((a, b) => a + b, 0) || 0
-        })))}
+        Current Journey Summary: ${JSON.stringify(getMapSummary(currentMap))}
         Total Current Carbon: ${currentMap.carbonFootprint || 0} kg CO2e
         
-        Proposed Journey: ${JSON.stringify(proposedMap.stages.map(s => ({ 
-          name: stripPIData(s.name), 
-          emotion: s.emotion, 
-          friction: stripPIData(s.laneData['lane_friction']?.map(i => i.title).join(', ') || ''),
-          carbon: s.carbonData?.['lane_touchpoints']?.reduce((a, b) => a + b, 0) || 0
-        })))}
+        Proposed Journey Summary: ${JSON.stringify(getMapSummary(proposedMap))}
         Total Proposed Carbon: ${proposedMap.carbonFootprint || 0} kg CO2e
         
         Provide a concise assessment of:
@@ -1077,25 +1079,29 @@ export function JourneyMaps({
     }));
   };
 
-  const updateCarbonValue = (stageId: string, laneId: string, itemIndex: number, value: number) => {
+  const updateCarbonValue = (stageId: string, laneId: string, itemIndex: number, data: Partial<JourneyItem['carbonData']>) => {
     setJourneys(journeys.map(j => {
       if (j.id === activeJourneyId) {
         const updatedStages = j.stages.map(s => {
           if (s.id === stageId) {
-            const newCarbonData = { ...(s.carbonData || {}) };
-            const laneCarbon = [...(newCarbonData[laneId] || [])];
-            // Ensure the array is long enough
-            while (laneCarbon.length <= itemIndex) laneCarbon.push(0);
-            laneCarbon[itemIndex] = value;
-            newCarbonData[laneId] = laneCarbon;
-            return { ...s, carbonData: newCarbonData };
+            const newLaneData = { ...s.laneData };
+            const items = [...(newLaneData[laneId] || [])];
+            if (items[itemIndex]) {
+              const currentCarbon = items[itemIndex].carbonData || { value: 0, unit: '', quantity: 1, calculatedValue: 0 };
+              const updatedCarbon = { ...currentCarbon, ...data };
+              updatedCarbon.calculatedValue = updatedCarbon.value * updatedCarbon.quantity;
+              items[itemIndex] = { ...items[itemIndex], carbonData: updatedCarbon };
+            }
+            newLaneData[laneId] = items;
+            return { ...s, laneData: newLaneData };
           }
           return s;
         });
 
         // Recalculate total carbon
         const totalCarbon = updatedStages.reduce((total, stage) => {
-          const stageCarbon = Object.values(stage.carbonData || {}).reduce((s, lane) => s + lane.reduce((l, val) => l + val, 0), 0);
+          const stageCarbon = Object.values(stage.laneData).reduce((s, items) => 
+            s + items.reduce((l, item) => l + (item.carbonData?.calculatedValue || 0), 0), 0);
           return total + stageCarbon;
         }, 0);
 
@@ -1130,60 +1136,92 @@ export function JourneyMaps({
         )
       );
 
-      const libraryContext = carbonLibrary.map(c => `${c.label}: ${c.value}kg CO2e (${c.description})`).join('\n');
+      const libraryContext = carbonLibrary.map(c => `ID: ${c.id}, Label: ${c.label}, Value: ${c.value}kg CO2e, Unit: ${c.unit}, Description: ${c.description}`).join('\n');
 
       const prompt = `
         As a Sustainability Expert, estimate the carbon footprint (kg CO2e) for the following customer journey touchpoints.
-        Provide a JSON array of numbers representing the estimated kg CO2e for each touchpoint in the EXACT same order as provided.
+        For each touchpoint, you MUST provide:
+        1. The closest matching coefficient from the library provided below (coefficientId).
+        2. An estimated quantity based on the touchpoint description.
+        3. The calculated value (coefficient value * quantity).
         
-        Use the following standard coefficients as a reference for your estimates:
+        Library:
         ${libraryContext}
         
         Touchpoints:
         ${touchpoints.map(t => `- ${stripPIData(t.item)}`).join('\n')}
         
-        Return ONLY the JSON array of numbers. Example: [0.5, 1.2, 0.05, ...]
+        Return a JSON array of objects: { coefficientId: string, quantity: number, calculatedValue: number, label: string } in the EXACT same order as provided.
+        The 'label' should be the label from the library coefficient you selected.
       `;
 
       const response = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
         contents: [{ parts: [{ text: prompt }] }],
         config: {
-          thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                coefficientId: { type: Type.STRING },
+                quantity: { type: Type.NUMBER },
+                calculatedValue: { type: Type.NUMBER },
+                label: { type: Type.STRING }
+              },
+              required: ["coefficientId", "quantity", "calculatedValue", "label"]
+            }
+          }
         }
       });
 
       const text = response.text || "[]";
-      const estimates = JSON.parse(text.match(/\[.*\]/s)?.[0] || "[]");
+      const estimates = JSON.parse(text);
 
       if (Array.isArray(estimates) && estimates.length === touchpoints.length) {
         setJourneys(journeys.map(j => {
           if (j.id === activeJourneyId) {
             const updatedStages = j.stages.map(s => {
-              const newCarbonData: Record<string, number[]> = { ...(s.carbonData || {}) };
+              const newLaneData = { ...s.laneData };
               
               touchpoints.forEach((t, i) => {
                 if (t.stageId === s.id) {
-                  if (!newCarbonData[t.laneId]) newCarbonData[t.laneId] = [];
-                  newCarbonData[t.laneId][t.index] = estimates[i];
+                  const items = [...(newLaneData[t.laneId] || [])];
+                  if (items[t.index]) {
+                    const est = estimates[i];
+                    const coefficient = carbonLibrary.find(c => c.id === est.coefficientId);
+                    items[t.index] = {
+                      ...items[t.index],
+                      carbonData: {
+                        coefficientId: est.coefficientId,
+                        label: est.label || coefficient?.label || 'Estimated',
+                        value: coefficient?.value || (est.calculatedValue / (est.quantity || 1)),
+                        unit: coefficient?.unit || 'kg CO2e',
+                        quantity: est.quantity || 1,
+                        calculatedValue: est.calculatedValue
+                      }
+                    };
+                  }
+                  newLaneData[t.laneId] = items;
                 }
               });
               
-              return { ...s, carbonData: newCarbonData };
+              return { ...s, laneData: newLaneData };
             });
             
-            const totalCarbon = estimates.reduce((sum, val) => sum + val, 0);
+            const totalCarbon = estimates.reduce((sum, est) => sum + (est.calculatedValue || 0), 0);
             return { ...j, stages: updatedStages, carbonFootprint: totalCarbon };
           }
           return j;
         }));
-        addToast('Carbon estimation complete', 'success');
+        addToast('Decarb estimation complete', 'success');
       } else {
         throw new Error('Invalid AI response format');
       }
     } catch (error) {
-      console.error('Carbon estimation error:', error);
-      addToast('Failed to estimate carbon footprint', 'error');
+      console.error('Decarb estimation error:', error);
+      addToast('Failed to estimate carbon footprint. Please try again.', 'error');
     } finally {
       setIsCalculatingCarbon(false);
     }
@@ -1327,17 +1365,24 @@ export function JourneyMaps({
               </button>
               <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
               <button 
-                onClick={() => setShowCarbon(!showCarbon)}
+                onClick={() => {
+                  if (plan === 'starter') {
+                    addToast('Decarb features are only available on Pro plans.', 'warning');
+                    return;
+                  }
+                  setShowCarbon(!showCarbon);
+                }}
                 className={cn(
                   "px-3 py-1.5 rounded-lg font-medium flex items-center gap-2 transition-all text-sm",
                   showCarbon 
                     ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-400" 
                     : "hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-700 dark:text-zinc-300"
                 )}
-                title="Carbon Intelligence"
+                title="Decarbonization Intelligence"
               >
                 <Leaf className="w-4 h-4" />
-                <span className="hidden lg:inline">Carbon Intel</span>
+                <span className="hidden lg:inline">Decarb</span>
+                {plan === 'starter' && <Package className="w-3 h-3 text-amber-500" />}
               </button>
               
               <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
@@ -1656,12 +1701,13 @@ export function JourneyMaps({
             {showCarbon && (
               <div className="flex items-center gap-3 bg-emerald-50 dark:bg-emerald-900/20 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800 shadow-sm">
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Carbon Footprint</span>
+                  <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Decarb Impact</span>
                   <div className="flex items-center gap-1">
                     <Leaf className="w-3 h-3 text-emerald-500" />
                     <span className="text-sm font-bold text-emerald-700 dark:text-emerald-300">
                       {activeJourney.stages.reduce((total, stage) => {
-                        const stageCarbon = Object.values(stage.carbonData || {}).reduce((s, lane) => s + lane.reduce((l, val) => l + val, 0), 0);
+                        const stageCarbon = Object.values(stage.laneData).reduce((s, items) => 
+                          s + items.reduce((l, item) => l + (item.carbonData?.calculatedValue || 0), 0), 0);
                         return total + stageCarbon;
                       }, 0).toFixed(2)} kg CO2e
                     </span>
@@ -2048,7 +2094,6 @@ export function JourneyMaps({
                       <div key={stage.id} className={`p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-${lane.colorTheme}-50/30 dark:bg-${lane.colorTheme}-900/10 flex-1 min-w-[200px] print:bg-white dark:bg-zinc-900 print:border-zinc-300`}>
                         <div className="flex flex-col gap-2">
                           {items.map((item, i) => {
-                            const carbonValue = stage.carbonData?.[lane.id]?.[i] || 0;
                             return (
                             <div key={i} className={`group/item relative flex flex-col gap-1 bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-${lane.colorTheme}-100 dark:border-zinc-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 print:shadow-none print:border-zinc-200`}>
                               <div className="flex items-start gap-2">
@@ -2074,32 +2119,40 @@ export function JourneyMaps({
                                       )}
                                     </div>
                                   {showCarbon && (
-                                    <div className="flex items-center gap-1.5 mt-1">
+                                    <div className="flex flex-col gap-1.5 mt-1">
                                       <div className={cn(
-                                        "flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold transition-colors",
-                                        carbonValue > 5 ? "bg-rose-50 text-rose-600 border border-rose-100" :
-                                        carbonValue > 1 ? "bg-amber-50 text-amber-600 border border-amber-100" :
+                                        "flex items-center justify-between px-1.5 py-1 rounded text-[9px] font-bold transition-colors",
+                                        (item.carbonData?.calculatedValue || 0) > 5 ? "bg-rose-50 text-rose-600 border border-rose-100" :
+                                        (item.carbonData?.calculatedValue || 0) > 1 ? "bg-amber-50 text-amber-600 border border-amber-100" :
                                         "bg-emerald-50 text-emerald-600 border border-emerald-100"
                                       )}>
-                                        <Leaf className="w-2.5 h-2.5" />
-                                        {carbonValue.toFixed(2)} kg
+                                        <div className="flex items-center gap-1">
+                                          <Leaf className="w-2.5 h-2.5" />
+                                          <span>{(item.carbonData?.calculatedValue || 0).toFixed(3)} kg</span>
+                                        </div>
+                                        {item.carbonData?.label && (
+                                          <span className="text-[8px] opacity-60 truncate max-w-[80px]">{item.carbonData.label}</span>
+                                        )}
                                       </div>
                                       {canEdit && (
-                                        <div className="flex items-center gap-1">
-                                          <input 
-                                            type="number"
-                                            step="0.1"
-                                            min="0"
-                                            value={carbonValue}
-                                            onChange={(e) => updateCarbonValue(stage.id, lane.id, i, Number(e.target.value))}
-                                            className="w-12 bg-zinc-50 dark:bg-zinc-800 border-none text-[9px] p-0 focus:ring-0 text-zinc-400 hover:text-zinc-600 transition-colors"
-                                          />
+                                        <div className="flex items-center gap-1 bg-zinc-50 dark:bg-zinc-800/50 p-1 rounded-md border border-zinc-100 dark:border-zinc-700">
+                                          <div className="flex items-center gap-1 flex-1">
+                                            <span className="text-[8px] text-zinc-400 font-bold uppercase">Qty:</span>
+                                            <input 
+                                              type="number"
+                                              step="0.1"
+                                              min="0"
+                                              value={item.carbonData?.quantity || 1}
+                                              onChange={(e) => updateCarbonValue(stage.id, lane.id, i, { quantity: Number(e.target.value) })}
+                                              className="w-10 bg-transparent border-none text-[9px] p-0 focus:ring-0 text-zinc-600 dark:text-zinc-300 font-bold"
+                                            />
+                                          </div>
                                           <button 
                                             onClick={() => {
                                               setActiveCarbonTarget({ stageId: stage.id, laneId: lane.id, itemIndex: i });
                                               setIsLibraryOpen(true);
                                             }}
-                                            className="p-0.5 text-zinc-300 hover:text-emerald-500 transition-colors"
+                                            className="p-1 text-zinc-400 hover:text-emerald-500 transition-colors bg-white dark:bg-zinc-900 rounded shadow-sm"
                                             title="Select from Library"
                                           >
                                             <BookOpen className="w-2.5 h-2.5" />
@@ -2396,9 +2449,20 @@ export function JourneyMaps({
           setIsLibraryOpen(false);
           setActiveCarbonTarget(null);
         }}
-        onSelect={(value) => {
+        onSelect={(coefficient, quantity) => {
           if (activeCarbonTarget) {
-            updateCarbonValue(activeCarbonTarget.stageId, activeCarbonTarget.laneId, activeCarbonTarget.itemIndex, value);
+            updateCarbonValue(
+              activeCarbonTarget.stageId, 
+              activeCarbonTarget.laneId, 
+              activeCarbonTarget.itemIndex, 
+              { 
+                coefficientId: coefficient.id,
+                label: coefficient.label,
+                value: coefficient.value,
+                unit: coefficient.unit,
+                quantity: quantity
+              }
+            );
           }
         }}
       />

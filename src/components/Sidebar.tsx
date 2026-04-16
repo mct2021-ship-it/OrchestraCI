@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { LayoutDashboard, Users, Map, Target, GitMerge, Sparkles, Menu, X as CloseIcon, Settings, BrainCircuit, Shield, Building2, Activity, LayoutList, Briefcase, FileText, UsersRound, KanbanSquare, MonitorSmartphone, Calendar, MessageSquare, Bell, Layers } from 'lucide-react';
+import { LayoutDashboard, Users, Map, Target, GitMerge, Sparkles, Menu, X as CloseIcon, Settings, BrainCircuit, Shield, Building2, Activity, LayoutList, Briefcase, FileText, UsersRound, KanbanSquare, MonitorSmartphone, Calendar, MessageSquare, Bell, Layers, Leaf } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { usePlan } from '../context/PlanContext';
 import { useAuth } from '../context/AuthContext';
@@ -27,6 +27,7 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
   const mainNav = useMemo(() => [
     { id: 'welcome', label: 'Welcome', icon: Sparkles, color: 'text-indigo-500' },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
+    { id: 'decarb', label: 'Decarb', icon: Leaf, color: 'text-emerald-600', badge: 'Pro' },
     { id: 'intelligence', label: 'Intelligence Hub', icon: BrainCircuit, color: 'text-purple-500', badge: 'Pro' },
     { id: 'single_view_of_change', label: 'Single View of Change', icon: Activity, color: 'text-indigo-500' },
     { id: 'personas', label: 'Personas', icon: Users, color: 'text-rose-500' },

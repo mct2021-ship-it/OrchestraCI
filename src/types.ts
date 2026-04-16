@@ -65,12 +65,22 @@ export interface Swimlane {
   isHidden?: boolean;
 }
 
+export interface CarbonData {
+  coefficientId?: string;
+  label?: string;
+  value: number; // kg CO2e per unit
+  unit: string;
+  quantity: number;
+  calculatedValue: number; // value * quantity
+}
+
 export interface JourneyItem {
   id: string;
   title: string;
   description?: string;
   imageUrl?: string;
   showImageOnMap?: boolean;
+  carbonData?: CarbonData;
 }
 
 export interface JourneyStage {
@@ -79,7 +89,8 @@ export interface JourneyStage {
   icon?: string;
   emotion: number; // 1 to 5
   laneData: Record<string, JourneyItem[]>; // Maps swimlane.id to an array of items
-  carbonData?: Record<string, number[]>; // Maps swimlane.id to an array of carbon values (kg CO2e)
+  /** @deprecated use carbonData on JourneyItem instead */
+  carbonData?: Record<string, number[]>; 
 }
 
 export interface Product {
