@@ -1,12 +1,14 @@
 import React, { useState, useRef } from 'react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type, ThinkingLevel } from "@google/genai";
-import { X, Sparkles, Loader2, Check, UserPlus, Upload, FileText as FileIcon } from 'lucide-react';
+import { X, Sparkles, Loader2, Check, UserPlus, Upload, FileText as FileIcon, Mic, MicOff } from 'lucide-react';
 import { Persona } from '../types';
 import { CompanyProfile } from './YourCompany';
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
+import { cn } from '../lib/utils';
+import { AVATAR_LIBRARY } from '../data/avatars';
 
 interface AiPersonaGeneratorProps {
   isOpen: boolean;
@@ -18,16 +20,89 @@ interface AiPersonaGeneratorProps {
 export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: AiPersonaGeneratorProps) {
   const { addToast } = useToast();
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [questions, setQuestions] = useState({
-    audience: '',
-    challenges: '',
-    goals: ''
-  });
+  const [details, setDetails] = useState('');
+  const [isListening, setIsListening] = useState(false);
   const [data, setData] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [suggestions, setSuggestions] = useState<Partial<Persona>[]>([]);
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Reset state when opening
+  React.useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setDetails('');
+      setData('');
+      setIsGenerating(false);
+      setSuggestions([]);
+      setSelectedIndices([]);
+    }
+  }, [isOpen]);
+
+  const getAvatarForPersona = (gender: string, age: number) => {
+    const ageBracket = age <= 30 ? '18-30' : age <= 50 ? '31-50' : '51+';
+    const normalizedGender = gender === 'Non-binary' ? 'Non-binary' : gender === 'Male' ? 'Male' : 'Female';
+    
+    const matches = AVATAR_LIBRARY.filter(a => a.gender === normalizedGender && a.ageBracket === ageBracket);
+    if (matches.length > 0) {
+      return matches[Math.floor(Math.random() * matches.length)].url;
+    }
+    
+    // Fallback to gender match
+    const genderMatches = AVATAR_LIBRARY.filter(a => a.gender === normalizedGender);
+    if (genderMatches.length > 0) {
+      return genderMatches[Math.floor(Math.random() * genderMatches.length)].url;
+    }
+    
+    // Total fallback
+    return AVATAR_LIBRARY[Math.floor(Math.random() * AVATAR_LIBRARY.length)].url;
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      addToast("Speech recognition is not supported in this browser.", "error");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+      addToast("Error with voice input. Please try again.", "error");
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        setDetails(prev => prev + (prev ? ' ' : '') + finalTranscript);
+      }
+    };
+
+    recognition.start();
+
+    // Auto-stop after 30 seconds or if user toggles off
+    setTimeout(() => {
+      if (isListening) recognition.stop();
+    }, 30000);
+  };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,10 +137,8 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
         Goals: ${companyProfile.goals?.join(', ')}
         ` : ''}
 
-        User Provided Context:
-        Target Audience: ${questions.audience}
-        Primary Challenges: ${questions.challenges}
-        Persona Goals: ${questions.goals}
+        User Provided Context/Details:
+        ${details}
 
         ${data ? `Additional Research Data:
         ${stripPIData(data)}` : ''}
@@ -80,6 +153,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
         - 3-5 Frustrations
         - 3 Demographic sliders (label and value 0-100)
         - 3 User Stories in the format: "As a [persona], I want [action], so that [benefit]"
+        - Visual attributes for an avatar (comma-separated keywords, e.g. "middle-aged man, glasses, smiling")
       `;
 
       const response = await ai.models.generateContent({
@@ -124,9 +198,10 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
                     },
                     required: ["asA", "iWant", "soThat"]
                   }
-                }
+                },
+                avatarAttributes: { type: Type.STRING, description: "Keywords for finding a suitable profile photo" }
               },
-              required: ["name", "role", "type", "age", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics", "userStories"]
+              required: ["name", "role", "type", "age", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics", "userStories", "avatarAttributes"]
             }
           }
         }
@@ -147,13 +222,17 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
   const handleSave = () => {
     const selectedPersonas = suggestions
       .filter((_, i) => selectedIndices.includes(i))
-      .map(s => ({
-        ...s,
-        id: uuidv4(),
-        imageUrl: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000)}?w=400&h=400&fit=crop`,
-        demographics: s.demographics?.map(d => ({ ...d, id: uuidv4() })) || [],
-        userStories: s.userStories?.map(us => ({ ...us, id: uuidv4() })) || []
-      } as Persona));
+      .map(s => {
+        const age = s.age || 30;
+        const gender = s.gender || 'Female';
+        return {
+          ...s,
+          id: uuidv4(),
+          imageUrl: getAvatarForPersona(gender, age),
+          demographics: s.demographics?.map(d => ({ ...d, id: uuidv4() })) || [],
+          userStories: s.userStories?.map(us => ({ ...us, id: uuidv4() })) || []
+        } as Persona;
+      });
     
     onSave(selectedPersonas);
     onClose();
@@ -184,43 +263,54 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
             <div className="space-y-6 max-w-2xl mx-auto">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">Who is your target audience?</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
+                      Describe your target personas or project context
+                    </label>
+                    <button
+                      onClick={toggleListening}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                        isListening 
+                          ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 animate-pulse" 
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
+                      )}
+                    >
+                      {isListening ? (
+                        <>
+                          <MicOff className="w-3.5 h-3.5" /> Stop Listening
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-3.5 h-3.5" /> Voice Input
+                        </>
+                      )}
+                    </button>
+                  </div>
                   <textarea 
-                    value={questions.audience}
-                    onChange={(e) => setQuestions({ ...questions, audience: e.target.value })}
-                    placeholder="e.g. Small business owners in the UK, or parents of toddlers..."
-                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm"
-                    rows={3}
+                    value={details}
+                    onChange={(e) => setDetails(e.target.value)}
+                    placeholder="e.g. We are building a new fitness app for busy professionals. We need personas that represent busy desk workers, weekend warriors, and those recovering from minor injuries..."
+                    className="w-full p-6 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-base leading-relaxed"
+                    rows={8}
                   />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">What are their primary challenges?</label>
-                  <textarea 
-                    value={questions.challenges}
-                    onChange={(e) => setQuestions({ ...questions, challenges: e.target.value })}
-                    placeholder="e.g. Lack of time, high costs, or difficulty finding reliable information..."
-                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm"
-                    rows={3}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">What is the main goal of this persona?</label>
-                  <textarea 
-                    value={questions.goals}
-                    onChange={(e) => setQuestions({ ...questions, goals: e.target.value })}
-                    placeholder="e.g. To automate their workflow, or to find a safe community for their children..."
-                    className="w-full p-4 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl focus:ring-2 focus:ring-indigo-500 outline-none resize-none text-sm"
-                    rows={3}
-                  />
+                  {isListening && (
+                    <p className="text-xs text-rose-500 font-medium animate-pulse">
+                      Listening... speak clearly into your microphone.
+                    </p>
+                  )}
                 </div>
               </div>
               <button 
                 onClick={() => setStep(2)}
-                disabled={!questions.audience || !questions.challenges || !questions.goals}
-                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg"
+                disabled={!details.trim() || isListening}
+                className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-indigo-700 transition-all disabled:opacity-50 shadow-lg shadow-indigo-200 dark:shadow-none"
               >
-                Next: Add Research Data
+                Next: Add Research Data (Optional)
               </button>
+              <p className="text-[10px] text-zinc-500 dark:text-zinc-400 text-center">
+                Orchestra CI uses Gemini AI to analyze your input and suggest realistic, data-driven personas.
+              </p>
             </div>
           )}
 
@@ -304,10 +394,22 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
                     }`}>
                       {selectedIndices.includes(i) && <Check className="w-4 h-4" />}
                     </div>
-                    <h4 className="font-bold text-zinc-900 dark:text-white text-lg mb-1">{s.name}</h4>
-                    <p className="text-sm text-indigo-600 font-semibold mb-1">{s.role}</p>
-                    {s.type && <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mb-3">{s.type}</p>}
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 italic line-clamp-2">"{s.quote}"</p>
+                    <div className="flex gap-4">
+                      <img 
+                        src={getAvatarForPersona(s.gender || 'Female', s.age || 30)}
+                        className="w-16 h-16 rounded-full object-cover border border-zinc-200 dark:border-zinc-800 shrink-0"
+                        alt=""
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex-1">
+                        <h4 className="font-bold text-zinc-900 dark:text-white text-lg mb-1">{s.name}</h4>
+                        <p className="text-sm text-indigo-600 font-semibold mb-1">{s.role}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      {s.type && <p className="text-xs text-zinc-500 dark:text-zinc-400 font-medium mb-2">{s.type}</p>}
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400 italic line-clamp-2">"{s.quote}"</p>
+                    </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">Age: {s.age}</span>
                       <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-[10px] font-bold text-zinc-600 dark:text-zinc-300">{s.goals?.length} Goals</span>

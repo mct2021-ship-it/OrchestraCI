@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Sliders, Star, Plus, Image as ImageIcon, Heart, BookOpen, Folder, ChevronLeft, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Filter, Check } from 'lucide-react';
+import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Sliders, Star, Plus, Image as ImageIcon, Heart, BookOpen, Folder, ChevronLeft, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Filter, Check, Mic, MicOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type, ThinkingLevel } from "@google/genai";
@@ -8,9 +8,11 @@ import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 import { Persona, DemographicSlider } from '../types';
 import { CompanyProfile } from './YourCompany';
+import { cn } from '../lib/utils';
 import { personaTemplates } from '../data/mockData';
 import { personaLibrary, PersonaFolder } from '../data/personaLibrary';
 import { AvatarGalleryModal } from './AvatarGalleryModal';
+import { AVATAR_LIBRARY } from '../data/avatars';
 
 const iconMap: Record<string, React.ElementType> = {
   Home,
@@ -35,6 +37,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
   const { addToast } = useToast();
   const [mode, setMode] = useState<'manual' | 'ai' | 'template' | 'library'>('manual');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [prompt, setPrompt] = useState('');
   const [uploadData, setUploadData] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
@@ -48,16 +51,26 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
 
   const defaultTemplate = personaTemplates.find(t => t.isDefaultTemplate) || personaTemplates[0];
 
-  const HUMAN_AVATARS = [
-    'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=400&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=400&fit=crop',
-    'https://images.unsplash.com/photo-1552058544-f2b08422138a?w=400&h=400&fit=crop',
-  ];
+  const getAvatarForPersona = (gender: string, age: number) => {
+    const ageBracket = age <= 30 ? '18-30' : age <= 50 ? '31-50' : '51+';
+    const normalizedGender = gender === 'Non-binary' ? 'Non-binary' : gender === 'Male' ? 'Male' : 'Female';
+    
+    const matches = AVATAR_LIBRARY.filter(a => a.gender === normalizedGender && a.ageBracket === ageBracket);
+    if (matches.length > 0) {
+      return matches[Math.floor(Math.random() * matches.length)].url;
+    }
+    
+    // Fallback to gender match
+    const genderMatches = AVATAR_LIBRARY.filter(a => a.gender === normalizedGender);
+    if (genderMatches.length > 0) {
+      return genderMatches[Math.floor(Math.random() * genderMatches.length)].url;
+    }
+    
+    // Total fallback
+    return AVATAR_LIBRARY[Math.floor(Math.random() * AVATAR_LIBRARY.length)].url;
+  };
 
-  const getRandomAvatar = () => HUMAN_AVATARS[Math.floor(Math.random() * HUMAN_AVATARS.length)];
+  const getRandomAvatar = () => AVATAR_LIBRARY[Math.floor(Math.random() * AVATAR_LIBRARY.length)].url;
 
   const [formData, setFormData] = useState<Partial<Persona>>({
     name: '',
@@ -70,6 +83,60 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
     imageUrl: getRandomAvatar(),
     demographics: defaultTemplate.demographics.map(d => ({ ...d, id: uuidv4() }))
   });
+
+  // Reset state when opening
+  React.useEffect(() => {
+    if (isOpen) {
+      setPrompt('');
+      setUploadData(null);
+      setIsGenerating(false);
+      setMode('manual');
+    }
+  }, [isOpen]);
+
+  const toggleListening = () => {
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      addToast("Speech recognition is not supported in this browser.", "error");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => setIsListening(true);
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+      addToast("Error with voice input. Please try again.", "error");
+    };
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) {
+          finalTranscript += event.results[i][0].transcript;
+        }
+      }
+      if (finalTranscript) {
+        setPrompt(prev => prev + (prev ? ' ' : '') + finalTranscript);
+      }
+    };
+
+    recognition.start();
+
+    setTimeout(() => {
+      if (isListening) recognition.stop();
+    }, 30000);
+  };
 
   const handleManualSave = () => {
     if (!formData.name || !formData.role) return;
@@ -119,6 +186,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
 
         ${uploadData ? `Use this demographic data as context: ${stripPIData(uploadData)}` : ''}
         Also, generate 3 relevant user stories for this persona in the format: "As a [persona], I want [action], so that [benefit]".
+        Provide visual attributes for an appropriate profile photo (e.g. "professional woman in her 30s").
         Provide the persona in JSON format.`,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -136,6 +204,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
               frustrations: { type: Type.ARRAY, items: { type: Type.STRING } },
               motivations: { type: Type.ARRAY, items: { type: Type.STRING } },
               sentiment: { type: Type.INTEGER, description: "A number from 1 to 5 representing current sentiment (1=Angry, 5=Delighted)" },
+              avatarAttributes: { type: Type.STRING, description: "Keywords for a profile photo" },
               demographics: {
                 type: Type.ARRAY,
                 items: {
@@ -160,7 +229,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
                 }
               }
             },
-            required: ["name", "role", "age", "gender", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics", "userStories"]
+            required: ["name", "role", "age", "gender", "quote", "goals", "frustrations", "motivations", "sentiment", "demographics", "userStories", "avatarAttributes"]
           }
         }
       });
@@ -171,7 +240,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
         ...data,
         userStories: (data.userStories || []).map((us: any) => ({ ...us, id: uuidv4() })),
         demographics: data.demographics.map((d: any) => ({ ...d, id: uuidv4() })),
-        imageUrl: getRandomAvatar()
+        imageUrl: getAvatarForPersona(data.gender || 'Female', data.age || 30)
       };
       
       onSave(newPersona);
@@ -518,14 +587,35 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
                 className="space-y-6"
               >
                 <div className="bg-zinc-50 dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
-                      <Wand2 className="w-6 h-6 text-white" />
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
+                        <Wand2 className="w-6 h-6 text-white" />
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-zinc-900 dark:text-white">AI Persona Builder</h3>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">Describe your target customer or use uploaded data</p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-bold text-zinc-900 dark:text-white">AI Persona Builder</h3>
-                      <p className="text-xs text-zinc-500 dark:text-zinc-400">Describe your target customer or use uploaded data</p>
-                    </div>
+                    <button
+                      onClick={toggleListening}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0",
+                        isListening 
+                          ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 animate-pulse" 
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
+                      )}
+                    >
+                      {isListening ? (
+                        <>
+                          <MicOff className="w-3.5 h-3.5" /> Stop
+                        </>
+                      ) : (
+                        <>
+                          <Mic className="w-3.5 h-3.5" /> Voice
+                        </>
+                      )}
+                    </button>
                   </div>
                   
                   {uploadData && (

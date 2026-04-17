@@ -47,6 +47,7 @@ export interface Persona {
   frustrations: string[];
   motivations?: string[];
   imageUrl: string;
+  avatarAttributes?: string;
   demographics: DemographicSlider[];
   sentiment?: number;
   isTemplate?: boolean;
