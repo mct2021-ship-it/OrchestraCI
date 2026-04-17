@@ -371,7 +371,7 @@ export function TaskList({ tasks, projects, sprints, initialAssigneeId, initialP
                     )}
                     <td className="px-6 py-4">
                       <span className="text-sm text-zinc-600 dark:text-zinc-400">
-                        {task.sprint || '-'}
+                        {sprints.find(s => s.id === task.sprint)?.name || task.sprint || '-'}
                       </span>
                     </td>
                     <td className="px-6 py-4">

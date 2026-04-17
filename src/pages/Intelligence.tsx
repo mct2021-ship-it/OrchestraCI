@@ -70,6 +70,53 @@ export function Intelligence({
   const [isGeneratingInsights, setIsGeneratingInsights] = useState(false);
   const [aiInsights, setAiInsights] = useState<any[]>([]);
 
+  const handleAddToJourney = (insight: any) => {
+    if (!setJourneys || !propProfile) return;
+
+    setJourneys(prev => {
+      // Find the first journey map for this project
+      const projectJourney = prev.find(j => !j.archived);
+      if (!projectJourney) {
+        addToast("Please create a journey map first.", "info");
+        return prev;
+      }
+
+      return prev.map(j => {
+        if (j.id === projectJourney.id) {
+          return {
+            ...j,
+            stages: j.stages.map((s, idx) => {
+              // Add to the first stage by default or where relevant
+              if (idx === 0) {
+                const laneId = 'lane_opportunities';
+                const currentItems = s.laneData[laneId] || [];
+                const newItem = {
+                  id: `insight_${Date.now()}`,
+                  title: insight.title,
+                  description: insight.description
+                };
+                return {
+                  ...s,
+                  laneData: {
+                    ...s.laneData,
+                    [laneId]: [...currentItems, newItem]
+                  }
+                };
+              }
+              return s;
+            })
+          };
+        }
+        return j;
+      });
+    });
+
+    addToast(`Added "${insight.title}" to journey map`, "success");
+    if (onAddToAuditLog) {
+      onAddToAuditLog('Added Opportunity to Journey', `Added AI insight "${insight.title}" to journey map`, 'Update', 'Intelligence', insight.title, 'AI');
+    }
+  };
+
   const handleGenerateInsights = async () => {
     if (!profile.name || !profile.description) {
       addToast("Please complete your company profile first to generate strategic insights.", "info");
@@ -441,6 +488,14 @@ export function Intelligence({
                       </div>
                       <h4 className="font-bold text-zinc-900 dark:text-white mb-2">{insight.title}</h4>
                       <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed">{insight.description}</p>
+                      
+                      <button
+                        onClick={() => handleAddToJourney(insight)}
+                        className="mt-4 flex items-center gap-1.5 text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-wider opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Plus className="w-3 h-3" />
+                        Add to Journey Map
+                      </button>
                     </motion.div>
                   ))
                 ) : (

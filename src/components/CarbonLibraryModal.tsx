@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Search, Leaf, Info, Check } from 'lucide-react';
+import { X, Search, Leaf, Info, Check, Plus } from 'lucide-react';
 import { carbonLibrary, CarbonCoefficient } from '../data/carbonLibrary';
 
 interface CarbonLibraryModalProps {
@@ -12,21 +12,53 @@ export const CarbonLibraryModal: React.FC<CarbonLibraryModalProps> = ({ isOpen, 
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [quantity, setQuantity] = useState<number>(1);
+  const [customItems, setCustomItems] = useState<CarbonCoefficient[]>([]);
+  const [showAddCustom, setShowAddCustom] = useState(false);
+  const [newCustomItem, setNewCustomItem] = useState<Partial<CarbonCoefficient>>({
+    category: 'Digital',
+    label: '',
+    value: 0,
+    unit: '',
+    description: '',
+    source: 'User Research'
+  });
 
   if (!isOpen) return null;
 
-  const categories = Array.from(new Set(carbonLibrary.map(c => c.category)));
+  const fullLibrary = [...carbonLibrary, ...customItems];
+  const categories = Array.from(new Set(fullLibrary.map(c => c.category)));
   
-  const filteredLibrary = carbonLibrary.filter(item => {
+  const filteredLibrary = fullLibrary.filter(item => {
     const matchesSearch = item.label.toLowerCase().includes(search.toLowerCase()) || 
                          item.description.toLowerCase().includes(search.toLowerCase());
     const matchesCategory = !selectedCategory || item.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
+  const handleAddCustom = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCustomItem.label || !newCustomItem.value || !newCustomItem.unit) return;
+
+    const newItem: CarbonCoefficient = {
+      ...newCustomItem as CarbonCoefficient,
+      id: `custom_${Date.now()}`,
+    };
+
+    setCustomItems(prev => [newItem, ...prev]);
+    setShowAddCustom(false);
+    setNewCustomItem({
+      category: 'Digital',
+      label: '',
+      value: 0,
+      unit: '',
+      description: '',
+      source: 'User Research'
+    });
+  };
+
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800">
         <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-emerald-50/50 dark:bg-emerald-900/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
@@ -34,7 +66,7 @@ export const CarbonLibraryModal: React.FC<CarbonLibraryModalProps> = ({ isOpen, 
             </div>
             <div>
               <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Carbon Intelligence Library</h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Select standard coefficients and specify quantity</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">Select standard coefficients or add your own research</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
@@ -42,95 +74,191 @@ export const CarbonLibraryModal: React.FC<CarbonLibraryModalProps> = ({ isOpen, 
           </button>
         </div>
 
-        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex flex-col gap-4">
-          <div className="flex gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
-              <input 
-                type="text"
-                placeholder="Search coefficients..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
-              />
-            </div>
-            <div className="w-32">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Quantity</label>
-              <input 
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={quantity}
-                onChange={(e) => setQuantity(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-bold"
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button 
-              onClick={() => setSelectedCategory(null)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${!selectedCategory ? 'bg-emerald-500 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
-            >
-              All
-            </button>
-            {categories.map(cat => (
+        {showAddCustom ? (
+          <form onSubmit={handleAddCustom} className="p-6 space-y-4 overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-zinc-900 dark:text-white">Add Custom Coefficient</h3>
               <button 
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCategory === cat ? 'bg-emerald-500 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
+                type="button"
+                onClick={() => setShowAddCustom(false)}
+                className="text-xs text-zinc-500 hover:text-zinc-900"
               >
-                {cat}
+                Back to Library
               </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {filteredLibrary.length > 0 ? (
-            filteredLibrary.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => {
-                  onSelect(item, quantity);
-                  onClose();
-                }}
-                className="w-full flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all group text-left"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="mt-1 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
-                    <Info className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-zinc-900 dark:text-white">{item.label}</span>
-                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 uppercase font-bold tracking-wider">
-                        {item.category}
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{item.description}</p>
-                    {item.source && (
-                      <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 italic">Source: {item.source}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                    {(item.value * quantity).toFixed(3)} 
-                    <span className="text-xs font-normal text-zinc-400 ml-1">kg CO2e</span>
-                  </div>
-                  <div className="text-[10px] text-zinc-400">
-                    {quantity} × {item.value} {item.unit}
-                  </div>
-                </div>
-              </button>
-            ))
-          ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
-              <Search className="w-12 h-12 mb-4 opacity-20" />
-              <p>No coefficients found matching your search.</p>
             </div>
-          )}
-        </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Label</label>
+                <input 
+                  required
+                  type="text"
+                  value={newCustomItem.label}
+                  onChange={(e) => setNewCustomItem({ ...newCustomItem, label: e.target.value })}
+                  placeholder="e.g. My Specific Server"
+                  className="w-full px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Category</label>
+                <select 
+                  value={newCustomItem.category}
+                  onChange={(e) => setNewCustomItem({ ...newCustomItem, category: e.target.value as any })}
+                  className="w-full px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm"
+                >
+                  {['Digital', 'Physical', 'Logistics', 'Human', 'Infrastructure', 'Energy', 'Materials'].map(cat => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Value (kg CO2e)</label>
+                <input 
+                  required
+                  type="number"
+                  step="0.00001"
+                  value={newCustomItem.value}
+                  onChange={(e) => setNewCustomItem({ ...newCustomItem, value: Number(e.target.value) })}
+                  className="w-full px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Unit</label>
+                <input 
+                  required
+                  type="text"
+                  value={newCustomItem.unit}
+                  onChange={(e) => setNewCustomItem({ ...newCustomItem, unit: e.target.value })}
+                  placeholder="e.g. per hour"
+                  className="w-full px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm"
+                />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Description</label>
+                <textarea 
+                  value={newCustomItem.description}
+                  onChange={(e) => setNewCustomItem({ ...newCustomItem, description: e.target.value })}
+                  className="w-full px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm min-h-[80px]"
+                />
+              </div>
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Source / Research Notes</label>
+                <input 
+                  type="text"
+                  value={newCustomItem.source}
+                  onChange={(e) => setNewCustomItem({ ...newCustomItem, source: e.target.value })}
+                  className="w-full px-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm"
+                />
+              </div>
+            </div>
+            <button 
+              type="submit"
+              className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors mt-4"
+            >
+              Add to Library
+            </button>
+          </form>
+        ) : (
+          <>
+            <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 flex flex-col gap-4">
+              <div className="flex gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+                  <input 
+                    type="text"
+                    placeholder="Search coefficients..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none"
+                  />
+                </div>
+                <div className="w-32">
+                  <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Quantity</label>
+                  <input 
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Number(e.target.value))}
+                    className="w-full px-3 py-2 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl text-sm focus:ring-2 focus:ring-emerald-500 outline-none font-bold"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap gap-2">
+                  <button 
+                    onClick={() => setSelectedCategory(null)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${!selectedCategory ? 'bg-emerald-500 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
+                  >
+                    All
+                  </button>
+                  {categories.map(cat => (
+                    <button 
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${selectedCategory === cat ? 'bg-emerald-500 text-white' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'}`}
+                    >
+                      {cat}
+                    </button>
+                  ))}
+                </div>
+                <button 
+                  onClick={() => setShowAddCustom(true)}
+                  className="text-xs font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Custom
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              {filteredLibrary.length > 0 ? (
+                filteredLibrary.map((item) => (
+                  <button
+                    key={item.id}
+                    onClick={() => {
+                      onSelect(item, quantity);
+                      onClose();
+                    }}
+                    className="w-full flex items-center justify-between p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10 transition-all group text-left"
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="mt-1 p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 group-hover:bg-emerald-100 dark:group-hover:bg-emerald-900/50 text-zinc-500 dark:text-zinc-400 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                        <Info className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-zinc-900 dark:text-white">{item.label}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 uppercase font-bold tracking-wider">
+                            {item.category}
+                          </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1 line-clamp-2">{item.description}</p>
+                        {item.source && (
+                          <p className="text-[10px] text-zinc-400 dark:text-zinc-500 mt-1 italic">Source: {item.source}</p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                        {(item.value * quantity).toFixed(3)} 
+                        <span className="text-xs font-normal text-zinc-400 ml-1">kg CO2e</span>
+                      </div>
+                      <div className="text-[10px] text-zinc-400">
+                        {quantity} × {item.value} {item.unit}
+                      </div>
+                    </div>
+                  </button>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-zinc-500">
+                  <Search className="w-12 h-12 mb-4 opacity-20" />
+                  <p>No coefficients found matching your search.</p>
+                </div>
+              )}
+            </div>
+          </>
+        )}
 
         <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 flex justify-end">
           <button 

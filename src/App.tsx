@@ -790,7 +790,7 @@ function AppContent() {
       case 'personas':
         return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} />;
       case 'stakeholders':
-        return <Stakeholders stakeholders={stakeholders} setStakeholders={handleSetStakeholders} onDeleteItem={handleDeleteItem} onAddToAuditLog={handleAddToAuditLog} />;
+        return <Stakeholders stakeholders={stakeholders} setStakeholders={handleSetStakeholders} onDeleteItem={handleDeleteItem} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} />;
       case 'journeys':
         const journeyUsers = [...mockUsers];
         if (currentUser && !journeyUsers.some(u => u.email === currentUser.email)) {
@@ -823,6 +823,7 @@ function AppContent() {
             onDeleteItem={handleDeleteItem}
             users={journeyUsers}
             onAddToAuditLog={handleAddToAuditLog}
+            companyProfile={companyProfile}
           />
         );
       case 'process_maps':
@@ -929,15 +930,6 @@ function AppContent() {
         );
       case 'pricing':
         return <Pricing />;
-      case 'single_view_of_change':
-        return (
-          <SingleViewOfChange 
-            projects={projects}
-            tasks={tasks}
-            users={users}
-            onSelectProject={handleSelectProject}
-          />
-        );
       default:
         return (
           <Dashboard 

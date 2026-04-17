@@ -170,6 +170,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
                 name: { type: Type.STRING },
                 role: { type: Type.STRING },
                 type: { type: Type.STRING, description: "The category or type of persona (e.g., Housing Association Tenant, Standard)" },
+                gender: { type: Type.STRING, enum: ['Male', 'Female', 'Non-binary'] },
                 age: { type: Type.NUMBER },
                 quote: { type: Type.STRING },
                 goals: { type: Type.ARRAY, items: { type: Type.STRING } },

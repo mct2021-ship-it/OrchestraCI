@@ -443,8 +443,14 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
   }, [filteredTasks]);
 
   const handleFinishSprint = () => {
-    const activeSprint = sprints.find(s => s.projectId === project.id && s.status === 'In Progress');
-    if (!activeSprint) return;
+    const activeSprint = selectedSprintId !== 'all'
+      ? sprints.find(s => s.id === selectedSprintId)
+      : sprints.find(s => s.projectId === project.id && s.status === 'In Progress');
+
+    if (!activeSprint) {
+      addToast('No active sprint found to finish', 'error');
+      return;
+    }
 
     const currentSprintTasks = tasks.filter(t => t.projectId === project.id && t.sprint === activeSprint.id);
     
@@ -507,6 +513,17 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
 
     const newStatus = destColumn.id === destColumn.title ? destColumn.title : destColumn.id;
     const isDoneColumn = destColumn.title.toLowerCase() === 'done' || destColumn.title.toLowerCase() === 'completed';
+
+    // Auto-start sprint if task is in a "Not Started" sprint and moved out of Backlog
+    if (taskToUpdate.sprint) {
+      const sprint = sprints.find(s => s.id === taskToUpdate.sprint);
+      const isInProgressColumn = !['Backlog', 'To Do', 'Ready'].includes(destColumn.title);
+      
+      if (sprint && sprint.status === 'Not Started' && isInProgressColumn) {
+        setSprints(prev => prev.map(s => s.id === sprint.id ? { ...s, status: 'In Progress' } : s));
+        addToast(`Sprint "${sprint.name}" auto-started`, 'info');
+      }
+    }
 
     const updatedTask = { 
       ...taskToUpdate, 
@@ -855,9 +872,9 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
                                       </div>
                                     )}
                                     {task.sprint && (
-                                      <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg text-[10px] font-bold text-indigo-600 dark:text-indigo-400">
+                                      <div className="flex items-center gap-1.5 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg text-[10px] font-bold text-indigo-600 dark:text-indigo-400" title="Sprint">
                                         <Clock className="w-3 h-3" />
-                                        {task.sprint}
+                                        {sprints.find(s => s.id === task.sprint)?.name || 'Sprint'}
                                       </div>
                                     )}
                                   </div>

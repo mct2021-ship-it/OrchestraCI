@@ -92,6 +92,7 @@ const getSwimlaneIconComponent = (iconName?: string) => {
   return icon ? icon.icon : Layers;
 };
 import { JourneyStage, JourneyItem, Swimlane, JourneyMap, Product, Service, Persona, Task, Project, ProcessMap, Comment, User, RecycleBinItem } from '../types';
+import { CompanyProfile } from '../components/YourCompany';
 import { EditableText } from '../components/EditableText';
 import { CreateJourneyModal } from '../components/CreateJourneyModal';
 import { PersonaDetailModal } from '../components/PersonaDetailModal';
@@ -135,6 +136,7 @@ interface JourneyMapsProps {
   onDeleteItem?: (item: any, type: RecycleBinItem['type'], originalProjectId?: string) => void;
   users?: User[];
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
+  companyProfile?: CompanyProfile;
 }
 
 export function JourneyMaps({ 
@@ -164,7 +166,8 @@ export function JourneyMaps({
   }, // Default user for now
   onDeleteItem,
   users = [],
-  onAddToAuditLog
+  onAddToAuditLog,
+  companyProfile
 }: JourneyMapsProps) {
   const { plan } = usePlan();
   const { addToast } = useToast();
@@ -510,6 +513,13 @@ export function JourneyMaps({
       const prompt = `
         As a CX and Sustainability Strategist, assess the benefits of moving from the "Current" journey to the "Proposed" journey for the project: "${stripPIData(activeProject.name)}".
         
+        Company Profile:
+        - Name: ${companyProfile?.name || 'N/A'}
+        - Vertical: ${companyProfile?.vertical || 'N/A'}
+        - Strategy: ${companyProfile?.description || 'N/A'}
+        - Customer Benefits: ${companyProfile?.customerBenefits || 'N/A'}
+        - Target Emotions: ${companyProfile?.targetEmotions?.join(', ') || 'N/A'}
+        
         Project Goals: ${activeProject.goals.map(stripPIData).join(', ')}
         
         Current Journey Summary: ${JSON.stringify(getMapSummary(currentMap))}
@@ -521,7 +531,7 @@ export function JourneyMaps({
         Provide a concise assessment of:
         1. Expected improvement in customer emotion.
         2. Reduction in friction points.
-        3. Alignment with project goals.
+        3. Alignment with project goals and company strategy.
         4. Estimated ROI/Impact.
         5. Sustainability Impact (Carbon reduction/increase).
         

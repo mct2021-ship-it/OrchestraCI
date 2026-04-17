@@ -378,6 +378,8 @@ export function IntelligenceHub({
       onAddToAuditLog?.('Created AI Project', `Created project ${newProject.name} using Review Intelligence`, 'Create', 'Project', newProject.id, 'AI');
 
       // 3. Create Journey Map
+      const selectedOpps = selectedProject.opportunities.filter(o => selectedOpportunities.includes(o.id));
+      
       const newJourney: JourneyMap = {
         id: journeyId,
         projectId,
@@ -391,17 +393,26 @@ export function IntelligenceHub({
           { id: 'lane_friction', name: 'Friction Points', icon: 'AlertCircle', type: 'text-list', colorTheme: 'rose' },
           { id: 'lane_opportunities', name: 'Opportunities', icon: 'Lightbulb', type: 'text-list', colorTheme: 'emerald' }
         ],
-        stages: selectedProject.suggestedJourney?.stages?.map((s: any, i: number) => ({
-          id: `stage_${i + 1}`,
-          name: s.name,
-          emotion: s.emotion || 3,
-          laneData: {
-            'lane_touchpoints': s.items?.slice(0, 2).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || [],
-            'lane_friction': s.items?.slice(2, 3).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || [],
-            'lane_opportunities': s.items?.slice(3, 5).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || []
-          }
-        })) || [
-          { id: 'stage_1', name: 'Discovery', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
+        stages: selectedProject.suggestedJourney?.stages?.map((s: any, i: number) => {
+          // Add some selected opportunities to each stage or distribute them
+          // Here we just take the first two selected ones for the first stage, etc.
+          const stageOpps = i === 0 ? selectedOpps.map(o => ({ id: `opp_item_${o.id}_${Date.now()}`, title: o.title, description: o.description })) : [];
+          
+          return {
+            id: `stage_${i + 1}`,
+            name: s.name,
+            emotion: s.emotion || 3,
+            laneData: {
+              'lane_touchpoints': s.items?.slice(0, 2).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || [],
+              'lane_friction': s.items?.slice(2, 3).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || [],
+              'lane_opportunities': [
+                ...(s.items?.slice(3, 5).map((text: string) => ({ id: `item_${Date.now()}_${Math.random()}`, title: text })) || []),
+                ...stageOpps
+              ]
+            }
+          };
+        }) || [
+          { id: 'stage_1', name: 'Discovery', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': selectedOpps.map(o => ({ id: `opp_item_${o.id}_${Date.now()}`, title: o.title, description: o.description })) } },
           { id: 'stage_2', name: 'Engagement', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
           { id: 'stage_3', name: 'Conversion', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
           { id: 'stage_4', name: 'Retention', emotion: 3, laneData: { 'lane_touchpoints': [], 'lane_friction': [], 'lane_opportunities': [] } },
@@ -427,7 +438,6 @@ export function IntelligenceHub({
       onAddToAuditLog?.('Created AI Sprint', `Created sprint ${newSprint.name} using Review Intelligence`, 'Create', 'Sprint', newSprint.id, 'AI');
 
       // 5. Create Tasks
-      const selectedOpps = selectedProject.opportunities.filter(o => selectedOpportunities.includes(o.id));
       const newTasks: Task[] = selectedOpps.map((o, i) => ({
         id: `task_${Date.now()}_${i}`,
         projectId,

@@ -27,9 +27,7 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
   const mainNav = useMemo(() => [
     { id: 'welcome', label: 'Welcome', icon: Sparkles, color: 'text-indigo-500' },
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-emerald-500' },
-    { id: 'decarb', label: 'Decarb', icon: Leaf, color: 'text-emerald-600', badge: 'Pro' },
     { id: 'intelligence', label: 'Intelligence Hub', icon: BrainCircuit, color: 'text-purple-500', badge: 'Pro' },
-    { id: 'single_view_of_change', label: 'Single View of Change', icon: Activity, color: 'text-indigo-500' },
     { id: 'personas', label: 'Personas', icon: Users, color: 'text-rose-500' },
     { id: 'stakeholders', label: 'Stakeholders', icon: UsersRound, color: 'text-indigo-500' },
     { id: 'pricing', label: 'Pricing', icon: Target, color: 'text-blue-500' },

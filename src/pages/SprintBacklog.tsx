@@ -131,6 +131,10 @@ export function SprintBacklog({
     
     if (initialTasks.length > 0) {
       setTasks(prev => prev.map(t => initialTasks.includes(t.id) ? { ...t, sprint: newSprint.id, kanbanStatus: 'In Progress' } : t));
+      // If we are adding tasks to a new sprint, it should probably start
+      if (data.status === 'Not Started') {
+        newSprint.status = 'In Progress';
+      }
     }
 
     setIsAddingSprint(false);
@@ -183,6 +187,14 @@ export function SprintBacklog({
         return { ...t, sprint: sprintId, kanbanStatus: 'In Progress' };
       }
       return t;
+    }));
+
+    // Auto-start sprint if Not Started
+    setSprints(prev => prev.map(s => {
+      if (s.id === sprintId && s.status === 'Not Started') {
+        return { ...s, status: 'In Progress' };
+      }
+      return s;
     }));
     addToast('Task moved to sprint', 'success');
   };
@@ -795,6 +807,33 @@ export function SprintBacklog({
             <div className="flex-1 overflow-y-auto p-8">
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <div className="lg:col-span-2 space-y-8">
+                  <div className="flex flex-wrap items-center gap-4 bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Status</label>
+                      <div className="flex bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl p-1">
+                        {(['Not Started', 'In Progress', 'Done'] as const).map((status) => (
+                          <button
+                            key={status}
+                            onClick={() => {
+                              setSprints(prev => prev.map(s => s.id === selectedSprint.id ? { ...s, status } : s));
+                              setSelectedSprint(prev => prev ? { ...prev, status } : null);
+                            }}
+                            className={cn(
+                              "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                              selectedSprint.status === status 
+                                ? status === 'In Progress' ? "bg-emerald-600 text-white" :
+                                  status === 'Done' ? "bg-indigo-600 text-white" :
+                                  "bg-zinc-600 text-white"
+                                : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+                            )}
+                          >
+                            {status}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl p-6 border border-zinc-100 dark:border-zinc-800">
                     <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Sprint Goal</h4>
                     <textarea
