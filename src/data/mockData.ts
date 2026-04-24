@@ -1,4 +1,44 @@
-import { Persona, JourneyMap, Task, Project, Swimlane, Product, Service, ProcessMap, User, Sprint, Stakeholder, ProjectStakeholder } from '../types';
+import { Persona, JourneyMap, Task, Project, Swimlane, Product, Service, ProcessMap, User, Sprint, Stakeholder, ProjectStakeholder, IntelligenceSignal } from '../types';
+
+export const mockSignals: IntelligenceSignal[] = [
+  {
+    id: 'sig1',
+    title: 'Login failures on mobile',
+    description: 'Multiple users reporting 502 errors when trying to log in via the Android app.',
+    type: 'Error',
+    source: 'Zendesk',
+    sentiment: 'negative',
+    productId: 'prod2',
+    serviceId: 'serv3',
+    tags: ['mobile', 'authentication'],
+    createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+    status: 'New'
+  },
+  {
+    id: 'sig2',
+    title: 'Request for PDF Export',
+    description: 'Customers are asking for a way to export their journey maps to professional PDF reports.',
+    type: 'Request',
+    source: 'Trustpilot',
+    sentiment: 'neutral',
+    productId: 'prod1',
+    tags: ['reporting', 'feature-request'],
+    createdAt: new Date(Date.now() - 86400000 * 3).toISOString(),
+    status: 'New'
+  },
+  {
+    id: 'sig3',
+    title: 'Love the new dashboard',
+    description: 'Feedback from Slack community: The new analytics dashboard is much cleaner than the old one.',
+    type: 'Praise',
+    source: 'Slack',
+    sentiment: 'positive',
+    productId: 'prod1',
+    tags: ['ui', 'analytics'],
+    createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+    status: 'Mapped'
+  }
+];
 
 export const mockSprints: Sprint[] = [
   {
@@ -400,7 +440,7 @@ export const mockJourneyMaps: JourneyMap[] = [
     stages: [
       {
         id: 's1',
-        name: 'Sign Up',
+        name: 'Awareness',
         emotion: 4,
         laneData: {
           'lane_touchpoints': [{ id: 'j_t_s1_t1', title: 'Website Homepage' }, { id: 'j_t_s1_t2', title: 'Registration Form' }],
@@ -413,7 +453,7 @@ export const mockJourneyMaps: JourneyMap[] = [
       },
       {
         id: 's2',
-        name: 'First Login',
+        name: 'Consideration',
         emotion: 2,
         laneData: {
           'lane_touchpoints': [{ id: 'j_t_s2_t1', title: 'Welcome Dashboard' }],
@@ -426,7 +466,7 @@ export const mockJourneyMaps: JourneyMap[] = [
       },
       {
         id: 's3',
-        name: 'First Success',
+        name: 'Purchase',
         emotion: 5,
         laneData: {
           'lane_touchpoints': [{ id: 'j_t_s3_t1', title: 'Success Modal' }, { id: 'j_t_s3_t2', title: 'Email Confirmation' }],
@@ -454,7 +494,7 @@ export const mockJourneyMaps: JourneyMap[] = [
     stages: [
       {
         id: 's1',
-        name: 'Sign Up',
+        name: 'Awareness',
         emotion: 5,
         laneData: {
           'lane_touchpoints': [{ id: 'j_p_s1_t1', title: 'One-Click Signup' }, { id: 'j_p_s1_t2', title: 'SSO Options' }],
@@ -467,7 +507,7 @@ export const mockJourneyMaps: JourneyMap[] = [
       },
       {
         id: 's2',
-        name: 'First Login',
+        name: 'Consideration',
         emotion: 5,
         laneData: {
           'lane_touchpoints': [{ id: 'j_p_s2_t1', title: 'Interactive Onboarding Tour' }],
@@ -480,7 +520,7 @@ export const mockJourneyMaps: JourneyMap[] = [
       },
       {
         id: 's3',
-        name: 'First Success',
+        name: 'Purchase',
         emotion: 5,
         laneData: {
           'lane_touchpoints': [{ id: 'j_p_s3_t1', title: 'Celebration Animation' }, { id: 'j_p_s3_t2', title: 'Value Report' }],
@@ -535,7 +575,7 @@ export const mockJourneyMaps: JourneyMap[] = [
       },
       {
         id: 's3',
-        name: 'Purchase/Decision',
+        name: 'Purchase',
         emotion: 2,
         laneData: {
           'lane_touchpoints': [{ id: 'j1_s3_t1', title: 'Checkout Page' }, { id: 'j1_s3_t2', title: 'Sales Call' }],
@@ -548,7 +588,7 @@ export const mockJourneyMaps: JourneyMap[] = [
       },
       {
         id: 's4',
-        name: 'Retention',
+        name: 'Service',
         emotion: 5,
         laneData: {
           'lane_touchpoints': [{ id: 'j1_s4_t1', title: 'Welcome Email' }, { id: 'j1_s4_t2', title: 'In-app Tutorial' }, { id: 'j1_s4_t3', title: 'QBR' }],
@@ -561,7 +601,7 @@ export const mockJourneyMaps: JourneyMap[] = [
       },
       {
         id: 's5',
-        name: 'Advocacy',
+        name: 'Loyalty',
         emotion: 4,
         laneData: {
           'lane_touchpoints': [{ id: 'j1_s5_t1', title: 'Referral Program' }, { id: 'j1_s5_t2', title: 'Case Study Interview' }],

@@ -4,10 +4,26 @@ import { motion, AnimatePresence, useAnimation } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Logo } from '../components/Logo';
 import { CompanyProfile } from '../components/YourCompany';
-import { Persona, Project } from '../types';
+import { Persona, Project, IntelligenceSignal } from '../types';
 import { mockPersonas, mockProjects } from '../data/mockData';
 
-export function Welcome({ onNavigate, onSelectProject, userName, companyProfile, personas = [], projects = [] }: { onNavigate: (tab: string, subTab?: string) => void, onSelectProject: (id: string) => void, userName?: string, companyProfile?: CompanyProfile, personas?: Persona[], projects?: Project[] }) {
+export function Welcome({ 
+  onNavigate, 
+  onSelectProject, 
+  userName, 
+  companyProfile, 
+  personas = [], 
+  projects = [],
+  signals = []
+}: { 
+  onNavigate: (tab: string, subTab?: string) => void, 
+  onSelectProject: (id: string) => void, 
+  userName?: string, 
+  companyProfile?: CompanyProfile, 
+  personas?: Persona[], 
+  projects?: Project[],
+  signals?: IntelligenceSignal[]
+}) {
   const name = userName || "there";
   const controls = useAnimation();
   const [scrollX, setScrollX] = useState(0);
@@ -15,6 +31,7 @@ export function Welcome({ onNavigate, onSelectProject, userName, companyProfile,
   const hasCompanyInfo = companyProfile && companyProfile.name && companyProfile.name.trim() !== '';
   const hasPersonas = personas && personas.some(p => !mockPersonas.find(mp => mp.id === p.id));
   const hasProjects = projects && projects.some(p => !mockProjects.find(mp => mp.id === p.id));
+  const hasSignals = signals && signals.length > 3; // Mock signals are 3
 
   const handleScrollClick = () => {
     const newX = scrollX - 350;
@@ -43,8 +60,8 @@ export function Welcome({ onNavigate, onSelectProject, userName, companyProfile,
       id: 'intelligence', 
       label: 'Intelligence Hub', 
       icon: BrainCircuit, 
-      description: 'Centralize customer research and data to drive evidence-based decisions.',
-      details: 'Connect real-world feedback to your journey maps and personas for a single source of truth.',
+      description: 'AI-powered synthesis of customer reviews, tickets, and strategic signals.',
+      details: 'Connect data sources like Zendesk and Trustpilot to automatically generate personas, identify friction, and build evidence-based roadmaps.',
       color: 'bg-indigo-500'
     },
     { 
@@ -231,6 +248,37 @@ export function Welcome({ onNavigate, onSelectProject, userName, companyProfile,
                   )}
                 >
                   {hasProjects ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      Completed
+                    </>
+                  ) : (
+                    "Start"
+                  )}
+                </button>
+              </div>
+
+              {/* Step 4: Intelligence Source */}
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className={cn("p-3 rounded-xl", hasSignals ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-400")}>
+                    <BrainCircuit className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-white">Connect Intelligence sources</h4>
+                    <p className="text-sm text-zinc-400">Sync real-world reviews and feedback</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => !hasSignals && onNavigate('intelligence', 'connectors')}
+                  className={cn(
+                    "px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2",
+                    hasSignals 
+                      ? "bg-emerald-500/20 text-emerald-400 cursor-default" 
+                      : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg"
+                  )}
+                >
+                  {hasSignals ? (
                     <>
                       <Check className="w-4 h-4" />
                       Completed

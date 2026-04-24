@@ -264,29 +264,43 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
             <div className="space-y-6 max-w-2xl mx-auto">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
-                      Describe your target personas or project context
-                    </label>
-                    <button
-                      onClick={toggleListening}
-                      className={cn(
-                        "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
-                        isListening 
-                          ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 animate-pulse" 
-                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
-                      )}
-                    >
-                      {isListening ? (
-                        <>
-                          <MicOff className="w-3.5 h-3.5" /> Stop Listening
-                        </>
-                      ) : (
-                        <>
-                          <Mic className="w-3.5 h-3.5" /> Voice Input
-                        </>
-                      )}
-                    </button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
+                        Describe your target personas or project context
+                      </label>
+                      <button
+                        onClick={toggleListening}
+                        className={cn(
+                          "flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-all",
+                          isListening 
+                            ? "bg-rose-100 dark:bg-rose-900/30 text-rose-600 animate-pulse" 
+                            : "bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-200"
+                        )}
+                      >
+                        {isListening ? (
+                          <>
+                            <MicOff className="w-3.5 h-3.5" /> Stop Listening
+                          </>
+                        ) : (
+                          <>
+                            <Mic className="w-3.5 h-3.5" /> Voice Input
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    
+                    {/* Suggested Prompt */}
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">Suggested:</span>
+                      <button
+                        onClick={() => setDetails("Create up to five personas based on what you know about my company.")}
+                        className="text-[10px] bg-indigo-50 dark:bg-indigo-900/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-400 px-3 py-1 rounded-full transition-all font-bold border border-indigo-100 dark:border-indigo-800/50 flex items-center gap-1.5 group"
+                      >
+                        <Sparkles className="w-3 h-3 group-hover:scale-110 transition-transform" />
+                        Create up to 5 personas based on company info
+                      </button>
+                    </div>
                   </div>
                   <textarea 
                     value={details}

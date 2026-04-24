@@ -26,6 +26,7 @@ import {
   User as UserIcon
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
+import { CompanyProfile } from '../components/YourCompany';
 import { cn, formatDate } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
@@ -47,6 +48,7 @@ interface SprintBacklogProps {
   onDeleteItem?: (item: any, type: any, originalProjectId?: string) => void;
   onAddTeamMember?: (user: User, projectId?: string) => void;
   onNavigate: (tab: string, subTab?: string) => void;
+  companyProfile?: CompanyProfile;
 }
 
 export function SprintBacklog({ 
@@ -60,7 +62,8 @@ export function SprintBacklog({
   currentUser,
   onDeleteItem,
   onAddTeamMember,
-  onNavigate
+  onNavigate,
+  companyProfile
 }: SprintBacklogProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'In Progress' | 'Done' | 'Not Started'>('All');
@@ -918,6 +921,7 @@ export function SprintBacklog({
           sprints={sprints}
           currentUser={currentUser}
           users={users}
+          companyProfile={companyProfile}
           onSave={handleUpdateTask}
           onUpdate={handleUpdateTask}
           onClose={() => setEditingTask(null)}

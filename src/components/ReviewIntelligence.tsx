@@ -26,14 +26,16 @@ import {
   FileText,
   RefreshCw,
   Trash2,
-  BarChart3
+  BarChart3,
+  BrainCircuit,
+  Frown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type } from '@google/genai';
 import { CompanyProfile } from './YourCompany';
-import { Persona, Project, JourneyMap, Task, Sprint } from '../types';
+import { Persona, Project, JourneyMap, Task, Sprint, IntelligenceSignal, Product, Service } from '../types';
 import { VocSection } from './VocSection';
 import { NpsCalculator } from './NpsCalculator';
 import { useToast } from '../context/ToastContext';
@@ -101,9 +103,13 @@ interface ReviewIntelligenceProps {
   isUploading?: boolean;
   uploadSuccess?: boolean;
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
+  signals?: IntelligenceSignal[];
+  setSignals?: React.Dispatch<React.SetStateAction<IntelligenceSignal[]>>;
+  products?: Product[];
+  services?: Service[];
 }
 
-type Step = 'input' | 'personas' | 'projects' | 'execution';
+type Step = 'input' | 'signals' | 'personas' | 'projects' | 'execution';
 
 export function IntelligenceHub({ 
   companyProfile, 
@@ -121,13 +127,18 @@ export function IntelligenceHub({
   onUpload,
   isUploading: isUploadingProp,
   uploadSuccess: uploadSuccessProp,
-  onAddToAuditLog
+  onAddToAuditLog,
+  signals = [],
+  setSignals,
+  products = [],
+  services = []
 }: ReviewIntelligenceProps) {
   const { addToast } = useToast();
   const [step, setStep] = useState<Step>('input');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rawInsights, setRawInsights] = useState<IntelligenceData | null>(null);
+  const [selectedSignal, setSelectedSignal] = useState<IntelligenceSignal | null>(null);
   const [createdProjectId, setCreatedProjectId] = useState<string | null>(null);
   
   // Selection state
@@ -144,6 +155,37 @@ export function IntelligenceHub({
     sprintId: string;
     taskIds: string[];
   } | null>(null);
+
+  const handlePromoteToTask = (signal: IntelligenceSignal) => {
+    if (!setTasks || !currentUser) {
+       addToast("Project or user context missing.", "error");
+       return;
+    }
+
+    const newTask: any = {
+      id: `task_${Date.now()}`,
+      projectId: signal.linkedProjectId || 'default',
+      title: `Intelligence: ${signal.title}`,
+      description: `Action derived from signal: ${signal.description}`,
+      type: signal.type === 'Error' ? 'Security' : signal.type === 'Complaint' ? 'Maintenance' : 'Feature',
+      status: 'Discover',
+      priority: signal.sentiment === 'negative' ? 'Critical' : 'Medium',
+      assigneeId: currentUser.id,
+      stage: 'Discover',
+      createdAt: new Date().toISOString(),
+      tags: [signal.source, 'Intelligence'],
+      comments: []
+    };
+
+    setTasks(prev => [...prev, newTask]);
+    if (setSignals) {
+       setSignals(prev => prev.map(s => s.id === signal.id ? { ...s, status: 'In Progress', linkedTaskId: newTask.id } : s));
+    }
+    addToast(`Promoted signal to task: ${newTask.title}`, "success");
+    if (onAddToAuditLog) {
+      onAddToAuditLog('Promoted Signal', `Created task from signal: ${signal.title}`, 'Create', 'Task', newTask.id, 'Data Source');
+    }
+  };
 
   // Check if allowed to run (once per month)
   const lastAnalysisDate = companyProfile?.pastAnalyses?.[0]?.date;
@@ -197,13 +239,14 @@ export function IntelligenceHub({
       const ai = await getGeminiClient();
       if (!ai) throw new Error("Failed to initialize AI client");
 
-      const prompt = `Analyze the following customer reviews and extract strategic intelligence for ${companyProfile?.name || 'our company'}.
+      const prompt = `Analyze the following intelligence signals and extract strategic intelligence for ${companyProfile?.name || 'our company'}.
       Company Context: ${companyProfile?.description || 'A software company'}
       Target Emotions: ${companyProfile?.targetEmotions?.join(', ') || 'N/A'}
       Strategic Goals: ${companyProfile?.goals?.join(', ') || 'N/A'}
+      Products/Services: ${products.map(p => p.name).join(', ')}
       
-      Reviews:
-      ${reviews.map(r => `- [${r.rating} stars] ${r.text}`).join('\n')}
+      Intelligence Signals:
+      ${signals.map(s => `- [${s.type} - ${s.sentiment} sentiment] ${s.title}: ${s.description} (Source: ${s.source}, Product ID: ${s.productId || 'Unknown'})`).join('\n')}
 
       Provide a JSON object with:
       1. personas: Array of 3 distinct user archetypes (name, description, painPoints, goals, role, quote).
@@ -212,7 +255,7 @@ export function IntelligenceHub({
          - opportunities: Array of 3 specific tasks/features (title, description, severity: 'high'|'medium'|'low')
          - suggestedJourney: An object with 'stages' array. Each stage has 'name', 'emotion' (1-5), and 'items' (array of strings for touchpoints/friction/opps).
       
-      Ensure the insights are directly tied to the feedback in the reviews and align with the company's strategic goals.`;
+      Ensure the insights are directly tied to the signals and align with the company's strategic goals and relevant products.`;
 
       const result = await ai.models.generateContent({
         model: "gemini-3-flash-preview",
@@ -457,6 +500,15 @@ export function IntelligenceHub({
         onAddToAuditLog?.('Created AI Task', `Created task ${t.title} using Review Intelligence`, 'Create', 'Task', t.id, 'AI');
       });
 
+      // 6. Update Signals if they exist
+      if (setSignals) {
+        setSignals(prev => prev.map(s => ({
+          ...s,
+          status: 'Actioned',
+          linkedProjectId: projectId
+        })));
+      }
+
       // Update company profile with execution history
       if (onUpdateProfile) {
         onUpdateProfile({
@@ -498,9 +550,10 @@ export function IntelligenceHub({
   return (
     <div className="space-y-8">
       {/* Progress Stepper */}
-      <div className="flex items-center justify-center max-w-2xl mx-auto mb-12">
+      <div className="flex items-center justify-center max-w-3xl mx-auto mb-12">
         {[
           { id: 'input', label: 'Data Input', icon: Database },
+          { id: 'signals', label: 'Intelligence', icon: BrainCircuit },
           { id: 'personas', label: 'Personas', icon: Users },
           { id: 'projects', label: 'Strategy', icon: Rocket },
           { id: 'execution', label: 'Execution', icon: CheckCircle2 },
@@ -571,140 +624,198 @@ export function IntelligenceHub({
                   </div>
 
                   <button 
-                    onClick={handleAnalyze}
-                    disabled={isAnalyzing || !isAllowed}
-                    className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/20"
+                    onClick={() => setStep('signals')}
+                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
                   >
-                    {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                    Run Strategic Analysis
+                    View Intelligence Signals
+                    <ArrowRight className="w-5 h-5" />
                   </button>
-                  {!isAllowed && (
-                    <p className="text-[10px] text-rose-500 font-bold text-center">
-                      Next analysis available in {30 - daysSinceLastAnalysis} days.
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* Manual File Upload */}
+              {/* Other Connectors Preview */}
               <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-6">
-                <div className="flex items-center gap-4">
+                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center text-indigo-600">
-                    <Upload className="w-6 h-6" />
+                    <Database className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Monthly File Upload</h3>
-                    <p className="text-sm text-zinc-500">Upload a CSV or Excel export of your reviews.</p>
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">External Connectors</h3>
+                    <p className="text-sm text-zinc-500">Sync data from Zendesk, Intercom, or Salesforce.</p>
                   </div>
                 </div>
-                <div className="border-2 border-dashed border-zinc-200 dark:border-zinc-800 rounded-2xl p-12 text-center hover:border-indigo-500 transition-colors cursor-pointer group">
-                  <Upload className="w-8 h-8 text-zinc-300 group-hover:text-indigo-500 mx-auto mb-2 transition-colors" />
-                  <p className="text-xs font-bold text-zinc-500">Drop your monthly review file here</p>
-                  <p className="text-[10px] text-zinc-400 mt-1">Supports CSV, XLSX, JSON</p>
+                
+                <div className="grid grid-cols-3 gap-3">
+                  {['Zendesk', 'Intercom', 'Salesforce'].map(s => (
+                    <div key={s} className="flex flex-col items-center gap-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl grayscale hover:grayscale-0 transition-all cursor-not-allowed border border-transparent hover:border-zinc-200">
+                      <img src={`https://cdn.simpleicons.org/${s.toLowerCase()}`} className="w-6 h-6 object-contain" />
+                      <span className="text-[10px] font-bold text-zinc-500">{s}</span>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-[10px] text-zinc-400 text-center">
-                  Manual uploads also count towards your monthly strategic analysis quota.
+                
+                <p className="text-xs text-center text-zinc-400">
+                  Connectors allow the Intelligence Engine to continuously monitor for "Signals" that may impact your projects.
                 </p>
               </div>
             </div>
+          </motion.div>
+        )}
 
-            {error && (
-              <div className="bg-rose-50 dark:bg-rose-900/20 border border-rose-100 dark:border-rose-800 p-4 rounded-2xl flex items-center gap-3 text-rose-600">
-                <AlertCircle className="w-5 h-5 shrink-0" />
-                <p className="text-sm font-medium">{error}</p>
+        {step === 'signals' && (
+          <motion.div
+            key="signals"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-8"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">Intelligence Signals</h3>
+                <p className="text-zinc-500 mt-1">Review and categorize signals detected from your data sources.</p>
               </div>
-            )}
-
-            {/* Data History Section */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 pt-12 border-t border-zinc-100 dark:border-zinc-800">
-              <div className="lg:col-span-2 space-y-6">
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Data History</h3>
-                      <p className="text-sm text-zinc-500 dark:text-zinc-400">View and manage your historical data uploads and syncs.</p>
+              <div className="flex items-center gap-4">
+                <div className="flex -space-x-2">
+                  {[...new Set(signals.map(s => s.source))].map(src => (
+                    <div key={src} className="w-8 h-8 rounded-full bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 p-1.5 flex items-center justify-center" title={src}>
+                      <img src={`https://cdn.simpleicons.org/${src.toLowerCase()}`} className="w-full h-full object-contain" />
                     </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="border-b border-zinc-200 dark:border-zinc-800">
-                          <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Source</th>
-                          <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Last Sync</th>
-                          <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Records</th>
-                          <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Status</th>
-                          <th className="px-4 py-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                        {uploadedData.map((row: any) => (
-                          <tr key={row.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors">
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 bg-zinc-100 dark:bg-zinc-800 rounded-lg flex items-center justify-center">
-                                  {row.source === 'Trustpilot' && <img src="https://cdn.simpleicons.org/trustpilot" className="w-4 h-4" />}
-                                  {row.source === 'HubSpot' && <img src="https://cdn.simpleicons.org/hubspot" className="w-4 h-4" />}
-                                  {row.source === 'Manual' && <FileText className="w-4 h-4 text-zinc-500" />}
-                                </div>
-                                <span className="text-sm font-bold text-zinc-900 dark:text-white">{row.source}</span>
-                              </div>
-                            </td>
-                            <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300">{row.date}</td>
-                            <td className="px-4 py-3 text-sm text-zinc-600 dark:text-zinc-300 font-mono">
-                              {row.count.toLocaleString()}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span className="px-2 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 uppercase tracking-wider">
-                                {row.status}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-right flex items-center justify-end gap-2">
-                                <button className="p-1 text-zinc-400 hover:text-indigo-600 transition-colors" title="Sync Now">
-                                  <RefreshCw className="w-4 h-4" />
-                                </button>
-                               {onDeleteData && (
-                                 <button className="p-1 text-zinc-400 hover:text-rose-600 transition-colors" title="Remove" onClick={() => onDeleteData(row.id)}>
-                                   <Trash2 className="w-4 h-4" />
-                                 </button>
-                               )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  ))}
                 </div>
-              </div>
-
-              <div className="space-y-6">
-                <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 border border-zinc-200 dark:border-zinc-800 relative overflow-hidden">
-                  <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded border border-indigo-200 dark:border-indigo-800">Pro</div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white mb-4 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-indigo-600" />
-                    AI Data Mapping
-                  </h4>
-                  <p className="text-xs text-zinc-500 leading-relaxed">
-                    Our AI automatically maps fields from your CRM or survey exports to our standard intelligence schema. No manual mapping required.
-                  </p>
-                </div>
+                <div className="h-8 w-px bg-zinc-200 dark:bg-zinc-800" />
+                <button
+                  onClick={handleAnalyze}
+                  disabled={isAnalyzing}
+                  className="bg-indigo-600 text-white px-6 py-2 rounded-xl font-bold hover:bg-indigo-500 transition-all flex items-center gap-2 disabled:opacity-50 shadow-lg shadow-indigo-500/20"
+                >
+                  {isAnalyzing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                  Synthesize into Projects
+                </button>
               </div>
             </div>
 
-            {/* Analysis & Insights Section */}
-            <div className="pt-12 border-t border-zinc-100 dark:border-zinc-800 space-y-8 relative">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-                    <BarChart3 className="w-6 h-6 text-indigo-600" />
-                    Analysis & Insights
-                    <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase rounded-lg border border-indigo-200 dark:border-indigo-800">Pro</span>
-                  </h3>
-                  <p className="text-zinc-500 dark:text-zinc-400 mt-1">Transform raw data into actionable intelligence.</p>
+            <div className="grid grid-cols-1 gap-4">
+              {signals.map((signal) => (
+                <div key={signal.id} className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm hover:border-indigo-500/50 transition-all group">
+                  <div className="flex items-start justify-between gap-6">
+                    <div className="flex flex-1 gap-4">
+                      <div className={cn(
+                        "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                        signal.sentiment === 'negative' ? "bg-rose-50 text-rose-600" :
+                        signal.sentiment === 'positive' ? "bg-emerald-50 text-emerald-600" :
+                        "bg-zinc-50 text-zinc-600"
+                      )}>
+                        {signal.type === 'Error' && <AlertCircle className="w-6 h-6" />}
+                        {signal.type === 'Request' && <MessageSquare className="w-6 h-6" />}
+                        {signal.type === 'Praise' && <Star className="w-6 h-6" />}
+                        {signal.type === 'Complaint' && <Frown className="w-6 h-6" />}
+                        {signal.type === 'Observation' && <FileText className="w-6 h-6" />}
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                          <h4 className="font-bold text-zinc-900 dark:text-white">{signal.title}</h4>
+                          <span className={cn(
+                            "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider",
+                            signal.sentiment === 'negative' ? "bg-rose-100 text-rose-700" :
+                            signal.sentiment === 'positive' ? "bg-emerald-100 text-emerald-700" :
+                            "bg-zinc-100 text-zinc-700"
+                          )}>{signal.type}</span>
+                        </div>
+                        <p className="text-sm text-zinc-500">{signal.description}</p>
+                        <div className="flex items-center gap-4 mt-3">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase">
+                            <Database className="w-3 h-3" />
+                            {signal.source}
+                          </div>
+                          <span>•</span>
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase">
+                            <Calendar className="w-3 h-3" />
+                            {new Date(signal.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col items-end gap-3 min-w-[200px]">
+                      <div className="space-y-2 w-full">
+                        <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block text-right">Categorize by Product</label>
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {products.map(p => (
+                            <button
+                              key={p.id}
+                              onClick={() => {
+                                if (setSignals) {
+                                  setSignals(prev => prev.map(s => s.id === signal.id ? { ...s, productId: s.productId === p.id ? undefined : p.id } : s));
+                                }
+                              }}
+                              className={cn(
+                                "px-3 py-1 rounded-full text-[10px] font-bold border transition-all",
+                                signal.productId === p.id 
+                                  ? "bg-indigo-600 border-indigo-600 text-white shadow-sm" 
+                                  : "bg-zinc-50 border-zinc-200 text-zinc-500 hover:border-zinc-300"
+                              )}
+                            >
+                              {p.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-2 mt-auto">
+                        <button 
+                          onClick={() => setSelectedSignal(signal)}
+                          className="px-4 py-2 bg-white dark:bg-zinc-800 text-zinc-500 rounded-xl text-[10px] font-bold uppercase hover:bg-zinc-100 transition-all border border-zinc-200 dark:border-zinc-700 shadow-sm"
+                        >
+                          Details
+                        </button>
+                        <button 
+                          onClick={() => handlePromoteToTask(signal)}
+                          className={cn(
+                            "px-4 py-2 rounded-xl text-[10px] font-bold uppercase transition-all border border-transparent flex items-center gap-2 shadow-sm",
+                            signal.status === 'In Progress' || signal.status === 'Actioned'
+                              ? "bg-indigo-50 text-indigo-600 cursor-default" 
+                              : "bg-zinc-900 text-white hover:bg-zinc-800"
+                          )}
+                          disabled={signal.status === 'In Progress' || signal.status === 'Actioned'}
+                        >
+                          {signal.status === 'In Progress' || signal.status === 'Actioned' ? (
+                            <>
+                              <CheckCircle2 className="w-3 h-3" />
+                              Executed
+                            </>
+                          ) : (
+                            <>
+                              <Rocket className="w-3 h-3" />
+                              Promote
+                            </>
+                          )}
+                        </button>
+                        <button className="px-4 py-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-500 rounded-xl text-[10px] font-bold uppercase hover:bg-rose-50 hover:text-rose-600 transition-all border border-transparent hover:border-rose-100">
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <VocSection />
-              <NpsCalculator />
+              ))}
+            </div>
+
+            <div className="flex justify-center pt-8 gap-4">
+               <button
+                onClick={() => setStep('input')}
+                className="px-8 py-3 rounded-xl font-bold text-zinc-500 hover:text-zinc-900 transition-all"
+              >
+                Back
+              </button>
+              <button
+                disabled={signals.length === 0}
+                onClick={handleAnalyze}
+                className="bg-zinc-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-zinc-800 transition-all flex items-center gap-2 shadow-lg shadow-zinc-500/20"
+              >
+                {isAnalyzing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Sparkles className="w-5 h-5" />}
+                Analyze Signals & Build Roadmap
+              </button>
             </div>
           </motion.div>
         )}
@@ -966,6 +1077,95 @@ export function IntelligenceHub({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Signal Details Modal */}
+      {selectedSignal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-white dark:bg-zinc-900 rounded-3xl shadow-xl max-w-lg w-full p-8 border border-zinc-200 dark:border-zinc-800 relative"
+          >
+            <button 
+              onClick={() => setSelectedSignal(null)}
+              className="absolute top-6 right-6 p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-4 mb-6">
+              <div className={cn(
+                "w-12 h-12 rounded-2xl flex items-center justify-center shrink-0",
+                selectedSignal.sentiment === 'negative' ? "bg-rose-50 text-rose-600" :
+                selectedSignal.sentiment === 'positive' ? "bg-emerald-50 text-emerald-600" :
+                "bg-zinc-50 text-zinc-600"
+              )}>
+                {selectedSignal.type === 'Error' && <AlertCircle className="w-6 h-6" />}
+                {selectedSignal.type === 'Request' && <MessageSquare className="w-6 h-6" />}
+                {selectedSignal.type === 'Praise' && <Star className="w-6 h-6" />}
+                {selectedSignal.type === 'Complaint' && <Frown className="w-6 h-6" />}
+                {selectedSignal.type === 'Observation' && <FileText className="w-6 h-6" />}
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white">{selectedSignal.title}</h3>
+                  <span className={cn(
+                    "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider",
+                    selectedSignal.sentiment === 'negative' ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                    selectedSignal.sentiment === 'positive' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                    "bg-zinc-50 text-zinc-700 border border-zinc-100"
+                  )}>{selectedSignal.sentiment}</span>
+                </div>
+                <p className="text-sm text-zinc-500">Signal from {selectedSignal.source}</p>
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                <p className="text-sm text-zinc-800 dark:text-zinc-200 leading-relaxed italic">
+                  "{selectedSignal.description}"
+                </p>
+              </div>
+
+              {selectedSignal.metadata && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Author</p>
+                    <p className="text-sm font-bold text-zinc-900 dark:text-white">{selectedSignal.metadata.author || 'Anonymous'}</p>
+                  </div>
+                  <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1">Rating</p>
+                    <div className="flex items-center gap-1">
+                      {[...Array(selectedSignal.metadata.rating || 0)].map((_, i) => (
+                        <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase">
+                    <Database className="w-3 h-3" />
+                    {selectedSignal.source}
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[10px] font-bold text-zinc-400 uppercase">
+                    <Calendar className="w-3 h-3" />
+                    {new Date(selectedSignal.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedSignal(null)}
+                  className="bg-zinc-900 text-white px-6 py-2 rounded-xl font-bold hover:bg-zinc-800 transition-all text-sm"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 }

@@ -41,11 +41,11 @@ export function CreateJourneyModal({ onClose, onSave, projectId, personas }: Cre
       },
       swimlanes: defaultSwimlanes,
       stages: [
-        { id: uuidv4(), name: 'Discover', emotion: 3, laneData: {}, icon: 'Search' },
-        { id: uuidv4(), name: 'Define', emotion: 3, laneData: {}, icon: 'Target' },
-        { id: uuidv4(), name: 'Develop', emotion: 3, laneData: {}, icon: 'Lightbulb' },
-        { id: uuidv4(), name: 'Deliver', emotion: 3, laneData: {}, icon: 'Flag' },
-        { id: uuidv4(), name: 'Done', emotion: 3, laneData: {}, icon: 'CheckCircle2' }
+        { id: uuidv4(), name: 'Awareness', emotion: 3, laneData: {}, icon: 'Eye' },
+        { id: uuidv4(), name: 'Consideration', emotion: 3, laneData: {}, icon: 'Search' },
+        { id: uuidv4(), name: 'Purchase', emotion: 3, laneData: {}, icon: 'ShoppingBag' },
+        { id: uuidv4(), name: 'Service', emotion: 3, laneData: {}, icon: 'RefreshCw' },
+        { id: uuidv4(), name: 'Loyalty', emotion: 3, laneData: {}, icon: 'Star' }
       ]
     };
     onSave(newJourney);
@@ -118,7 +118,7 @@ export function CreateJourneyModal({ onClose, onSave, projectId, personas }: Cre
         contentPrompt += `\n\nSOP/Document Content:\n${stripPIData(fileContent).substring(0, 20000)}`; // Limit content length to avoid token limits if necessary, though Gemini handles large context well.
       }
 
-      contentPrompt += `\n\nThe journey map should have 5 stages: Discover, Define, Develop, Deliver, and Done.
+      contentPrompt += `\n\nThe journey map should have 5 stages: Awareness, Consideration, Purchase, Service, and Loyalty.
         For each stage, provide data for these specific swimlanes:
         - lane_touchpoints: What the customer interacts with (e.g., Website, Email, Store)
         - lane_friction: Pain points or frustrations the customer experiences

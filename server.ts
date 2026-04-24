@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
-const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-app';
+const JWT_SECRET = process.env.JWT_SECRET || 'super-secret-key-for-app-v2';
 
 // Initialize SQLite database
 const db = new Database('app.db');
@@ -30,7 +30,7 @@ db.exec(`
   );
 
   CREATE TABLE IF NOT EXISTS app_state (
-    id INTEGER PRIMARY KEY CHECK (id = 1),
+    userId TEXT PRIMARY KEY,
     data TEXT NOT NULL
   );
 
@@ -45,15 +45,11 @@ db.exec(`
   );
 `);
 
-// Seed initial state if empty
-const stateRow = db.prepare('SELECT data FROM app_state WHERE id = 1').get() as { data: string } | undefined;
-let masterState: any = {};
+// Map to hold in-memory states for active users
+const userStates: Map<string, any> = new Map();
 
-if (stateRow) {
-  masterState = JSON.parse(stateRow.data);
-} else {
-  // We will initialize this from the client on first connect if empty, or we can leave it empty
-  masterState = {
+function getInitialState() {
+  return {
     personas: [],
     projects: [],
     journeys: [],
@@ -70,7 +66,8 @@ if (stateRow) {
       customerBenefits: '',
       targetEmotions: [],
       measurementMethods: [],
-      pastAnalyses: []
+      pastAnalyses: [],
+      wizardCompleted: false
     },
     stakeholders: [
       {
@@ -122,63 +119,41 @@ if (stateRow) {
         isGlobal: true
       }
     ],
-    projectStakeholders: [
-      {
-        id: 'stk_1',
-        name: 'Robert Miller',
-        category: 'Executive Sponsor',
-        organization: 'ExampleCorp',
-        email: 'robert@example.com',
-        isGlobal: true,
-        projectId: 'proj_test',
-        power: 9,
-        interest: 9,
-        sentiment: 'Positive',
-        sentimentHistory: [
-          { date: new Date(Date.now() - 86400000 * 7).toISOString(), sentiment: 'Neutral', note: 'Initial briefing' },
-          { date: new Date().toISOString(), sentiment: 'Positive', note: 'Excited about the vision' }
-        ],
-        engagementStrategy: 'Maintain close relationship through weekly updates and strategic alignment sessions.',
-        linkedItems: []
-      },
-      {
-        id: 'stk_3',
-        name: 'IT Infrastructure Team',
-        category: 'Corporate Function (IT, Finance, HR, Legal, Comms)',
-        organization: 'ExampleCorp',
-        isGlobal: true,
-        projectId: 'proj_test',
-        power: 7,
-        interest: 4,
-        sentiment: 'Neutral',
-        sentimentHistory: [
-          { date: new Date().toISOString(), sentiment: 'Neutral' }
-        ],
-        engagementStrategy: 'Keep informed about technical requirements and ensure early involvement in infrastructure decisions.',
-        linkedItems: []
-      },
-      {
-        id: 'pstk_1',
-        name: 'Local Community Board',
-        category: 'Community Group',
-        projectId: 'proj_test',
-        isGlobal: false,
-        power: 4,
-        interest: 10,
-        sentiment: 'Negative',
-        sentimentHistory: [
-          { date: new Date().toISOString(), sentiment: 'Negative', note: 'Concerned about noise and disruption' }
-        ],
-        engagementStrategy: 'Proactive consultation and community engagement events to address concerns and build trust.',
-        linkedItems: []
-      }
-    ]
+    projectStakeholders: [],
+    recycleBin: []
   };
-  db.prepare('INSERT INTO app_state (id, data) VALUES (1, ?)').run(JSON.stringify(masterState));
 }
 
-function saveState() {
-  db.prepare('UPDATE app_state SET data = ? WHERE id = 1').run(JSON.stringify(masterState));
+function getUserState(userId: string) {
+  try {
+    if (userStates.has(userId)) {
+      return userStates.get(userId);
+    }
+
+    const row = db.prepare('SELECT data FROM app_state WHERE userId = ?').get(userId) as { data: string } | undefined;
+    if (row) {
+      const state = JSON.parse(row.data);
+      userStates.set(userId, state);
+      return state;
+    }
+
+    const newState = getInitialState();
+    db.prepare('INSERT INTO app_state (userId, data) VALUES (?, ?)').run(userId, JSON.stringify(newState));
+    userStates.set(userId, newState);
+    return newState;
+  } catch (error) {
+    console.error(`Error in getUserState for user ${userId}:`, error);
+    return getInitialState();
+  }
+}
+
+function saveUserState(userId: string, state: any) {
+  try {
+    db.prepare('INSERT OR REPLACE INTO app_state (userId, data) VALUES (?, ?)').run(userId, JSON.stringify(state));
+    userStates.set(userId, state);
+  } catch (error) {
+    console.error(`Error saving user state for user ${userId}:`, error);
+  }
 }
 
 app.use(express.json());
@@ -595,9 +570,9 @@ async function startServer() {
   }
 
   const server = app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-    console.log('GEMINI_API_KEY:', process.env.GEMINI_API_KEY ? 'exists' : 'missing');
-    import('fs').then(fs => fs.writeFileSync('env_check.txt', process.env.GEMINI_API_KEY || 'MISSING'));
+    console.log(`[SERVER] Running at http://localhost:${PORT}`);
+    console.log(`[SERVER] Environment: ${process.env.NODE_ENV || 'development'}`);
+    console.log(`[SERVER] Gemini API Key: ${process.env.GEMINI_API_KEY ? 'Present' : 'Missing'}`);
   });
 
   // WebSocket Server for Real-Time Collaboration
@@ -616,23 +591,49 @@ async function startServer() {
   });
 
   wss.on('connection', (ws, req) => {
+    // Authenticate WebSocket connection
+    const url = new URL(req.url!, `http://${req.headers.host}`);
+    const token = url.searchParams.get('token');
+    let userId: string | null = null;
+
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
+        userId = decoded.id;
+      } catch (e) {
+        console.warn('WS Auth failed:', e);
+      }
+    }
+
+    if (!userId) {
+      ws.close(1008, 'Authentication required');
+      return;
+    }
+
+    // Identify user in the socket object
+    (ws as any).userId = userId;
+
+    const state = getUserState(userId);
+
     // Send initial state to the newly connected client
-    ws.send(JSON.stringify({ type: 'INITIAL_STATE', payload: masterState }));
+    ws.send(JSON.stringify({ type: 'INITIAL_STATE', payload: state }));
 
     ws.on('message', (message) => {
       try {
         const data = JSON.parse(message.toString());
+        const currentUserId = (ws as any).userId;
+        const currentState = getUserState(currentUserId);
         
         if (data.type === 'UPDATE_COLLECTION') {
           const { collection, items } = data.payload;
           
-          // Update master state
-          masterState[collection] = items;
-          saveState();
+          // Update user-scoped state
+          currentState[collection] = items;
+          saveUserState(currentUserId, currentState);
 
-          // Broadcast to all OTHER clients
+          // Broadcast to all OTHER clients of the SAME USER
           wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
+            if (client !== ws && (client as any).userId === currentUserId && client.readyState === WebSocket.OPEN) {
               client.send(JSON.stringify({
                 type: 'COLLECTION_UPDATED',
                 payload: { collection, items }
@@ -642,13 +643,13 @@ async function startServer() {
         }
         
         if (data.type === 'SYNC_ALL') {
-          // Client is sending its full state (e.g. on first load if server state is empty)
-          masterState = { ...masterState, ...data.payload };
-          saveState();
+          // Client is sending its full state
+          const newState = { ...currentState, ...data.payload };
+          saveUserState(currentUserId, newState);
           
           wss.clients.forEach((client) => {
-            if (client !== ws && client.readyState === WebSocket.OPEN) {
-              client.send(JSON.stringify({ type: 'INITIAL_STATE', payload: masterState }));
+            if (client !== ws && (client as any).userId === currentUserId && client.readyState === WebSocket.OPEN) {
+              client.send(JSON.stringify({ type: 'INITIAL_STATE', payload: newState }));
             }
           });
         }

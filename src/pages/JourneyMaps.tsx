@@ -123,6 +123,7 @@ interface JourneyMapsProps {
   services: Service[];
   personas: Persona[];
   projects: Project[];
+  tasks?: Task[];
   processMaps?: ProcessMap[];
   setProcessMaps?: React.Dispatch<React.SetStateAction<ProcessMap[]>>;
   initialJourneyId?: string | null;
@@ -147,7 +148,8 @@ export function JourneyMaps({
   services, 
   personas, 
   projects, 
-  processMaps,
+  tasks = [],
+  processMaps = [],
   setProcessMaps,
   initialJourneyId, 
   onNavigateToProcessMap, 
@@ -182,7 +184,13 @@ export function JourneyMaps({
   const [showIntro, setShowIntro] = useState(false);
   const [isAssessing, setIsAssessing] = useState(false);
   const [assessmentResult, setAssessmentResult] = useState<string | null>(null);
-  const [pendingTaskData, setPendingTaskData] = useState<{ item: string; stageName: string } | null>(null);
+  const [pendingTaskData, setPendingTaskData] = useState<{ 
+    item: string; 
+    stageName: string; 
+    stageId: string; 
+    laneId: string; 
+    itemIndex: number 
+  } | null>(null);
   const [editingStageIconId, setEditingStageIconId] = useState<string | null>(null);
   const [editingSwimlaneIconId, setEditingSwimlaneIconId] = useState<string | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -197,6 +205,7 @@ export function JourneyMaps({
   const [isPersonaSelectorOpen, setIsPersonaSelectorOpen] = useState(false);
   const [selectedPersona, setSelectedPersona] = useState<Persona | null>(null);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const [isCongratulationsModalOpen, setIsCongratulationsModalOpen] = useState(false);
   const [activeCarbonTarget, setActiveCarbonTarget] = useState<{ stageId: string; laneId: string; itemIndex: number } | null>(null);
   const [selectedItemDetail, setSelectedItemDetail] = useState<{ stageId: string; laneId: string; itemIndex: number; item: JourneyItem } | null>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
@@ -1396,6 +1405,18 @@ export function JourneyMaps({
               </button>
               
               <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
+
+              {activeJourney.state === 'Current' && (
+                <button 
+                  onClick={() => setIsCongratulationsModalOpen(true)}
+                  className="bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 px-3 py-1.5 rounded-lg font-bold flex items-center gap-2 hover:bg-zinc-800 dark:hover:bg-white transition-all text-sm ml-1 shadow-sm"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span className="hidden lg:inline">Complete Journey</span>
+                </button>
+              )}
+              
+              <div className="w-px h-4 bg-zinc-200 dark:bg-zinc-800" />
               
               <div className="relative" ref={moreActionsMenuRef}>
                 <button 
@@ -1553,7 +1574,24 @@ export function JourneyMaps({
       </div>
 
       {/* Persona Details Section */}
-      {activeJourney.personaIds && activeJourney.personaIds.length > 0 && (
+      {(!activeJourney.personaIds || activeJourney.personaIds.length === 0) ? (
+        <div className="mb-8 p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center gap-4">
+          <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-full">
+            <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Design for someone special?</h3>
+            <p className="text-sm text-zinc-500 max-w-sm">Linking personas helps ground your journey map in real user needs and motivations.</p>
+          </div>
+          <button
+            onClick={() => setIsPersonaSelectorOpen(true)}
+            className="px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg"
+          >
+            <Plus className="w-4 h-4" />
+            Link Project Persona
+          </button>
+        </div>
+      ) : (
         <div className="mb-8 bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
           <div 
             onClick={() => setIsPersonaExpanded(!isPersonaExpanded)}
@@ -2217,13 +2255,36 @@ export function JourneyMaps({
                                   )}
                                   {lane.id === 'lane_opportunities' && onAddTask && canEdit && (
                                     <button 
-                                      onClick={() => setPendingTaskData({ item: (typeof item === 'string' ? item : item.title), stageName: stage.name })}
-                                      className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-indigo-600 transition-colors ml-3.5 mt-1 w-fit print:hidden no-export"
+                                      onClick={() => setPendingTaskData({ 
+                                        item: (typeof item === 'string' ? item : item.title), 
+                                        stageName: stage.name,
+                                        stageId: stage.id,
+                                        laneId: lane.id,
+                                        itemIndex: i
+                                      })}
+                                      className="flex items-center gap-1 text-[10px] font-medium text-zinc-400 hover:text-indigo-600 transition-colors ml-1 mt-1 w-fit print:hidden no-export"
                                     >
-                                  <Target className="w-3 h-3" />
-                                  Create Task
-                                </button>
-                              )}
+                                      <Target className="w-3 h-3" />
+                                      {typeof item === 'object' && item.taskId ? 'Linked to Task' : 'Create Task'}
+                                    </button>
+                                  )}
+                                  {typeof item === 'object' && item.taskId && (
+                                    <div className={cn(
+                                      "flex items-center gap-1 text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border mt-1 w-fit",
+                                      (() => {
+                                        const task = tasks.find(t => t.id === (item as any).taskId);
+                                        if (task?.kanbanStatus === 'Done') return "text-emerald-600 bg-emerald-50 border-emerald-100";
+                                        if (task?.kanbanStatus === 'In Progress') return "text-blue-600 bg-blue-50 border-blue-100";
+                                        return "text-amber-600 bg-amber-50 border-amber-100";
+                                      })()
+                                    )}>
+                                      <CheckSquare className="w-2.5 h-2.5" />
+                                      {(() => {
+                                        const task = tasks.find(t => t.id === (item as any).taskId);
+                                        return task ? task.kanbanStatus : 'Backlog Item';
+                                      })()}
+                                    </div>
+                                  )}
                             </div>
                             );
                           })}
@@ -2353,12 +2414,38 @@ export function JourneyMaps({
                     <button
                       key={col}
                       onClick={() => {
+                        const taskId = uuidv4();
+                        
+                        // Update the journey item with the taskId and ensure it has an ID
+                        let createdItemId = "";
+                        const updatedJourneys = journeys.map(j => {
+                          if (j.id === activeJourney.id) {
+                            const updatedStages = j.stages.map(s => {
+                              if (s.id === pendingTaskData.stageId) {
+                                const laneItems = [...(s.laneData[pendingTaskData.laneId] || [])];
+                                const item = laneItems[pendingTaskData.itemIndex];
+                                if (typeof item === 'object') {
+                                   createdItemId = item.id;
+                                   laneItems[pendingTaskData.itemIndex] = { ...item, taskId };
+                                } else {
+                                   createdItemId = uuidv4();
+                                   laneItems[pendingTaskData.itemIndex] = { id: createdItemId, title: item, taskId };
+                                }
+                                return { ...s, laneData: { ...s.laneData, [pendingTaskData.laneId]: laneItems } };
+                              }
+                              return s;
+                            });
+                            return { ...j, stages: updatedStages };
+                          }
+                          return j;
+                        });
+
                         onAddTask?.({
-                          id: uuidv4(),
+                          id: taskId,
                           projectId: activeJourney.projectId,
                           title: pendingTaskData.item || 'New Opportunity Task',
                           description: `Task created from opportunity in ${pendingTaskData.stageName} stage of ${activeJourney.title}`,
-                          status: 'Discover',
+                          status: activeProject?.status || 'Discover',
                           kanbanStatus: col as any,
                           impact: 'Medium',
                           effort: 'Medium',
@@ -2366,11 +2453,19 @@ export function JourneyMaps({
                           createdAt: new Date().toISOString(),
                           stageHistory: [{ stage: col as any, enteredAt: new Date().toISOString() }],
                           sourceJourneyId: activeJourney.id,
+                          sourceOpportunityId: createdItemId,
                           metrics: {
                             experience: 'TBD',
                             efficiency: 'TBD'
                           }
                         });
+
+                        setJourneys(updatedJourneys);
+                        
+                        if (onAddToAuditLog) {
+                          onAddToAuditLog('Promoted Opportunity', `Created task from ${activeJourney.title}`, 'Create', 'Task', taskId, 'Manual');
+                        }
+
                         setPendingTaskData(null);
                         addToast(`Task added to ${col}!`, 'success');
                       }}
@@ -2512,6 +2607,64 @@ export function JourneyMaps({
         )}
       </AnimatePresence>
       
+      {/* Congratulations Modal */}
+      <AnimatePresence>
+        {isCongratulationsModalOpen && activeJourney && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-zinc-900/80 backdrop-blur-md">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white dark:bg-zinc-900 rounded-[40px] shadow-2xl w-full max-w-xl overflow-hidden relative"
+            >
+              <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl" />
+              <div className="absolute bottom-0 left-0 p-32 bg-emerald-500/10 rounded-full -translate-x-1/2 translate-y-1/2 blur-3xl" />
+              
+              <div className="p-12 text-center relative z-10">
+                <div className="w-24 h-24 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto mb-8 animate-bounce">
+                  <Sparkles className="w-12 h-12 text-emerald-600" />
+                </div>
+                
+                <h2 className="text-3xl font-black text-zinc-900 dark:text-white mb-4 tracking-tight">
+                  Congratulations! 🏆
+                </h2>
+                <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-8 leading-relaxed">
+                  You've successfully mapped the <span className="font-bold text-zinc-900 dark:text-white">"{activeJourney.title}"</span> Current State. 
+                  Now it's time to leverage these insights and design the future of your customer experience.
+                </p>
+                
+                <div className="grid grid-cols-1 gap-4">
+                  <button
+                    onClick={() => {
+                      handleDuplicate(activeJourney, 'Proposed');
+                      setIsCongratulationsModalOpen(false);
+                      addToast('To-Be Journey created based on your As-Is insights!', 'success');
+                    }}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-5 rounded-2xl font-bold flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02] shadow-xl group"
+                  >
+                    <div className="p-2 bg-white/20 rounded-lg group-hover:rotate-12 transition-transform">
+                      <Sparkles className="w-5 h-5" />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs text-indigo-100 uppercase font-black tracking-widest">Next Phase</div>
+                      <div className="text-lg">Build the To-Be Journey</div>
+                    </div>
+                    <ArrowRight className="w-6 h-6 ml-auto" />
+                  </button>
+                  
+                  <button
+                    onClick={() => setIsCongratulationsModalOpen(false)}
+                    className="w-full bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white p-4 rounded-2xl font-bold transition-all"
+                  >
+                    Not now, I want to review this map
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Item Detail Modal */}
       <AnimatePresence>
         {selectedItemDetail && (

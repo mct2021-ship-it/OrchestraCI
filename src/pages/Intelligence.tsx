@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus, AlertCircle, Layers } from 'lucide-react';
+import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus, AlertCircle, Layers, Tag, Filter, Search } from 'lucide-react';
+import { IntelligenceSignal, Product, Service, Persona, Project, JourneyMap, Task, Sprint } from '../types';
 import { motion } from 'motion/react';
 import { VocSection } from '../components/VocSection';
 import { NpsCalculator } from '../components/NpsCalculator';
@@ -19,15 +20,21 @@ interface IntelligenceProps {
   onSaveComplete?: () => void;
   initialTab?: 'profile' | 'overview' | 'reviews' | 'connectors';
   // State setters for Review Intelligence integration
-  setPersonas?: React.Dispatch<React.SetStateAction<any[]>>;
-  setProjects?: React.Dispatch<React.SetStateAction<any[]>>;
-  setJourneys?: React.Dispatch<React.SetStateAction<any[]>>;
-  setTasks?: React.Dispatch<React.SetStateAction<any[]>>;
-  setSprints?: React.Dispatch<React.SetStateAction<any[]>>;
+  personas?: Persona[];
+  journeys?: JourneyMap[];
+  setPersonas?: React.Dispatch<React.SetStateAction<Persona[]>>;
+  setProjects?: React.Dispatch<React.SetStateAction<Project[]>>;
+  setJourneys?: React.Dispatch<React.SetStateAction<JourneyMap[]>>;
+  setTasks?: React.Dispatch<React.SetStateAction<Task[]>>;
+  setSprints?: React.Dispatch<React.SetStateAction<Sprint[]>>;
   currentUser?: any;
   onNavigate?: (tab: string, subTab?: string) => void;
   setActiveProjectId?: (id: string | null) => void;
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
+  signals?: IntelligenceSignal[];
+  setSignals?: React.Dispatch<React.SetStateAction<IntelligenceSignal[]>>;
+  products?: Product[];
+  services?: Service[];
 }
 
 export function Intelligence({ 
@@ -36,6 +43,8 @@ export function Intelligence({
   startInEditMode, 
   onSaveComplete,
   initialTab,
+  personas = [],
+  journeys = [],
   setPersonas,
   setProjects,
   setJourneys,
@@ -44,10 +53,15 @@ export function Intelligence({
   currentUser,
   onNavigate,
   setActiveProjectId,
-  onAddToAuditLog
+  onAddToAuditLog,
+  signals = [],
+  setSignals,
+  products = [],
+  services = []
 }: IntelligenceProps) {
   const { addToast } = useToast();
-  const [activeTab, setActiveTab] = React.useState<'profile' | 'overview' | 'reviews' | 'connectors'>(initialTab || (startInEditMode ? 'profile' : 'overview'));
+  const [activeTab, setActiveTab] = React.useState<'profile' | 'portfolio' | 'overview' | 'reviews' | 'connectors'>(initialTab || (startInEditMode ? 'profile' : 'overview'));
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string>('all');
   const [isUploading, setIsUploading] = useState(false);
 
   React.useEffect(() => {
@@ -55,7 +69,7 @@ export function Intelligence({
     if (startInEditMode) {
       setActiveTab('profile');
     } else if (initialTab) {
-      setActiveTab(initialTab);
+      setActiveTab(initialTab as any);
     }
   }, [startInEditMode, initialTab]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
@@ -114,6 +128,87 @@ export function Intelligence({
     addToast(`Added "${insight.title}" to journey map`, "success");
     if (onAddToAuditLog) {
       onAddToAuditLog('Added Opportunity to Journey', `Added AI insight "${insight.title}" to journey map`, 'Update', 'Intelligence', insight.title, 'AI');
+    }
+  };
+
+  const handleConnect = (integration: any) => {
+    setSelectedIntegration(integration);
+    setIsConfigModalOpen(true);
+  };
+
+  const confirmConnect = async () => {
+    if (!selectedIntegration) return;
+    
+    setIsUploading(true);
+    // Simulate connection process
+    await new Promise(resolve => setTimeout(resolve, 1500));
+    
+    const newEntry = {
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      source: selectedIntegration.name,
+      type: 'API Sync',
+      count: 0,
+      status: 'Connecting'
+    };
+    
+    setUploadedData(prev => [newEntry, ...prev]);
+    setIsConfigModalOpen(false);
+    setIsUploading(false);
+    
+    // Auto-sync after connection
+    handleSync(selectedIntegration.name);
+  };
+
+  const handleDeleteData = (id: number) => {
+    setUploadedData(prev => prev.filter(d => d.id !== id));
+    addToast("Connection removed.", "info");
+  };
+
+  const handleSync = async (source: string) => {
+    if (!setSignals) return;
+    
+    addToast(`Syncing data from ${source}...`, "info");
+    
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    const newSignals: IntelligenceSignal[] = [
+      {
+        id: `sig_${Date.now()}_1`,
+        title: `New feedback from ${source}`,
+        description: `Deep analysis of recent interactions from ${source} has detected a new pattern in onboarding friction.`,
+        type: 'Observation',
+        source: source as any,
+        sentiment: 'negative',
+        createdAt: new Date().toISOString(),
+        status: 'New',
+        metadata: {
+          author: 'Automated Agent',
+          rating: 2
+        }
+      },
+      {
+        id: `sig_${Date.now()}_2`,
+        title: `High praise for new UI`,
+        description: `Customers are reporting significant improvements in the dashboard usability since the last update.`,
+        type: 'Praise',
+        source: source as any,
+        sentiment: 'positive',
+        createdAt: new Date().toISOString(),
+        status: 'New',
+        metadata: {
+          author: 'Aggregated Voice',
+          rating: 5
+        }
+      }
+    ];
+    
+    setSignals(prev => [...newSignals, ...prev]);
+    addToast(`Successfully synced 2 new signals from ${source}`, "success");
+    
+    if (onAddToAuditLog) {
+      onAddToAuditLog('Data Sync Completed', `Synced 2 intelligence signals from ${source}`, 'Create', 'Intelligence', source, 'Data Source');
     }
   };
 
@@ -193,15 +288,6 @@ export function Intelligence({
     }
   };
 
-  const handleDeleteData = (id: number) => {
-    setUploadedData(uploadedData.filter(d => d.id !== id));
-  };
-
-  const handleConnect = (integration: any) => {
-    setSelectedIntegration(integration);
-    setIsConfigModalOpen(true);
-  };
-
   // Fallback profile if not provided (though it should be from App.tsx)
   const defaultProfile: CompanyProfile = {
     name: '',
@@ -269,6 +355,18 @@ export function Intelligence({
           Company Profile
         </button>
         <button
+          onClick={() => setActiveTab('portfolio')}
+          className={cn(
+            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap",
+            activeTab === 'portfolio'
+              ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
+              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
+          )}
+        >
+          <Layers className="w-4 h-4" />
+          Product Portfolio
+        </button>
+        <button
           onClick={() => setActiveTab('reviews')}
           className={cn(
             "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap relative",
@@ -300,10 +398,19 @@ export function Intelligence({
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-6">
-              <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-500" />
-                Active Connections
-              </h3>
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                  Active Connections
+                </h3>
+                <button 
+                  onClick={() => handleSync('All Sources')}
+                  className="px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg border border-indigo-100 dark:border-indigo-800 text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all shadow-sm flex items-center gap-2"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Sync All
+                </button>
+              </div>
               <div className="grid grid-cols-1 gap-4">
                 {uploadedData.filter(d => d.source !== 'Manual').map((conn) => (
                   <div key={conn.id} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-center justify-between group hover:border-indigo-500/50 transition-all">
@@ -377,11 +484,230 @@ export function Intelligence({
           onUpdateProfile={onUpdateProfile || (() => {})} 
           startInEditMode={startInEditMode}
           onSaveComplete={onSaveComplete}
+          onNavigate={onNavigate}
+          personasCount={personas?.length || 0}
         />
+      )}
+
+      {activeTab === 'portfolio' && (
+        <div className="space-y-8">
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <Layers className="w-5 h-5 text-indigo-600" />
+                  Product & Service Portfolio
+                </h3>
+                <p className="text-zinc-500 text-sm mt-1">Manage the products and services that your business offers to categorize intelligence.</p>
+              </div>
+              <button 
+                className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-500 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+              >
+                <Plus className="w-4 h-4" />
+                Add Product
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-6">
+              {products.map(product => (
+                <div key={product.id} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 p-6 space-y-6">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-lg font-bold text-zinc-900 dark:text-white">{product.name}</h4>
+                        {signals.filter(s => s.productId === product.id).length > 0 && (
+                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">
+                            {signals.filter(s => s.productId === product.id).length} Signals
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-zinc-500">{product.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-white transition-all rounded-lg">
+                        <BarChart3 className="w-4 h-4" />
+                      </button>
+                      <button className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-white transition-all rounded-lg">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                        <Tag className="w-3 h-3" />
+                        Services
+                      </h5>
+                      <button className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest">
+                        Add Service
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {services.filter(s => s.productId === product.id).map(service => (
+                        <div key={service.id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:border-indigo-500/30 transition-all group">
+                          <h6 className="font-bold text-zinc-900 dark:text-white text-sm">{service.name}</h6>
+                          <p className="text-[10px] text-zinc-500 mt-1 line-clamp-2">{service.description}</p>
+                          <div className="flex items-center justify-between mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <div className="flex -space-x-1">
+                                {signals.filter(sig => sig.serviceId === service.id).slice(0, 3).map(sig => (
+                                  <div key={sig.id} className="w-5 h-5 rounded-full bg-zinc-100 border border-white flex items-center justify-center p-1" title={sig.title}>
+                                    <img src={`https://cdn.simpleicons.org/${sig.source.toLowerCase()}`} className="w-full h-full object-contain" />
+                                  </div>
+                                ))}
+                             </div>
+                             <button className="text-[10px] font-bold text-zinc-400 hover:text-indigo-600">Edit</button>
+                          </div>
+                        </div>
+                      ))}
+                      {services.filter(s => s.productId === product.id).length === 0 && (
+                        <div className="col-span-full py-4 text-center text-xs text-zinc-400 border border-dashed border-zinc-200 rounded-xl">
+                          No services defined for this product.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {activeTab === 'overview' && (
         <div className="space-y-8">
+          {/* Signal Trends & Health (Phase 4) */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+             <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2 mb-6">
+                  <BarChart3 className="w-5 h-5 text-indigo-600" />
+                  Signal Intelligence Distribution
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-6">
+                   {['Request', 'Complaint', 'Praise', 'Error', 'Observation'].map(type => {
+                      const count = signals.filter(s => s.type === type).length;
+                      const total = signals.length || 1;
+                      const percentage = (count / total) * 100;
+                      return (
+                        <div key={type} className="space-y-3">
+                           <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">{type}s</span>
+                              <span className="text-xs font-bold text-zinc-900 dark:text-white">{count}</span>
+                           </div>
+                           <div className="h-2 w-full bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: `${percentage}%` }}
+                                className={cn(
+                                  "h-full rounded-full",
+                                  type === 'Error' ? 'bg-rose-500' :
+                                  type === 'Complaint' ? 'bg-amber-500' :
+                                  type === 'Praise' ? 'bg-emerald-500' :
+                                  type === 'Request' ? 'bg-indigo-500' :
+                                  'bg-zinc-400'
+                                )}
+                              />
+                           </div>
+                        </div>
+                      )
+                   })}
+                </div>
+             </div>
+
+             <div className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden flex flex-col justify-between group">
+                <div className="absolute top-0 right-0 p-12 bg-white/10 rounded-full translate-x-1/3 -translate-y-1/3 blur-2xl group-hover:bg-white/20 transition-all duration-700" />
+                <div className="relative z-10">
+                   <div className="flex items-center justify-between mb-2">
+                     <h3 className="text-lg font-bold flex items-center gap-2">
+                       <BrainCircuit className="w-5 h-5" />
+                       Strategic Advisor
+                     </h3>
+                     <span className="px-2 py-0.5 bg-white/20 rounded text-[10px] uppercase font-black tracking-widest">Live</span>
+                   </div>
+                   <p className="text-xs text-indigo-100 leading-relaxed opacity-90">
+                      Based on recent signals, we recommend focusing on <strong>onboarding friction</strong> for the <strong>{products[0]?.name || 'Core Product'}</strong>.
+                      Automated analysis suggests resolving these could improve CSAT by 12%.
+                   </p>
+                </div>
+                <button 
+                  onClick={() => setActiveTab('reviews')}
+                  className="relative z-10 mt-6 w-full py-3 bg-white/10 hover:bg-white/20 transition-all rounded-xl text-xs font-bold uppercase tracking-wider backdrop-blur-sm border border-white/10"
+                >
+                   Action Recommendation
+                </button>
+             </div>
+          </div>
+
+          {/* Persona Sentiment Analysis (New) */}
+          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+              <div>
+                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <Heart className="w-5 h-5 text-rose-500" />
+                  Persona Sentiment Analysis
+                </h3>
+                <p className="text-zinc-500 text-sm mt-1">Cross-reference journey sentiments with specific customer personas.</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mr-2">Filter by Persona:</span>
+                <select
+                  value={selectedPersonaId}
+                  onChange={(e) => setSelectedPersonaId(e.target.value)}
+                  className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm font-bold text-zinc-700 dark:text-zinc-200 focus:ring-2 focus:ring-indigo-500 outline-none"
+                >
+                  <option value="all">All Personas</option>
+                  {personas.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {(() => {
+                const personaJourneys = selectedPersonaId === 'all' 
+                  ? journeys 
+                  : journeys.filter(j => j.personaIds.includes(selectedPersonaId));
+                
+                const avgSentiment = personaJourneys.length > 0
+                  ? personaJourneys.reduce((acc, j) => {
+                      const journeyAvg = j.stages.reduce((sum: number, s: any) => sum + s.emotion, 0) / j.stages.length;
+                      return acc + journeyAvg;
+                    }, 0) / personaJourneys.length
+                  : 0;
+
+                return (
+                  <>
+                    <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 text-center">
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Aggregate Sentiment</p>
+                      <div className="text-3xl font-bold text-zinc-900 dark:text-white flex items-center justify-center gap-2">
+                        {avgSentiment > 0 ? avgSentiment.toFixed(1) : 'N/A'}
+                        <span className="text-xl">/ 5.0</span>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-2">
+                        {avgSentiment >= 4 ? 'Highly Satisfied' : avgSentiment >= 3 ? 'Neutral' : avgSentiment > 0 ? 'Frictional' : 'No data available'}
+                      </p>
+                    </div>
+                    <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 text-center">
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Analyzed Journeys</p>
+                      <div className="text-3xl font-bold text-zinc-900 dark:text-white">
+                        {personaJourneys.length}
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-2">Active maps for this segment</p>
+                    </div>
+                    <div className="p-6 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 text-center">
+                      <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Experience Delta</p>
+                      <div className="text-3xl font-bold text-indigo-600">
+                        {avgSentiment > 0 ? ((avgSentiment - 3.0) * 20).toFixed(0) : '0'}%
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-2">Variance from baseline expectation</p>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
           {/* I-SEE Graphic */}
           <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
             <div className="text-center mb-8">
@@ -511,34 +837,76 @@ export function Intelligence({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
-                  <h3 className="font-bold text-zinc-900 dark:text-white">Recent Insights</h3>
-                  <button className="text-sm font-bold text-indigo-600 hover:text-indigo-700">View All</button>
+                <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
+                  <h3 className="font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                    <Database className="w-5 h-5 text-indigo-600" />
+                    Intelligence Signals
+                  </h3>
+                  <div className="flex items-center gap-4">
+                    <div className="flex -space-x-1">
+                      {[...new Set(signals.map(s => s.source))].map(src => (
+                         <div key={src} className="w-6 h-6 rounded-full bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 p-1 flex items-center justify-center overflow-hidden" title={src}>
+                           <img src={`https://cdn.simpleicons.org/${src.toLowerCase()}`} className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                         </div>
+                      ))}
+                    </div>
+                    <button 
+                      onClick={() => setActiveTab('reviews')}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 uppercase tracking-wider"
+                    >
+                      Manage
+                      <ArrowRight className="w-3 h-3" />
+                    </button>
+                  </div>
                 </div>
-                <div className="divide-y divide-zinc-100">
-                  {[
-                    { title: 'High friction in onboarding', type: 'Support Tickets', impact: 'Negative Emotion', date: '2 days ago' },
-                    { title: 'Pricing page lacks clarity', type: 'User Interviews', impact: 'High Effort', date: '1 week ago' },
-                    { title: 'Great response time from support', type: 'CSAT Survey', impact: 'Positive Emotion', date: '2 weeks ago' },
-                  ].map((insight, i) => (
-                    <div key={i} className="p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 transition-colors flex items-start justify-between">
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
+                  {signals.length > 0 ? signals.slice(0, 5).map((signal) => (
+                    <div key={signal.id} className="p-6 hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors flex items-start justify-between group">
                       <div className="space-y-1">
-                        <h4 className="font-bold text-zinc-900 dark:text-white">{insight.title}</h4>
-                        <div className="flex items-center gap-3 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                          <span className="flex items-center gap-1"><Database className="w-3 h-3" /> {insight.type}</span>
+                        <div className="flex items-center gap-2">
+                           <h4 className="font-bold text-zinc-900 dark:text-white">{signal.title}</h4>
+                           {signal.productId && (
+                             <span className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[8px] font-black uppercase rounded border border-indigo-100 dark:border-indigo-800">
+                               {products.find(p => p.id === signal.productId)?.name}
+                             </span>
+                           )}
+                           {signal.status !== 'New' && (
+                              <span className={cn(
+                                "px-1.5 py-0.5 text-[8px] font-black uppercase rounded border",
+                                signal.status === 'Actioned' || signal.status === 'Resolved' ? "bg-emerald-50 text-emerald-600 border-emerald-100" :
+                                signal.status === 'In Progress' ? "bg-indigo-50 text-indigo-600 border-indigo-100" :
+                                "bg-zinc-50 text-zinc-600 border-zinc-100"
+                              )}>
+                                {signal.status}
+                              </span>
+                            )}
+                        </div>
+                        <p className="text-xs text-zinc-500 line-clamp-1">{signal.description}</p>
+                        <div className="flex items-center gap-3 text-[10px] font-medium text-zinc-400">
+                          <span className="flex items-center gap-1 uppercase font-bold"><Database className="w-3 h-3" /> {signal.source}</span>
                           <span>•</span>
-                          <span>{insight.date}</span>
+                          <span>{new Date(signal.createdAt).toLocaleDateString()}</span>
                         </div>
                       </div>
-                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                        insight.impact.includes('Negative') || insight.impact.includes('High') 
-                          ? 'bg-rose-50 text-rose-700 border border-rose-100' 
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
-                      }`}>
-                        {insight.impact}
-                      </span>
+                      <div className="flex items-center gap-3">
+                         <span className={cn(
+                           "px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider",
+                           signal.sentiment === 'negative' ? "bg-rose-50 text-rose-700 border border-rose-100" :
+                           signal.sentiment === 'positive' ? "bg-emerald-50 text-emerald-700 border border-emerald-100" :
+                           "bg-zinc-50 text-zinc-700 border border-zinc-100"
+                         )}>
+                          {signal.type}
+                        </span>
+                        <button className="p-2 opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-indigo-600 transition-all">
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="p-12 text-center text-zinc-500 italic text-sm">
+                      No signals detected yet. Connect a data source to start.
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -587,6 +955,10 @@ export function Intelligence({
           isUploading={isUploading}
           uploadSuccess={uploadSuccess}
           onAddToAuditLog={onAddToAuditLog}
+          signals={signals}
+          setSignals={setSignals}
+          products={products}
+          services={services}
         />
       )}
       {/* API Configuration Modal */}
@@ -633,10 +1005,11 @@ export function Intelligence({
                 Cancel
               </button>
               <button 
-                onClick={() => setIsConfigModalOpen(false)}
-                className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20"
+                onClick={confirmConnect}
+                disabled={isUploading}
+                className="flex-1 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50"
               >
-                Save & Connect
+                {isUploading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : 'Save & Connect'}
               </button>
             </div>
           </motion.div>

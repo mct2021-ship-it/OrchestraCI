@@ -587,9 +587,16 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                         <option value="Deliver">Deliver</option>
                       </select>
                     </div>
-                    <h2 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
-                      {selectedSprint.name}
-                    </h2>
+                    <input
+                      type="text"
+                      value={selectedSprint.name}
+                      onChange={(e) => {
+                        const updated = { ...selectedSprint, name: e.target.value };
+                        setSelectedSprint(updated);
+                        setSprints(prev => prev.map(s => s.id === updated.id ? updated : s));
+                      }}
+                      className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight bg-transparent border-none focus:ring-0 w-full outline-none"
+                    />
                   </div>
                 </div>
                 <button 

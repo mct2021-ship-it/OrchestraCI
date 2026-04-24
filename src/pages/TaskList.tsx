@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Task, Project, User, RecycleBinItem, Sprint } from '../types';
+import { CompanyProfile } from '../components/YourCompany';
 import { Target, Search, Filter, AlertCircle, LayoutList, CheckCircle2, Clock, CheckSquare, User as UserIcon, Calendar, Trash2 as TrashIcon, UsersRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -24,9 +25,10 @@ interface TaskListProps {
   currentUser?: User;
   users?: User[];
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
+  companyProfile?: CompanyProfile;
 }
 
-export function TaskList({ tasks, projects, sprints, initialAssigneeId, initialProjectId, initialTaskId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [], onAddToAuditLog }: TaskListProps) {
+export function TaskList({ tasks, projects, sprints, initialAssigneeId, initialProjectId, initialTaskId, onNavigate, isEmbedded = false, onTaskClick, onUpdateTask, onDeleteTask, onDeleteItem, onAddTeamMember, currentUser, users = [], onAddToAuditLog, companyProfile }: TaskListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAssignee, setSelectedAssignee] = useState<string>(initialAssigneeId || 'all');
   const [selectedProject, setSelectedProject] = useState<string>(initialProjectId || 'all');
@@ -418,6 +420,7 @@ export function TaskList({ tasks, projects, sprints, initialAssigneeId, initialP
             currentUser={currentUser}
             users={users}
             isReadOnly={!canEditProjectFeature(projects.find(p => p.id === editingTask.projectId) || projects[0])}
+            companyProfile={companyProfile}
             onSave={(updatedTask) => {
               if (onUpdateTask) {
                 onUpdateTask(updatedTask);

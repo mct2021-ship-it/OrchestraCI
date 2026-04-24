@@ -82,6 +82,7 @@ export interface JourneyItem {
   imageUrl?: string;
   showImageOnMap?: boolean;
   carbonData?: CarbonData;
+  taskId?: string;
 }
 
 export interface JourneyStage {
@@ -248,6 +249,27 @@ export interface Project {
   sprints?: Sprint[];
 }
 
+export interface IntelligenceSignal {
+  id: string;
+  title: string;
+  description: string;
+  type: 'Complaint' | 'Praise' | 'Request' | 'Observation' | 'Error';
+  source: 'Zendesk' | 'Trustpilot' | 'Salesforce' | 'Slack' | 'Intercom' | 'HubSpot' | 'Manual';
+  sentiment: 'positive' | 'neutral' | 'negative';
+  productId?: string;
+  serviceId?: string;
+  tags?: string[];
+  createdAt: string;
+  status: 'New' | 'Mapped' | 'Dismissed' | 'Actioned' | 'In Progress' | 'Resolved';
+  linkedProjectId?: string;
+  linkedTaskId?: string;
+  metadata?: {
+    author?: string;
+    rating?: number;
+    url?: string;
+  };
+}
+
 export interface TaskStageHistory {
   stage: string;
   enteredAt: string;
@@ -287,6 +309,8 @@ export interface Task {
   blockerDescription?: string;
   unblockActions?: string;
   comments?: Comment[];
+  alignedBenefit?: string; // Strategic alignment with company customer benefits
+  strategicGoalIndex?: number; // Index of the project goal this task aligns to
 }
 
 export interface ProcessNode {

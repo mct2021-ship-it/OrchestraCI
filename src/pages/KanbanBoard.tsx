@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Project, Task, KanbanColumn, Sprint, SprintSnapshot } from '../types';
+import { CompanyProfile } from '../components/YourCompany';
 import { Target, Plus, Clock, TrendingUp, Zap, GripVertical, CheckCircle2, MoreVertical, Printer, LayoutList, LayoutGrid, Settings, Palette, Trash2, X, ChevronUp, ChevronDown, Download, FileText, Image as ImageIcon, ArrowRight, MessageSquare, AlertCircle, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, fixOklch } from '../lib/utils';
@@ -29,6 +30,7 @@ interface KanbanBoardProps {
   onAddTeamMember?: (user: any, projectId?: string) => void;
   users?: any[];
   activeTaskId?: string | null;
+  companyProfile?: CompanyProfile;
 }
 
 const COLUMN_COLORS = [
@@ -41,7 +43,7 @@ const COLUMN_COLORS = [
   { id: 'emerald', name: 'Emerald', bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', text: 'text-emerald-700 dark:text-emerald-300', headerBg: 'bg-emerald-100 dark:bg-emerald-800' },
 ];
 
-export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, setSprints, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [], activeTaskId }: KanbanBoardProps) {
+export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, setSprints, onNavigate, currentUser, onDeleteItem, onAddTeamMember, users = [], activeTaskId, companyProfile }: KanbanBoardProps) {
   const { addToast } = useToast();
   const [editingTask, setEditingTask] = useState<Task | null>(null);
 
@@ -879,6 +881,18 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
                                     )}
                                   </div>
                                   
+                                  {task.strategicGoalIndex !== undefined && project.goals[task.strategicGoalIndex] && (
+                                    <div className="mb-4 px-2 py-1.5 bg-indigo-50/50 dark:bg-indigo-900/10 rounded-lg border border-indigo-100 dark:border-indigo-900/30">
+                                      <div className="flex items-start gap-2">
+                                        <Target className="w-3 h-3 text-indigo-500 mt-0.5 shrink-0" />
+                                        <div className="space-y-0.5">
+                                          <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest block">Strategic Pillar</span>
+                                          <span className="text-[10px] font-bold text-zinc-700 dark:text-zinc-300 line-clamp-1">{project.goals[task.strategicGoalIndex]}</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                  
                                   {task.metrics && (
                                     <div className="pt-3 border-t border-zinc-100 space-y-2">
                                       {task.metrics.experience && (
@@ -967,6 +981,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
             currentUser={currentUser}
             users={users}
             isReadOnly={!canEdit}
+            companyProfile={companyProfile}
             onSave={handleUpdateTask}
             onUpdate={(updatedTask) => setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t))}
             onClose={() => setEditingTask(null)}

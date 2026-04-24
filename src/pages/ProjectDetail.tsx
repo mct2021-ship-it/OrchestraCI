@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Project, JourneyMap, ProcessMap, Task, Persona, Product, Service, TeamMember, RAIDItem, User, RecycleBinItem } from '../types';
+import { Project, JourneyMap, ProcessMap, Task, Persona, Product, Service, TeamMember, RAIDItem, User, RecycleBinItem, Stakeholder } from '../types';
+import { CompanyProfile } from '../components/YourCompany';
+import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { usePlan } from '../context/PlanContext';
 import { LimitReachedModal } from '../components/LimitReachedModal';
 import { ContextualHelp } from '../components/ContextualHelp';
@@ -16,6 +18,8 @@ import {
   DollarSign,
   Zap,
   Sparkles,
+  Frown,
+  BrainCircuit,
   ArrowRight,
   X,
   Package,
@@ -31,7 +35,8 @@ import {
   Upload,
   Leaf,
   CheckSquare,
-  ShieldAlert
+  ShieldAlert,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -54,6 +59,7 @@ interface ProjectDetailProps {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   personas: Persona[];
+  setPersonas?: React.Dispatch<React.SetStateAction<Persona[]>>;
   onNavigate: (tab: string, subTab?: string) => void;
   onOpenJourney: (journeyId: string) => void;
   products: Product[];
@@ -63,8 +69,11 @@ interface ProjectDetailProps {
   currentUser?: User;
   users: User[];
   setUsers: React.Dispatch<React.SetStateAction<User[]>>;
+  stakeholders?: Stakeholder[];
+  setStakeholders?: (items: Stakeholder[] | ((prev: Stakeholder[]) => Stakeholder[])) => void;
   onDeleteItem: (item: any, type: RecycleBinItem['type']) => void;
   isDarkMode?: boolean;
+  companyProfile?: CompanyProfile;
 }
 
 import { AddTeamMemberModal } from '../components/AddTeamMemberModal';
@@ -143,8 +152,12 @@ export function ProjectDetail({
   currentUser,
   users,
   setUsers,
+  stakeholders = [],
+  setStakeholders,
   onDeleteItem,
-  isDarkMode
+  isDarkMode,
+  companyProfile,
+  setPersonas
 }: ProjectDetailProps) {
   const [activeDiamondStage, setActiveDiamondStage] = useState<'Discover' | 'Define' | 'Develop' | 'Deliver' | 'Done' | 'Archived'>(project.status);
   const [activeJourneyTab, setActiveJourneyTab] = useState<'As-Is' | 'Proposed' | 'Implemented'>('As-Is');
@@ -153,6 +166,7 @@ export function ProjectDetail({
   const [isEditingGoals, setIsEditingGoals] = useState(false);
   const [isEditingOutcomes, setIsEditingOutcomes] = useState(false);
   const [isSelectingPersonas, setIsSelectingPersonas] = useState(false);
+  const [isCreatePersonaModalOpen, setIsCreatePersonaModalOpen] = useState(false);
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isEditingTaxonomy, setIsEditingTaxonomy] = useState(false);
   const [isEditingTags, setIsEditingTags] = useState(false);
@@ -166,6 +180,10 @@ export function ProjectDetail({
 
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [isUserSelectionModalOpen, setIsUserSelectionModalOpen] = useState(false);
+
+  const [isAiGeneratingStakeholders, setIsAiGeneratingStakeholders] = useState(false);
+  const [stakeholderAiSuggestions, setStakeholderAiSuggestions] = useState<Partial<Stakeholder>[]>([]);
+  const [showStakeholderAiSuggestions, setShowStakeholderAiSuggestions] = useState(false);
 
   const isAdmin = currentUser?.role === 'Admin';
 
@@ -204,6 +222,121 @@ export function ProjectDetail({
       ? currentIds.filter(id => id !== personaId)
       : [...currentIds, personaId];
     setProjects(prev => prev.map(p => p.id === project.id ? { ...p, personaIds: newIds } : p));
+  };
+
+  const handleCreatePersona = (newPersona: Persona) => {
+    if (setPersonas) {
+      setPersonas(prev => [...prev, newPersona]);
+    }
+    
+    // Automatically link to this project
+    const currentIds = project.personaIds || [];
+    setProjects(prev => prev.map(p => 
+      p.id === project.id ? { ...p, personaIds: [...currentIds, newPersona.id] } : p
+    ));
+    
+    setIsCreatePersonaModalOpen(false);
+  };
+
+  const handleAiSuggestStakeholders = async () => {
+    if (!companyProfile?.name || !companyProfile?.description) {
+      // Toast would be nice here but we don't have addToast in this scope easily without prop or context
+      // Let's assume it works or just fail silently/alert for now as Toast is in page scope
+      return;
+    }
+
+    setIsAiGeneratingStakeholders(true);
+    setShowStakeholderAiSuggestions(true);
+    try {
+      const hasKey = await ensureApiKey();
+      if (!hasKey) return;
+
+      const ai = await getGeminiClient();
+      if (!ai) throw new Error("Failed to initialize AI client");
+
+      const categories = [
+        'Executive Sponsor',
+        'Director/Head of Service',
+        'Corporate Function (IT, Finance, HR, Legal, Comms)',
+        'Key Partner (Contractor, Housing, NHS, Third Sector)',
+        'Regulator',
+        'Resident/Tenant Group',
+        'Union',
+        'Other'
+      ];
+
+      const prompt = `Based on the following company profile and specific project, suggest 5 key stakeholders that should be involved.
+      For each stakeholder, provide:
+      - name: A specific job title or role (e.g., "Director of Sustainability", "Lead Systems Architect").
+      - category: One of the existing categories: ${categories.join(', ')}.
+      - organization: A likely department or external entity type.
+      - about: A brief context on why this stakeholder is important for this specific project.
+
+      Company Profile:
+      Name: ${companyProfile.name}
+      Vertical: ${companyProfile.vertical}
+      Description: ${companyProfile.description}
+      Strategic Goals: ${companyProfile.goals?.join(', ') || 'N/A'}
+
+      Project Context:
+      Name: ${project.name}
+      Description: ${project.description}
+      Goals: ${project.goals.join(', ')}
+      
+      Respond with a JSON object containing a "suggestions" array.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              suggestions: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    category: { type: Type.STRING },
+                    organization: { type: Type.STRING },
+                    about: { type: Type.STRING }
+                  },
+                  required: ["name", "category", "organization", "about"]
+                }
+              }
+            },
+            required: ["suggestions"]
+          }
+        }
+      });
+
+      const data = JSON.parse(result.text || '{}');
+      setStakeholderAiSuggestions(data.suggestions || []);
+    } catch (err: any) {
+      console.error(err);
+      setShowStakeholderAiSuggestions(false);
+    } finally {
+      setIsAiGeneratingStakeholders(false);
+    }
+  };
+
+  const handleAcceptStakeholderAiSuggestion = (suggestion: Partial<Stakeholder>) => {
+    if (!setStakeholders) return;
+
+    const newStakeholder: Stakeholder = {
+      id: `stk_ai_${Date.now()}_${Math.random()}`,
+      name: suggestion.name!,
+      category: suggestion.category!,
+      organization: suggestion.organization,
+      about: suggestion.about,
+      isGlobal: false // Project specific context usually
+    };
+    
+    // In this app, stakeholders are global in the main state
+    setStakeholders(prev => [...prev, newStakeholder]);
+    setStakeholderAiSuggestions(prev => prev.filter(s => s !== suggestion));
   };
 
   const handleAddProduct = () => {
@@ -448,6 +581,35 @@ export function ProjectDetail({
   const currentJourneys = journeys.filter(j => j.state === 'Current');
   const proposedJourneys = journeys.filter(j => j.state === 'Proposed');
   const implementedJourneys = journeys.filter(j => j.state === 'Implemented');
+  const targetPersonas = personas.filter(p => project.personaIds?.includes(p.id));
+
+  const strategicAlignment = React.useMemo(() => {
+    if (!companyProfile?.wizardCompleted) return null;
+    
+    // Calculate average emotion across all 'Current' journeys for this project
+    const projectJourneys = journeys.filter(j => j.projectId === project.id && j.state === 'Current');
+    if (projectJourneys.length === 0) return null;
+    
+    let totalEmotion = 0;
+    let stageCount = 0;
+    
+    projectJourneys.forEach(j => {
+      j.stages.forEach(s => {
+        totalEmotion += s.emotion;
+        stageCount++;
+      });
+    });
+    
+    const avgEmotion = totalEmotion / (stageCount || 1);
+    const gap = 5 - avgEmotion; // How far from 'Perfect' (5)
+    
+    return {
+      avgEmotion,
+      gap,
+      isMisaligned: avgEmotion < 3.5, // 4-5 is healthy, < 3.5 is at risk
+      severity: avgEmotion < 2.5 ? 'High' : (avgEmotion < 3.5 ? 'Medium' : 'Low')
+    };
+  }, [journeys, project.id, companyProfile]);
 
   return (
     <div className="p-4 sm:p-8 max-w-[1600px] mx-auto space-y-6 sm:space-y-8">
@@ -646,8 +808,69 @@ export function ProjectDetail({
         </div>
       )}
 
+      {/* Prompts for missing items */}
+      <div className="space-y-4 mb-8">
+        {(!project.personaIds || (project.personaIds || []).length === 0) && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-indigo-600 rounded-3xl p-8 text-white relative overflow-hidden shadow-lg border border-indigo-500"
+          >
+            <div className="absolute top-0 right-0 p-24 bg-white/10 rounded-full translate-x-1/3 -translate-y-1/3 blur-3xl" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                   <div className="px-2 py-0.5 bg-white/20 rounded text-[10px] font-bold uppercase tracking-wider">Project Launchpad</div>
+                   <Sparkles className="w-4 h-4 text-indigo-200" />
+                </div>
+                <h3 className="text-xl font-bold">Who are we transforming for?</h3>
+                <p className="text-indigo-100 text-sm max-w-xl leading-relaxed">
+                  Your project currently has no assigned personas. Linking personas allows for precise strategic alignment and personalized journey mapping.
+                </p>
+              </div>
+              <button
+                onClick={() => setIsSelectingPersonas(true)}
+                className="bg-white text-indigo-600 px-8 py-3 rounded-2xl font-bold transition-all shadow-md hover:bg-indigo-50 flex items-center gap-2 shrink-0 group"
+              >
+                Assign Project Personas
+                <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {(journeys.filter(j => j.projectId === project.id).length === 0) && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-zinc-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-lg border border-zinc-800"
+          >
+            <div className="absolute top-0 right-0 p-24 bg-indigo-500/10 rounded-full translate-x-1/3 -translate-y-1/3 blur-3xl pr-12" />
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 mb-1">
+                   <div className="px-2 py-0.5 bg-white/10 rounded text-[10px] font-bold uppercase tracking-wider text-emerald-400">Strategy Gap</div>
+                   <MapIcon className="w-4 h-4 text-emerald-400" />
+                </div>
+                <h3 className="text-xl font-bold">Start your first Journey Map</h3>
+                <p className="text-zinc-400 text-sm max-w-xl leading-relaxed">
+                  Every successful transformation starts with understanding the current experience. Create an "As-Is" map to pinpoint friction.
+                </p>
+              </div>
+              <button
+                onClick={() => onNavigate('journeys', 'new')}
+                className="bg-zinc-100 text-zinc-900 px-8 py-3 rounded-2xl font-bold transition-all shadow-md hover:bg-white flex items-center gap-2 shrink-0 group"
+              >
+                Launch Journey Studio
+                <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1 transition-transform" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
       {/* Dashboard Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col items-center justify-center text-center hover:border-indigo-300 transition-colors cursor-pointer" onClick={() => onNavigate('tasks')}>
           <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2">
             <CheckSquare className="w-5 h-5" />
@@ -655,7 +878,7 @@ export function ProjectDetail({
           <h4 className="text-2xl font-bold text-zinc-900 dark:text-white">
             {tasks.filter(t => t.projectId === project.id && !['Done', 'Completed', 'Finished', 'Archived'].includes(t.status)).length}
           </h4>
-          <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Tasks to Complete</p>
+          <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Active Tasks</p>
         </div>
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col items-center justify-center text-center hover:border-amber-300 transition-colors cursor-pointer" onClick={() => onNavigate('journeys')}>
           <div className="w-10 h-10 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
@@ -665,6 +888,15 @@ export function ProjectDetail({
             {journeys.filter(j => j.projectId === project.id).length}
           </h4>
           <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Journey Maps</p>
+        </div>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col items-center justify-center text-center hover:border-blue-300 transition-colors cursor-pointer" onClick={() => setIsSelectingPersonas(true)}>
+          <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center mb-2">
+            <UsersRound className="w-5 h-5" />
+          </div>
+          <h4 className="text-2xl font-bold text-zinc-900 dark:text-white">
+            {targetPersonas.length}
+          </h4>
+          <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Target Personas</p>
         </div>
         <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-4 shadow-sm flex flex-col items-center justify-center text-center hover:border-teal-300 transition-colors cursor-pointer" onClick={() => onNavigate('process_maps')}>
           <div className="w-10 h-10 rounded-full bg-teal-50 dark:bg-teal-900/30 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-2">
@@ -682,9 +914,71 @@ export function ProjectDetail({
           <h4 className="text-2xl font-bold text-zinc-900 dark:text-white">
             {(project.risks || []).filter(r => r.status === 'Open').length}
           </h4>
-          <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Open Risks/Issues</p>
+          <p className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Open Risks</p>
         </div>
       </div>
+
+      {companyProfile && companyProfile.wizardCompleted && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-indigo-900/20 dark:to-blue-900/20 p-6 rounded-3xl border border-indigo-100 dark:border-indigo-800/50 shadow-sm relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 group-hover:opacity-20 transition-opacity">
+              <Sparkles className="w-24 h-24 text-indigo-600" />
+            </div>
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-4">
+                <Target className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-xs font-bold text-indigo-900 dark:text-indigo-200 uppercase tracking-widest">Strategic Alignment</h3>
+              </div>
+              <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2 italic serif">
+                Aiming for: {companyProfile.targetEmotions.join(', ')}
+              </h4>
+              <p className="text-sm text-indigo-700/80 dark:text-indigo-300/80 leading-relaxed max-w-lg mb-4">
+                Your company strategy focuses on delivering {companyProfile.customerBenefits.toLowerCase()}. 
+                Ensure every task in this project reinforces these core values.
+              </p>
+
+              {strategicAlignment && (
+                <div className={cn(
+                  "p-3 rounded-2xl flex items-center gap-3 border",
+                  strategicAlignment.isMisaligned 
+                    ? "bg-rose-50/50 border-rose-100 dark:bg-rose-900/10 dark:border-rose-800/50" 
+                    : "bg-emerald-50/50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-800/50"
+                )}>
+                  <div className={cn(
+                    "p-2 rounded-xl",
+                    strategicAlignment.isMisaligned ? "bg-rose-100 text-rose-600" : "bg-emerald-100 text-emerald-600"
+                  )}>
+                    {strategicAlignment.isMisaligned ? <Frown className="w-4 h-4" /> : <TrendingUp className="w-4 h-4" />}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider">Strategic Sentiment Gap</p>
+                    <p className={cn(
+                      "text-xs font-bold",
+                      strategicAlignment.isMisaligned ? "text-rose-600" : "text-emerald-600"
+                    )}>
+                      {strategicAlignment.isMisaligned 
+                        ? `${strategicAlignment.severity} Misalignment Detected` 
+                        : 'Perfectly Aligned with Strategy'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {strategicAlignment?.isMisaligned && (
+                <div className="mt-4 p-4 bg-white/50 dark:bg-zinc-800/50 rounded-2xl border border-rose-100 dark:border-rose-900/30">
+                  <div className="flex items-center gap-2 mb-2">
+                    <BrainCircuit className="w-3.5 h-3.5 text-rose-500" />
+                    <span className="text-[10px] font-bold text-rose-900 dark:text-rose-300 uppercase tracking-wider">AI Alignment Strategy</span>
+                  </div>
+                  <p className="text-xs text-zinc-600 dark:text-zinc-400 italic">
+                    Current sentiment is trending below your target. Recommendation: Prioritize tasks linked to "{companyProfile.customerBenefits.split('\n')[0]}" and investigate the {strategicAlignment.severity === 'High' ? 'critical' : 'moderate'} friction in the current journey stages.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Taxonomy Editor Modal */}
       <AnimatePresence>
@@ -1168,14 +1462,83 @@ export function ProjectDetail({
               <h3 className="font-bold text-zinc-900 dark:text-white text-lg">Project Personas</h3>
             </div>
             {canEdit && (
-              <button 
-                onClick={() => setIsSelectingPersonas(!isSelectingPersonas)}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
-              >
-                {isSelectingPersonas ? 'Done' : 'Select Personas'}
-              </button>
+              <div className="flex items-center gap-4">
+                <button 
+                  onClick={() => setIsCreatePersonaModalOpen(true)}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  Create Persona
+                </button>
+                <div className="w-px h-3 bg-zinc-200 dark:bg-zinc-800" />
+                <button 
+                  onClick={() => setIsSelectingPersonas(!isSelectingPersonas)}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700"
+                >
+                  {isSelectingPersonas ? 'Done' : 'Select Personas'}
+                </button>
+              </div>
             )}
           </div>
+
+          <AnimatePresence>
+            {showStakeholderAiSuggestions && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden mb-6"
+              >
+                <div className="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-indigo-600" />
+                      <h3 className="font-bold text-zinc-900 dark:text-white">Suggested Stakeholders</h3>
+                    </div>
+                    <button onClick={() => setShowStakeholderAiSuggestions(false)} className="text-zinc-400 hover:text-zinc-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  {isAiGeneratingStakeholders ? (
+                    <div className="py-8 text-center">
+                      <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                      <p className="text-sm text-zinc-500">Generating suggestions...</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {stakeholderAiSuggestions.map((suggestion, idx) => (
+                        <div key={idx} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/50 flex flex-col justify-between gap-3 shadow-sm">
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded italic">AI Suggestion</span>
+                              <span className="text-[10px] font-bold text-zinc-400">{suggestion.category}</span>
+                            </div>
+                            <h4 className="font-bold text-zinc-900 dark:text-white text-sm">{suggestion.name}</h4>
+                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2">{suggestion.about}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleAcceptStakeholderAiSuggestion(suggestion)}
+                              className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Check className="w-3.5 h-3.5" /> Accept
+                            </button>
+                            <button
+                              onClick={() => setStakeholderAiSuggestions(prev => prev.filter(s => s !== suggestion))}
+                              className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {isSelectingPersonas ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -1242,6 +1605,19 @@ export function ProjectDetail({
             description="Map and track project stakeholders on a power-interest grid to optimize engagement."
             onExplore={() => onNavigate('stakeholder_mapping')}
           />
+          <div className="relative group">
+            <FlipTile 
+              title="Stakeholder Insights" 
+              icon={BrainCircuit} 
+              colorClass="bg-indigo-50" 
+              iconColorClass="text-indigo-600"
+              description="Use AI to identify project-specific stakeholders and engagement strategies."
+              onExplore={handleAiSuggestStakeholders}
+            />
+            <div className="absolute top-4 right-4 pointer-events-none">
+              <Sparkles className="w-5 h-5 text-indigo-400 opacity-50 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </div>
           <FlipTile 
             title="Journey Maps" 
             icon={MapIcon} 
@@ -1735,6 +2111,13 @@ export function ProjectDetail({
             setEditingMember({ ...editingMember, photoUrl: url });
           }
         }}
+      />
+
+      <CreatePersonaModal 
+        isOpen={isCreatePersonaModalOpen}
+        onClose={() => setIsCreatePersonaModalOpen(false)}
+        onSave={handleCreatePersona}
+        companyProfile={companyProfile}
       />
 
     </div>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Target, Plus, X, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Send, UsersRound } from 'lucide-react';
+import { Target, Plus, X, ChevronDown, ChevronUp, AlertCircle, MessageSquare, Send, UsersRound, Sparkles } from 'lucide-react';
 import { Task, Project, Comment, User, TeamMember, Sprint } from '../types';
+import { CompanyProfile } from './YourCompany';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from './ContextualHelp';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,9 +22,10 @@ interface TaskModalProps {
   onDelete?: (taskId: string) => void;
   onAddTeamMember?: (user: User, projectId?: string) => void;
   isReadOnly?: boolean;
+  companyProfile?: CompanyProfile;
 }
 
-export function TaskModal({ task, project, sprints = [], currentUser, users = [], onSave, onUpdate, onClose, onDelete, onAddTeamMember, isReadOnly }: TaskModalProps) {
+export function TaskModal({ task, project, sprints = [], currentUser, users = [], onSave, onUpdate, onClose, onDelete, onAddTeamMember, isReadOnly, companyProfile }: TaskModalProps) {
   const [editingTask, setEditingTask] = useState<Task>(task);
   const [pendingTeamMember, setPendingTeamMember] = useState<User | null>(null);
   const [showBlockerDetails, setShowBlockerDetails] = useState(true);
@@ -105,6 +107,27 @@ export function TaskModal({ task, project, sprints = [], currentUser, users = []
                 isReadOnly && "opacity-70 cursor-not-allowed"
               )}
             />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+              <Target className="w-3 h-3 text-indigo-500" />
+              Strategic Alignment
+            </label>
+            <select 
+              value={editingTask.strategicGoalIndex ?? ""}
+              disabled={isReadOnly}
+              onChange={(e) => setEditingTask({ ...editingTask, strategicGoalIndex: e.target.value === "" ? undefined : parseInt(e.target.value) })}
+              className={cn(
+                "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white capitalize",
+                isReadOnly && "opacity-70 cursor-not-allowed"
+              )}
+            >
+              <option value="">No Alignment</option>
+              {project.goals.map((goal, index) => (
+                <option key={index} value={index}>{goal}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -370,6 +393,30 @@ export function TaskModal({ task, project, sprints = [], currentUser, users = []
               )}
             />
           </div>
+
+          {companyProfile?.wizardCompleted && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                Strategic Alignment
+                <Sparkles className="w-3 h-3 text-indigo-500" />
+              </label>
+              <select
+                value={editingTask.alignedBenefit || ''}
+                disabled={isReadOnly}
+                onChange={(e) => setEditingTask({ ...editingTask, alignedBenefit: e.target.value })}
+                className={cn(
+                  "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-medium text-zinc-900 dark:text-white appearance-none",
+                  isReadOnly && "opacity-70 cursor-not-allowed"
+                )}
+              >
+                <option value="">No specific alignment</option>
+                {companyProfile.customerBenefits.split('\n').filter(Boolean).map((benefit, i) => (
+                  <option key={i} value={benefit.trim()}>{benefit.trim()}</option>
+                ))}
+              </select>
+              <p className="text-[10px] text-zinc-400 italic">Linking a task to a strategic benefit helps the AI prioritize and report on business value realization.</p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Notes</label>

@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { mockPersonas, personaTemplates } from '../data/mockData';
-import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen } from 'lucide-react';
+import { mockPersonas, personaTemplates, mockProjects } from '../data/mockData';
+import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen, Briefcase, ArrowRight } from 'lucide-react';
 import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { AiPersonaGenerator } from '../components/AiPersonaGenerator';
 import { PersonaLibraryModal } from '../components/PersonaLibraryModal';
 import { EditableText } from '../components/EditableText';
 import { VersionHistory } from '../components/VersionHistory';
-import { Persona, DemographicSlider } from '../types';
+import { Persona, DemographicSlider, Project } from '../types';
 import { CompanyProfile } from '../components/YourCompany';
 import { v4 as uuidv4 } from 'uuid';
 import { cn, fixOklch } from '../lib/utils';
@@ -27,14 +27,15 @@ interface PersonasProps {
   setPersonas: React.Dispatch<React.SetStateAction<Persona[]>>;
   startInNewMode?: boolean;
   isDarkMode?: boolean;
-  onNavigate?: (tab: string) => void;
+  onNavigate?: (tab: string, subTab?: string) => void;
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
   companyProfile?: CompanyProfile;
+  projects?: Project[];
 }
 
 import { LimitReachedModal } from '../components/LimitReachedModal';
 
-export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate, onAddToAuditLog, companyProfile }: PersonasProps) {
+export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate, onAddToAuditLog, companyProfile, projects = [] }: PersonasProps) {
   const { plan, details } = usePlan();
   const { addToast } = useToast();
   const { canEditPersonas } = usePermissions();
@@ -640,6 +641,37 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
           )}
         </div>
       </div>
+      
+      {/* Project Creation Prompt - Persistent until first project created */}
+      {!selectedPersonaId && personas.length > 0 && !projects.some(p => !mockProjects.find(mp => mp.id === p.id)) && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-zinc-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl mb-8 mt-4"
+        >
+          <div className="absolute top-0 right-0 p-32 bg-indigo-500/20 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl" />
+          <div className="absolute bottom-0 left-0 p-24 bg-emerald-500/10 rounded-full -translate-x-1/2 translate-y-1/2 blur-3xl" />
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="space-y-4 text-center md:text-left">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-widest text-indigo-300">
+                Next Step
+              </div>
+              <h3 className="text-2xl font-bold tracking-tight">Create your First Project</h3>
+              <p className="text-zinc-400 text-sm max-w-md leading-relaxed">
+                Great job on your personas! Now, group them into a project to start mapping their journeys and identifying transformation opportunities.
+              </p>
+            </div>
+            <button
+              onClick={() => onNavigate?.('projects', 'new')}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white px-8 py-3 rounded-2xl font-bold transition-all shadow-lg flex items-center gap-2 shrink-0"
+            >
+              Create First Project
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </motion.div>
+      )}
 
       {!selectedPersonaId && (
         <div className="bg-indigo-50 rounded-2xl border border-indigo-100 overflow-hidden transition-all print:hidden no-export">

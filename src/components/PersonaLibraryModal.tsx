@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import { X, Folder, Users, ChevronLeft, Plus, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Target, Frown, Sparkles, Sliders, Filter } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Folder, Users, ChevronLeft, Plus, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Target, Frown, Sparkles, Sliders, Filter, ImageIcon, FileText, Loader2 } from 'lucide-react';
 import { Persona } from '../types';
 import { personaLibrary, PersonaFolder } from '../data/personaLibrary';
 import { v4 as uuidv4 } from 'uuid';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface PersonaLibraryModalProps {
   isOpen: boolean;
@@ -27,6 +29,76 @@ export function PersonaLibraryModal({ isOpen, onClose, onImport }: PersonaLibrar
   const [previewPersona, setPreviewPersona] = useState<Partial<Persona> | null>(null);
   const [genderFilter, setGenderFilter] = useState<string>('All');
   const [ageFilter, setAgeFilter] = useState<string>('All');
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleExportImage = async () => {
+    if (!contentRef.current || !previewPersona || isExporting) return;
+    
+    setIsExporting(true);
+    try {
+      // Temporarily set a fixed width to prevent cutoff
+      const originalWidth = contentRef.current.style.width;
+      contentRef.current.style.width = '1000px';
+
+      const canvas = await html2canvas(contentRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        logging: false,
+        windowWidth: 1200,
+      });
+
+      contentRef.current.style.width = originalWidth;
+      
+      const link = document.createElement('a');
+      link.download = `${previewPersona.name?.replace(/\s+/g, '_')}_Persona.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    } catch (error) {
+      console.error('Error generating image:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!contentRef.current || !previewPersona || isExporting) return;
+
+    setIsExporting(true);
+    try {
+      // Temporarily set a fixed width to prevent cutoff
+      const originalWidth = contentRef.current.style.width;
+      contentRef.current.style.width = '1000px';
+
+      const canvas = await html2canvas(contentRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        logging: false,
+        windowWidth: 1200,
+      });
+
+      contentRef.current.style.width = originalWidth;
+      
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width / 2;
+      const imgHeight = canvas.height / 2;
+
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`${previewPersona.name?.replace(/\s+/g, '_')}_Persona.pdf`);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen) {
@@ -61,7 +133,18 @@ export function PersonaLibraryModal({ isOpen, onClose, onImport }: PersonaLibrar
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+      <div className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl relative">
+        {isExporting && (
+          <div className="absolute inset-0 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-[2px] z-[70] flex flex-col items-center justify-center gap-4 transition-all animate-in fade-in duration-200">
+            <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl border border-zinc-100 dark:border-zinc-800">
+              <Loader2 className="w-8 h-8 text-indigo-600 animate-spin" />
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-black text-zinc-900 dark:text-white uppercase tracking-widest">Generating Quality Asset</p>
+              <p className="text-xs text-zinc-500 mt-1">Please wait, this may take a moment...</p>
+            </div>
+          </div>
+        )}
         <div className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
           <div className="flex items-center gap-3">
             {previewPersona ? (
@@ -100,109 +183,134 @@ export function PersonaLibraryModal({ isOpen, onClose, onImport }: PersonaLibrar
         <div className="flex-1 overflow-y-auto p-8">
           {previewPersona ? (
             <div className="max-w-4xl mx-auto">
-              <div className="flex flex-col md:flex-row gap-8 mb-8">
-                <div className="w-full md:w-1/3 flex flex-col items-center text-center">
-                  <img 
-                    src={previewPersona.imageUrl} 
-                    alt={previewPersona.name} 
-                    className="w-48 h-48 rounded-full object-cover border-4 border-white dark:border-zinc-800 shadow-xl mb-6"
-                  />
-                  <h2 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{previewPersona.name}</h2>
-                  <p className="text-lg font-medium text-indigo-600 dark:text-indigo-400 mb-2">{previewPersona.role}</p>
-                  {previewPersona.type && (
-                    <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
-                      {previewPersona.type}
-                    </span>
-                  )}
-                  <div className="mt-4 text-zinc-500 dark:text-zinc-400">
-                    Age: {previewPersona.age}
+              <div ref={contentRef} className="bg-white dark:bg-zinc-900 p-8 rounded-3xl mb-8">
+                <div className="flex flex-col md:flex-row gap-8 mb-8">
+                  <div className="w-full md:w-1/3 flex flex-col items-center text-center">
+                    <img 
+                      src={previewPersona.imageUrl} 
+                      alt={previewPersona.name} 
+                      className="w-48 h-48 rounded-full object-cover border-4 border-white dark:border-zinc-800 shadow-xl mb-6"
+                      crossOrigin="anonymous"
+                    />
+                    <h2 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">{previewPersona.name}</h2>
+                    <p className="text-lg font-medium text-indigo-600 dark:text-indigo-400 mb-2">{previewPersona.role}</p>
+                    {previewPersona.type && (
+                      <span className="text-sm font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider bg-zinc-100 dark:bg-zinc-800 px-3 py-1 rounded-full">
+                        {previewPersona.type}
+                      </span>
+                    )}
+                    <div className="mt-4 text-zinc-500 dark:text-zinc-400">
+                      Age: {previewPersona.age}
+                    </div>
                   </div>
-                </div>
-                <div className="w-full md:w-2/3 space-y-6">
-                  <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
-                    <p className="text-xl text-indigo-900 dark:text-indigo-300 italic">"{previewPersona.quote}"</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="w-full md:w-2/3 space-y-6">
+                    <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800/30">
+                      <p className="text-xl text-indigo-900 dark:text-indigo-300 italic">"{previewPersona.quote}"</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                          <Target className="w-4 h-4" /> Goals
+                        </h3>
+                        <ul className="space-y-2">
+                          {previewPersona.goals?.map((goal, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
+                              <span>{goal}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                      <div className="space-y-4">
+                        <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
+                          <Frown className="w-4 h-4" /> Frustrations
+                        </h3>
+                        <ul className="space-y-2">
+                          {previewPersona.frustrations?.map((frustration, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
+                              <span>{frustration}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+
                     <div className="space-y-4">
                       <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                        <Target className="w-4 h-4" /> Goals
+                        <Sparkles className="w-4 h-4" /> Motivations
                       </h3>
                       <ul className="space-y-2">
-                        {previewPersona.goals?.map((goal, i) => (
+                        {previewPersona.motivations?.map((motivation, i) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 shrink-0" />
-                            <span>{goal}</span>
+                            <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
+                            <span>{motivation}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
+
                     <div className="space-y-4">
                       <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                        <Frown className="w-4 h-4" /> Frustrations
+                        <Sliders className="w-4 h-4" /> Demographics
                       </h3>
-                      <ul className="space-y-2">
-                        {previewPersona.frustrations?.map((frustration, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 mt-1.5 shrink-0" />
-                            <span>{frustration}</span>
-                          </li>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {previewPersona.demographics?.map((demo, i) => (
+                          <div key={i} className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400">
+                              <span>{demo.label}</span>
+                              <span>{demo.value}%</span>
+                            </div>
+                            <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
+                              <div 
+                                className="h-full bg-indigo-500 rounded-full"
+                                style={{ width: `${demo.value}%` }}
+                              />
+                            </div>
+                          </div>
                         ))}
-                      </ul>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                      <Sparkles className="w-4 h-4" /> Motivations
-                    </h3>
-                    <ul className="space-y-2">
-                      {previewPersona.motivations?.map((motivation, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-1.5 shrink-0" />
-                          <span>{motivation}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  <div className="space-y-4">
-                    <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-2">
-                      <Sliders className="w-4 h-4" /> Demographics
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {previewPersona.demographics?.map((demo, i) => (
-                        <div key={i} className="space-y-1">
-                          <div className="flex justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400">
-                            <span>{demo.label}</span>
-                            <span>{demo.value}%</span>
-                          </div>
-                          <div className="h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 overflow-hidden">
-                            <div 
-                              className="h-full bg-indigo-500 rounded-full"
-                              style={{ width: `${demo.value}%` }}
-                            />
-                          </div>
-                        </div>
-                      ))}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-              <div className="flex justify-end gap-4 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                <button 
-                  onClick={() => setPreviewPersona(null)}
-                  className="px-6 py-3 text-sm font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={() => handleImport(previewPersona)}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
-                >
-                  <Plus className="w-4 h-4" />
-                  Import Persona
-                </button>
+              <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleExportImage}
+                    disabled={isExporting}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all disabled:opacity-50"
+                    title="Save as Image"
+                  >
+                    {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
+                    PNG
+                  </button>
+                  <button 
+                    onClick={handleExportPDF}
+                    disabled={isExporting}
+                    className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-all disabled:opacity-50"
+                    title="Save as PDF"
+                  >
+                    {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+                    PDF
+                  </button>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <button 
+                    onClick={() => setPreviewPersona(null)}
+                    className="flex-1 sm:flex-none px-6 py-3 text-sm font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={() => handleImport(previewPersona)}
+                    className="flex-1 sm:flex-none px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold flex items-center gap-2 transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Import Persona
+                  </button>
+                </div>
               </div>
             </div>
           ) : !selectedFolder ? (

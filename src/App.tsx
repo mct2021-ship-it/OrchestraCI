@@ -32,10 +32,11 @@ import { NotificationsModal } from './components/NotificationsModal';
 import { Menu, ChevronLeft, Users, Bell, CheckCircle2, Leaf } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
-import { mockPersonas, mockJourneyMaps, mockTasks, mockProcessMaps, mockProducts, mockServices, mockProjects, mockUsers, mockSprints, mockStakeholders, mockProjectStakeholders } from './data/mockData';
+import { v4 as uuidv4 } from 'uuid';
+import { mockPersonas, mockJourneyMaps, mockTasks, mockProcessMaps, mockProducts, mockServices, mockProjects, mockUsers, mockSprints, mockStakeholders, mockProjectStakeholders, mockSignals } from './data/mockData';
 import { Stakeholders } from './pages/Stakeholders';
 import { StakeholderMapping } from './components/StakeholderMapping';
-import { Persona, JourneyMap, Task, ProcessMap, Product, Service, Project, User, Sprint, RecycleBinItem, AuditEntry, Stakeholder, ProjectStakeholder } from './types';
+import { Persona, JourneyMap, Task, ProcessMap, Product, Service, Project, User, Sprint, RecycleBinItem, AuditEntry, Stakeholder, ProjectStakeholder, IntelligenceSignal } from './types';
 import { PlanContext, PLAN_DETAILS, PlanType } from './context/PlanContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
@@ -55,6 +56,7 @@ export default function App() {
 function AppContent() {
   const { user, token, isLoading } = useAuth();
   const { addToast } = useToast();
+  // Session refresh trigger
   console.log('AppContent: Rendering...', { user: user?.email, isLoading, hasToken: !!token });
 
   // Global error handling for unhandled rejections
@@ -98,7 +100,7 @@ function AppContent() {
   });
 
   // Global State
-  const [personas, setPersonas] = useState<Persona[]>(mockPersonas);
+  const [personas, setPersonas] = useState<Persona[]>([]);
   const [projects, setProjects] = useState<Project[]>(mockProjects);
   const [journeys, setJourneys] = useState<JourneyMap[]>(mockJourneyMaps);
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
@@ -109,6 +111,7 @@ function AppContent() {
   const [sprints, setSprints] = useState<Sprint[]>(mockSprints);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>(mockStakeholders);
   const [projectStakeholders, setProjectStakeholders] = useState<ProjectStakeholder[]>(mockProjectStakeholders);
+  const [signals, setSignals] = useState<IntelligenceSignal[]>(mockSignals);
   const [recycleBin, setRecycleBin] = useState<RecycleBinItem[]>([]);
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>('proj1');
@@ -144,7 +147,7 @@ function AppContent() {
     console.log('App: Initializing WebSocket...');
     try {
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const socket = new WebSocket(`${protocol}//${window.location.host}`);
+      const socket = new WebSocket(`${protocol}//${window.location.host}?token=${token}`);
 
       socket.onopen = () => {
         console.log('App: WebSocket connected');
@@ -207,7 +210,7 @@ function AppContent() {
     } catch (error) {
       console.error('App: Failed to initialize WebSocket:', error);
     }
-  }, [user]);
+  }, [user, token]);
 
   // Fetch users on load
   useEffect(() => {
@@ -262,17 +265,67 @@ function AppContent() {
     setTasks(prev => {
       const newItems = typeof items === 'function' ? items(prev) : items;
       const now = new Date().toISOString();
+      const updatedSprints = [...sprints];
+      let sprintsModified = false;
+      let sprintCreated = false;
+
       const updatedItems = newItems.map(newItem => {
         const oldItem = prev.find(p => p.id === newItem.id);
+        
+        // If task is not in backlog (or moving out of it) and has no sprint, assign to an active one or create one
+        const movedFromBacklog = oldItem && oldItem.kanbanStatus === 'Backlog' && newItem.kanbanStatus !== 'Backlog';
+        const isNewAndNotBacklog = !oldItem && newItem.kanbanStatus !== 'Backlog';
+
+        if ((movedFromBacklog || isNewAndNotBacklog) && !newItem.sprint) {
+          // Find active sprint for this project
+          let activeSprint = updatedSprints.find(s => s.projectId === newItem.projectId && s.status === 'In Progress');
+          
+          if (!activeSprint) {
+            // Create new sprint
+            const sprintNumber = updatedSprints.filter(s => s.projectId === newItem.projectId).length + 1;
+            activeSprint = {
+              id: `sprint_${uuidv4()}`,
+              projectId: newItem.projectId,
+              number: sprintNumber,
+              name: `Sprint ${sprintNumber}`,
+              goal: 'Auto-created sprint',
+              startDate: now.split('T')[0],
+              endDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+              status: 'In Progress',
+              stage: 'Develop',
+              tasks: [newItem.id]
+            };
+            updatedSprints.push(activeSprint);
+            sprintsModified = true;
+            sprintCreated = true;
+          } else {
+            // Add task to existing sprint if not already there
+            if (!activeSprint.tasks?.includes(newItem.id)) {
+              activeSprint.tasks = [...(activeSprint.tasks || []), newItem.id];
+              sprintsModified = true;
+            }
+          }
+          newItem.sprint = activeSprint.id;
+        }
+
         if (!oldItem || JSON.stringify(oldItem) !== JSON.stringify(newItem)) {
           return { ...newItem, updatedAt: now };
         }
         return newItem;
       });
+
+      if (sprintsModified) {
+        setSprints(updatedSprints);
+        syncCollection('sprints', updatedSprints);
+        if (sprintCreated) {
+           addToast('New Sprint created for this project!', 'success');
+        }
+      }
+      
       syncCollection('tasks', updatedItems);
       return updatedItems;
     });
-  }, [syncCollection]);
+  }, [syncCollection, sprints, addToast]);
 
   const handleSetProcessMaps = useCallback((items: ProcessMap[] | ((prev: ProcessMap[]) => ProcessMap[])) => {
     setProcessMaps(prev => {
@@ -630,7 +683,7 @@ function AppContent() {
           } else {
             handleTabChange(tab, subTab);
           }
-        }} onSelectProject={handleSelectProject} userName={currentUser?.name} companyProfile={companyProfile} personas={personas} projects={projects} />;
+        }} onSelectProject={handleSelectProject} userName={currentUser?.name} companyProfile={companyProfile} personas={personas} projects={projects} signals={signals} />;
       case 'dashboard':
         return (
           <Dashboard 
@@ -701,6 +754,10 @@ function AppContent() {
               setUsers={handleSetUsers}
               onDeleteItem={handleDeleteItem}
               isDarkMode={isDarkMode}
+              companyProfile={companyProfile}
+              setPersonas={handleSetPersonas}
+              stakeholders={stakeholders}
+              setStakeholders={handleSetStakeholders}
             />
           );
         }
@@ -777,8 +834,10 @@ function AppContent() {
           onSaveComplete={() => {
             // User requested to suppress this prompt after wizard completion
           }}
+          personas={personas}
           setPersonas={handleSetPersonas}
           setProjects={handleSetProjects}
+          journeys={journeys}
           setJourneys={handleSetJourneys}
           setTasks={handleSetTasks}
           setSprints={handleSetSprints}
@@ -786,9 +845,13 @@ function AppContent() {
           onNavigate={handleTabChange}
           setActiveProjectId={setActiveProjectId}
           onAddToAuditLog={handleAddToAuditLog}
+          signals={signals}
+          setSignals={setSignals}
+          products={products}
+          services={services}
         />;
       case 'personas':
-        return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} />;
+        return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} projects={projects} />;
       case 'stakeholders':
         return <Stakeholders stakeholders={stakeholders} setStakeholders={handleSetStakeholders} onDeleteItem={handleDeleteItem} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} />;
       case 'journeys':
@@ -805,6 +868,7 @@ function AppContent() {
             services={activeProject?.services || services}
             personas={personas}
             projects={projects}
+            tasks={tasks}
             initialJourneyId={activeJourneyId} 
             onNavigateToProcessMap={(processMapId) => {
               if (processMapId) {
@@ -849,6 +913,7 @@ function AppContent() {
             onAddTeamMember={handleAddTeamMember}
             users={users}
             activeTaskId={activeTaskId}
+            companyProfile={companyProfile}
           />
         );
       case 'backlog_sprints':
@@ -867,6 +932,7 @@ function AppContent() {
             onDeleteItem={handleDeleteItem}
             onAddTeamMember={handleAddTeamMember}
             onNavigate={handleTabChange}
+            companyProfile={companyProfile}
           />
         );
       case 'raid':
@@ -895,6 +961,7 @@ function AppContent() {
             currentUser={currentUser}
             users={users}
             onAddToAuditLog={handleAddToAuditLog}
+            companyProfile={companyProfile}
           />
         );
       case 'settings':

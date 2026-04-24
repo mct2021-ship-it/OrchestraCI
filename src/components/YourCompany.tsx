@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Upload, X, CheckCircle2, AlertCircle, Globe, Sparkles, Plus, Trash2, FileText, Download, History, ChevronRight } from 'lucide-react';
+import { Building2, Upload, X, CheckCircle2, AlertCircle, Globe, Sparkles, Plus, Trash2, FileText, Download, History, ChevronRight, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
@@ -38,6 +38,8 @@ interface YourCompanyProps {
   onUpdateProfile: (updates: Partial<CompanyProfile>) => void;
   startInEditMode?: boolean;
   onSaveComplete?: () => void;
+  onNavigate?: (tab: string, subTab?: string) => void;
+  personasCount?: number;
 }
 
 const VERTICALS = [
@@ -69,9 +71,10 @@ const MEASUREMENTS = [
   'Support Ticket Analysis'
 ];
 
-export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveComplete }: YourCompanyProps) {
+export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveComplete, onNavigate, personasCount = 0 }: YourCompanyProps) {
   const [isEditing, setIsEditing] = useState(startInEditMode || false);
   const [wizardStep, setWizardStep] = useState<number | null>(null);
+  const [showPersonaPrompt, setShowPersonaPrompt] = useState(false);
   const [tempProfile, setTempProfile] = useState<CompanyProfile>(profile);
   const [logoPreview, setLogoPreview] = useState<string | null>(profile.logoUrl || null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -88,8 +91,11 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     setLogoPreview(profile.logoUrl || null);
   }, [profile]);
 
+  // Ref to track if we've already done the initial prop-based state setting
+  const setupRef = React.useRef(false);
+
   useEffect(() => {
-    if (startInEditMode) {
+    if (startInEditMode && !setupRef.current) {
       if (profile.wizardCompleted) {
         setIsEditing(true);
         setWizardStep(null);
@@ -97,8 +103,18 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
         setIsEditing(true);
         setWizardStep(1);
       }
+      setupRef.current = true;
     }
   }, [startInEditMode, profile.wizardCompleted]);
+
+  useEffect(() => {
+    if (profile.wizardCompleted && personasCount === 0) {
+      const hasSeenPrompt = localStorage.getItem('onboarding_persona_prompt_seen');
+      if (!hasSeenPrompt) {
+        setShowPersonaPrompt(true);
+      }
+    }
+  }, [profile.wizardCompleted, personasCount]);
 
   const handleStartWizard = () => {
     if (profile.wizardCompleted) {
@@ -735,78 +751,32 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -20 }}
-                  className="space-y-6"
+                  className="space-y-8"
                 >
-                  <div className="text-center space-y-2">
-                    <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Review & Complete</h4>
-                    <p className="text-zinc-500">Review the generated profile and make any final adjustments.</p>
+                  <div className="text-center space-y-3">
+                    <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                      <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <h4 className="text-2xl font-bold text-zinc-900 dark:text-white tracking-tight">Congratulations, your Company setup is complete</h4>
+                    <p className="text-zinc-500 dark:text-zinc-400 text-sm max-w-sm mx-auto leading-relaxed">
+                      Click finish setup below to see and amend your company profile.
+                    </p>
                   </div>
 
-                  <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Vertical</label>
-                      <input
-                        type="text"
-                        value={tempProfile.vertical}
-                        onChange={(e) => setTempProfile({ ...tempProfile, vertical: e.target.value })}
-                        className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Description</label>
-                      <textarea
-                        value={tempProfile.description}
-                        onChange={(e) => setTempProfile({ ...tempProfile, description: e.target.value })}
-                        rows={3}
-                        className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-zinc-700 dark:text-zinc-300"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Goals</label>
-                      <div className="space-y-2">
-                        {(tempProfile.goals || []).map((goal, i) => (
-                          <div key={i} className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={goal}
-                              onChange={(e) => {
-                                const newGoals = [...(tempProfile.goals || [])];
-                                newGoals[i] = e.target.value;
-                                setTempProfile({ ...tempProfile, goals: newGoals });
-                              }}
-                              className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm"
-                            />
-                            <button onClick={() => removeGoal(goal)} className="text-zinc-400 hover:text-rose-500">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3">
-                    <button 
-                      onClick={() => {
-                        setIsEditing(true);
-                        setWizardStep(null); // Go to full edit mode
-                      }}
-                      className="flex-1 py-4 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-2xl font-bold hover:bg-zinc-200 transition-all"
-                    >
-                      Advanced Edit
-                    </button>
+                  <div className="flex flex-col gap-3">
                     <button 
                       onClick={() => {
                         handleSave();
                         setWizardStep(null);
                       }}
-                      className="flex-[2] py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-500/20"
+                      className="w-full py-4 bg-indigo-600 text-white rounded-2xl font-bold hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-500/20 active:scale-[0.98]"
                     >
                       Finish Setup
                     </button>
                   </div>
                 </motion.div>
               )}
+
             </AnimatePresence>
           </div>
         </motion.div>
@@ -818,18 +788,69 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
     return (
       <div className="space-y-8">
         <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
-              <Building2 className="w-6 h-6 text-indigo-600" />
-              Edit Company Profile
-            </h3>
-            <div className="flex items-center gap-3">
-              {aiError && (
-                <div className="px-4 py-2 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg text-sm flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4" />
-                  {aiError}
+          {/* Edit Header */}
+          <div className="flex items-start justify-between mb-8">
+            <div className="flex items-center gap-6">
+              <div className="w-24 h-24 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center overflow-hidden relative group cursor-pointer">
+                {logoPreview ? (
+                  <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-2" />
+                ) : (
+                  <Building2 className="w-10 h-10 text-zinc-300" />
+                )}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center">
+                  <Upload className="w-5 h-5 text-white mb-1" />
+                  <p className="text-[10px] text-white font-bold">CHANGE</p>
                 </div>
-              )}
+                <input 
+                  type="file" 
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  value={tempProfile.name}
+                  onChange={(e) => setTempProfile({ ...tempProfile, name: e.target.value })}
+                  placeholder="Company Name"
+                  className="text-3xl font-bold bg-transparent border-b-2 border-transparent focus:border-indigo-500 outline-none text-zinc-900 dark:text-white tracking-tight w-full max-w-md"
+                />
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <input
+                      list="verticals-list"
+                      value={tempProfile.vertical}
+                      onChange={(e) => setTempProfile({ ...tempProfile, vertical: e.target.value })}
+                      placeholder="Industry Vertical"
+                      className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400 outline-none border border-transparent focus:border-indigo-500"
+                    />
+                    <datalist id="verticals-list">
+                      {VERTICALS.map(v => <option key={v} value={v} />)}
+                    </datalist>
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    <Globe className="w-4 h-4 text-zinc-400" />
+                    <input
+                      type="url"
+                      value={tempProfile.websiteUrl || ''}
+                      onChange={(e) => setTempProfile({ ...tempProfile, websiteUrl: e.target.value })}
+                      placeholder="https://website.com"
+                      className="text-sm font-medium bg-transparent border-b border-transparent focus:border-indigo-500 outline-none text-indigo-600 dark:text-indigo-400"
+                    />
+                    <button
+                      onClick={handleAnalyzeWebsite}
+                      disabled={!tempProfile.websiteUrl || isAnalyzing}
+                      className="p-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
+                      title="AI Auto-fill"
+                    >
+                      {isAnalyzing ? <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0 uppercase tracking-widest text-[10px]">
               <button
                 onClick={() => {
                   setTempProfile(profile);
@@ -837,305 +858,54 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                   setIsEditing(false);
                   setAiError(null);
                 }}
-                className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
+                className="px-6 py-2.5 rounded-xl font-bold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
-                className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-500 transition-all"
+                className="px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold shadow-lg shadow-indigo-500/20 hover:bg-indigo-500 transition-all active:scale-[0.98]"
               >
-                Save Changes
+                Save
               </button>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column */}
-            <div className="space-y-6">
-              {/* Logo Upload */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Company Logo</label>
-                <div className="flex items-center gap-6">
-                  <div className="w-24 h-24 rounded-2xl bg-zinc-100 dark:bg-zinc-800 border-2 border-dashed border-zinc-300 dark:border-zinc-700 flex items-center justify-center overflow-hidden relative group">
-                    {logoPreview ? (
-                      <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-2" />
-                    ) : (
-                      <Upload className="w-8 h-8 text-zinc-400" />
-                    )}
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <p className="text-xs text-white font-bold">Change</p>
-                    </div>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handleLogoUpload}
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                    />
-                  </div>
-                  <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                    <p>Upload your company logo.</p>
-                    <p className="text-xs mt-1">Recommended size: 512x512px</p>
-                  </div>
-                </div>
-              </div>
+          {aiError && (
+            <div className="mb-8 px-4 py-3 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 rounded-2xl text-sm flex items-center gap-3 border border-red-100 dark:border-red-900/20">
+              <AlertCircle className="w-4 h-4" />
+              <p className="font-medium">{aiError}</p>
+            </div>
+          )}
 
-              {/* Company Name & Website */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Company Name</label>
-                  <input
-                    type="text"
-                    value={tempProfile.name}
-                    onChange={(e) => setTempProfile({ ...tempProfile, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white"
-                    placeholder="Enter company name..."
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Website URL</label>
-                  <div className="flex gap-2">
-                    <input
-                      type="url"
-                      value={tempProfile.websiteUrl || ''}
-                      onChange={(e) => setTempProfile({ ...tempProfile, websiteUrl: e.target.value })}
-                      className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white"
-                      placeholder="https://example.com"
-                    />
-                    <button
-                      onClick={handleAnalyzeWebsite}
-                      disabled={!tempProfile.websiteUrl || isAnalyzing}
-                      className="px-3 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-xl border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors disabled:opacity-50"
-                      title="Auto-fill with AI"
-                    >
-                      {isAnalyzing ? <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" /> : <Sparkles className="w-5 h-5" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Vertical */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Industry Vertical</label>
-                <div className="relative">
-                  <input
-                    list="verticals-list"
-                    value={tempProfile.vertical}
-                    onChange={(e) => setTempProfile({ ...tempProfile, vertical: e.target.value })}
-                    className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white"
-                    placeholder="Select or enter vertical..."
-                  />
-                  <datalist id="verticals-list">
-                    {VERTICALS.map(v => (
-                      <option key={v} value={v} />
-                    ))}
-                  </datalist>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">What does the company do?</label>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            {/* Standard Left Column */}
+            <div className="space-y-8">
+              <div>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">About The Company</h4>
                 <textarea
                   value={tempProfile.description}
                   onChange={(e) => setTempProfile({ ...tempProfile, description: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-zinc-700 dark:text-zinc-300 resize-none"
-                  placeholder="Describe your business..."
+                  className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-zinc-700 dark:text-zinc-300 resize-none text-sm"
+                  placeholder="What does your company do?"
                 />
               </div>
 
-              {/* Benefits */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Customer Benefits</label>
+              <div>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Customer Benefits</h4>
                 <textarea
                   value={tempProfile.customerBenefits}
                   onChange={(e) => setTempProfile({ ...tempProfile, customerBenefits: e.target.value })}
                   rows={4}
-                  className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-zinc-700 dark:text-zinc-300 resize-none"
-                  placeholder="What value do customers get?"
+                  className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none text-zinc-700 dark:text-zinc-300 resize-none text-sm"
+                  placeholder="What value do you provide to customers?"
                 />
               </div>
 
-              {/* Goals */}
-              <div className="space-y-2">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Goals</label>
-                <div className="space-y-3">
-                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {(tempProfile.goals || []).map((goal, index) => (
-                      <li key={index} className="flex items-start gap-3 text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm relative group/item">
-                        <span className="w-2 h-2 rounded-full bg-emerald-400 mt-2 shrink-0" />
-                        <input
-                          type="text"
-                          value={goal}
-                          onChange={(e) => {
-                            const newGoals = [...(tempProfile.goals || [])];
-                            newGoals[index] = e.target.value;
-                            setTempProfile({ ...tempProfile, goals: newGoals });
-                          }}
-                          className="text-sm font-medium flex-1 bg-transparent outline-none border-none p-0 focus:ring-0"
-                        />
-                        <button
-                          onClick={() => removeGoal(goal)}
-                          className="absolute -right-2 -top-2 w-5 h-5 bg-rose-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity shadow-sm"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={customGoal}
-                      onChange={(e) => setCustomGoal(e.target.value)}
-                      placeholder="e.g., Increase sales, Reduce effort..."
-                      className="flex-1 px-4 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none text-zinc-700 dark:text-zinc-300"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          addGoal();
-                        }
-                      }}
-                    />
-                    <button
-                      onClick={addGoal}
-                      disabled={!customGoal}
-                      className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl text-sm font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="space-y-8">
-              {/* Target Emotions */}
-              <div className="space-y-4">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Target Customer Emotions</label>
-                <div className="flex flex-wrap gap-2">
-                  {EMOTIONS.map(emotion => (
-                    <button
-                      key={emotion}
-                      onClick={() => toggleEmotion(emotion)}
-                      className={cn(
-                        "px-3 py-1.5 rounded-lg text-sm font-medium transition-all border",
-                        (tempProfile.targetEmotions || []).includes(emotion)
-                          ? "bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800"
-                          : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700 hover:border-zinc-300"
-                      )}
-                    >
-                      {emotion}
-                    </button>
-                  ))}
-                  {/* Display custom emotions that are not in the predefined list */}
-                  {(tempProfile.targetEmotions || [])
-                    .filter(e => !EMOTIONS.includes(e))
-                    .map(emotion => (
-                      <button
-                        key={emotion}
-                        onClick={() => toggleEmotion(emotion)}
-                        className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all border bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-800"
-                      >
-                        {emotion}
-                      </button>
-                    ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={customEmotion}
-                    onChange={(e) => setCustomEmotion(e.target.value)}
-                    placeholder="Add custom emotion..."
-                    className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addCustomEmotion();
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={addCustomEmotion}
-                    disabled={!customEmotion}
-                    className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-sm font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-
-              {/* Measurement Methods */}
-              <div className="space-y-4">
-                <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">How do you measure experience?</label>
-                <div className="space-y-2">
-                  {MEASUREMENTS.map(method => (
-                    <label key={method} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
-                      <div className={cn(
-                        "w-5 h-5 rounded border flex items-center justify-center transition-colors",
-                        (tempProfile.measurementMethods || []).includes(method)
-                          ? "bg-indigo-600 border-indigo-600 text-white"
-                          : "border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900"
-                      )}>
-                        {(tempProfile.measurementMethods || []).includes(method) && <CheckCircle2 className="w-3.5 h-3.5" />}
-                      </div>
-                      <input
-                        type="checkbox"
-                        className="hidden"
-                        checked={(tempProfile.measurementMethods || []).includes(method)}
-                        onChange={() => toggleMeasurement(method)}
-                      />
-                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{method}</span>
-                    </label>
-                  ))}
-                  {/* Display custom measurements */}
-                  {(tempProfile.measurementMethods || [])
-                    .filter(m => !MEASUREMENTS.includes(m))
-                    .map(method => (
-                      <label key={method} className="flex items-center gap-3 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-xl cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors">
-                        <div className="w-5 h-5 rounded border flex items-center justify-center transition-colors bg-indigo-600 border-indigo-600 text-white">
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="hidden"
-                          checked={true}
-                          onChange={() => toggleMeasurement(method)}
-                        />
-                        <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{method}</span>
-                      </label>
-                    ))}
-                </div>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={customMeasurement}
-                    onChange={(e) => setCustomMeasurement(e.target.value)}
-                    placeholder="Add custom measurement..."
-                    className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        addCustomMeasurement();
-                      }
-                    }}
-                  />
-                  <button
-                    onClick={addCustomMeasurement}
-                    disabled={!customMeasurement}
-                    className="px-4 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg text-sm font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Add
-                  </button>
-                </div>
-              </div>
-
-              {/* Competitors */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Key Competitors</label>
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Key Competitors</h4>
                   <button 
                     onClick={addCompetitor}
                     className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
@@ -1144,70 +914,213 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                   </button>
                 </div>
                 <div className="space-y-3">
-                  {(tempProfile.competitors || []).map((competitor, index) => (
-                    <div key={index} className="flex gap-3">
+                  {(tempProfile.competitors || []).map((comp, idx) => (
+                    <div key={idx} className="flex gap-2 p-2 bg-zinc-50 dark:bg-zinc-800/50 rounded-xl border border-zinc-200 dark:border-zinc-700/50 group/comp">
                       <input
                         type="text"
-                        value={competitor.name}
-                        onChange={(e) => updateCompetitor(index, 'name', e.target.value)}
+                        value={comp.name}
+                        onChange={(e) => updateCompetitor(idx, 'name', e.target.value)}
                         placeholder="Competitor Name"
-                        className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        className="flex-1 bg-transparent border-none p-0 outline-none text-sm font-bold text-zinc-900 dark:text-white focus:ring-0"
                       />
                       <input
                         type="url"
-                        value={competitor.url}
-                        onChange={(e) => updateCompetitor(index, 'url', e.target.value)}
-                        placeholder="Website URL"
-                        className="flex-1 px-3 py-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                        value={comp.url}
+                        onChange={(e) => updateCompetitor(idx, 'url', e.target.value)}
+                        placeholder="URL"
+                        className="flex-1 bg-transparent border-none p-0 outline-none text-xs text-indigo-600 focus:ring-0"
                       />
                       <button 
-                        onClick={() => removeCompetitor(index)}
-                        className="p-2 text-zinc-400 hover:text-rose-600 transition-colors"
+                        onClick={() => removeCompetitor(idx)}
+                        className="p-1 opacity-0 group-hover/comp:opacity-100 text-zinc-400 hover:text-rose-500 transition-all"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   ))}
                   {(tempProfile.competitors || []).length === 0 && (
-                    <p className="text-sm text-zinc-400 italic">No competitors added yet.</p>
+                    <div className="p-4 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-xl text-center">
+                      <p className="text-xs text-zinc-400 font-medium italic">No competitors added yet.</p>
+                    </div>
                   )}
-                </div>
-                <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-lg p-4 border border-indigo-100 dark:border-indigo-800/50 flex gap-3">
-                  <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                  <p className="text-xs text-indigo-700 dark:text-indigo-300">
-                    When you save your company profile, our AI can provide a competitor analysis based on the competitors you list here.
-                  </p>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex items-center justify-end gap-3 mt-8 pt-8 border-t border-zinc-200 dark:border-zinc-800">
-            <button
-              onClick={() => {
-                setTempProfile(profile);
-                setLogoPreview(profile.logoUrl || null);
-                setIsEditing(false);
-                setAiError(null);
-              }}
-              className="px-4 py-2 rounded-xl text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              className="px-6 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-indigo-500 transition-all"
-            >
-              Save Changes
-            </button>
+            {/* Standard Right Column */}
+            <div className="space-y-8">
+              <div>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Goals</h4>
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {(tempProfile.goals || []).map((goal, index) => (
+                      <div key={index} className="flex items-center gap-3 bg-zinc-50 dark:bg-zinc-800/50 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700/50 group/goal">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
+                        <input
+                          type="text"
+                          value={goal}
+                          onChange={(e) => {
+                            const newGoals = [...(tempProfile.goals || [])];
+                            newGoals[index] = e.target.value;
+                            setTempProfile({ ...tempProfile, goals: newGoals });
+                          }}
+                          className="text-sm font-medium bg-transparent border-none p-0 outline-none focus:ring-0 flex-1 text-zinc-700 dark:text-zinc-200"
+                        />
+                        <button onClick={() => removeGoal(goal)} className="opacity-0 group-hover/goal:opacity-100 text-zinc-400 hover:text-rose-500 transition-all">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customGoal}
+                      onChange={(e) => setCustomGoal(e.target.value)}
+                      placeholder="Add a new goal..."
+                      className="flex-1 text-xs px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      onKeyDown={(e) => e.key === 'Enter' && addGoal()}
+                    />
+                    <button onClick={addGoal} disabled={!customGoal} className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl text-xs font-bold disabled:opacity-50">
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Target Emotions</h4>
+                <div className="space-y-4">
+                  <div className="flex flex-wrap gap-2">
+                    {EMOTIONS.map(emotion => (
+                      <button
+                        key={emotion}
+                        onClick={() => toggleEmotion(emotion)}
+                        className={cn(
+                          "px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+                          (tempProfile.targetEmotions || []).includes(emotion)
+                            ? "bg-indigo-600 border-indigo-600 text-white"
+                            : "bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-200 dark:border-zinc-700"
+                        )}
+                      >
+                        {emotion}
+                      </button>
+                    ))}
+                    {(tempProfile.targetEmotions || []).filter(e => !EMOTIONS.includes(e)).map(e => (
+                       <button
+                         key={e}
+                         onClick={() => toggleEmotion(e)}
+                         className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all border bg-indigo-600 border-indigo-600 text-white"
+                       >
+                         {e}
+                       </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customEmotion}
+                      onChange={(e) => setCustomEmotion(e.target.value)}
+                      placeholder="Add custom emotion..."
+                      className="flex-1 text-xs px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      onKeyDown={(e) => e.key === 'Enter' && addCustomEmotion()}
+                    />
+                    <button onClick={addCustomEmotion} disabled={!customEmotion} className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl text-xs font-bold">
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Measurement Methods</h4>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    {MEASUREMENTS.map(method => (
+                      <label key={method} className={cn(
+                        "flex items-center gap-3 p-2.5 rounded-xl cursor-pointer border transition-all",
+                        (tempProfile.measurementMethods || []).includes(method)
+                          ? "bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400"
+                          : "bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-400"
+                      )}>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={(tempProfile.measurementMethods || []).includes(method)}
+                          onChange={() => toggleMeasurement(method)}
+                        />
+                        <span className="text-xs font-bold">{method}</span>
+                        {(tempProfile.measurementMethods || []).includes(method) && <CheckCircle2 className="w-3 h-3 ml-auto text-emerald-500" />}
+                      </label>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={customMeasurement}
+                      onChange={(e) => setCustomMeasurement(e.target.value)}
+                      placeholder="Add custom measurement..."
+                      className="flex-1 text-xs px-4 py-2.5 bg-zinc-100 dark:bg-zinc-800 border-none rounded-xl outline-none focus:ring-2 focus:ring-indigo-500"
+                      onKeyDown={(e) => e.key === 'Enter' && addCustomMeasurement()}
+                    />
+                    <button onClick={addCustomMeasurement} disabled={!customMeasurement} className="px-4 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 rounded-xl text-xs font-bold">
+                      Add
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
+
   return (
     <div className="space-y-8">
+      {showPersonaPrompt && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 p-12 bg-white/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl" />
+          <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 justify-between">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shrink-0">
+                <Users className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold">Onboarding Step 2: Create your first persona</h3>
+                <p className="text-indigo-100 mt-1 max-w-xl">Great work completing your company profile! Now, let's define who your customers are so AI can generate tailored insights for them.</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 shrink-0">
+              <button 
+                onClick={() => {
+                  localStorage.setItem('onboarding_persona_prompt_seen', 'true');
+                  setShowPersonaPrompt(false);
+                }}
+                className="px-6 py-3 text-white/80 hover:text-white font-bold transition-colors"
+              >
+                Maybe Later
+              </button>
+              <button 
+                onClick={() => {
+                  localStorage.setItem('onboarding_persona_prompt_seen', 'true');
+                  setShowPersonaPrompt(false);
+                  if (onNavigate) onNavigate('personas');
+                }}
+                className="px-8 py-3 bg-white text-indigo-600 rounded-2xl font-bold hover:bg-indigo-50 transition-all shadow-lg"
+              >
+                Create Persona
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
       <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
         <div className="flex items-start justify-between mb-8">
           <div className="flex items-center gap-6">

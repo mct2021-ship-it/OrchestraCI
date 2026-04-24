@@ -967,16 +967,16 @@ export function Projects({
                               key={p.id}
                               onClick={() => togglePersona(p.id)}
                               className={cn(
-                                "p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center gap-3 relative",
+                                "p-4 rounded-2xl border-2 transition-all flex flex-col items-center text-center gap-3 relative overflow-hidden",
                                 selectedPersonas.includes(p.id)
                                   ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-900/20"
                                   : "border-zinc-100 hover:border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900"
                               )}
                             >
-                              <img src={p.imageUrl} alt={p.name} className="w-16 h-16 rounded-full object-cover" referrerPolicy="no-referrer" />
-                              <div>
-                                <p className="text-sm font-bold text-zinc-900 dark:text-white truncate w-full">{p.name}</p>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate w-full">{p.role}</p>
+                              <img src={p.imageUrl} alt={p.name} className="w-16 h-16 rounded-full object-cover shrink-0" referrerPolicy="no-referrer" />
+                              <div className="min-w-0 w-full px-1">
+                                <p className="text-sm font-bold text-zinc-900 dark:text-white truncate w-full" title={p.name}>{p.name}</p>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate w-full" title={p.role}>{p.role}</p>
                               </div>
                               {selectedPersonas.includes(p.id) && (
                                 <div className="absolute top-2 right-2 w-5 h-5 bg-indigo-600 text-white rounded-full flex items-center justify-center">
