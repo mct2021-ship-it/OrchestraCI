@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Plus, Download, Share2, GitMerge, Settings2, Trash2, Sparkles, ChevronUp, ChevronDown, Wand2, MessageSquare, Clock, Maximize2, Minimize2 } from 'lucide-react';
+import { Plus, Download, Share2, GitMerge, Settings2, Trash2, Sparkles, ChevronUp, ChevronDown, Wand2, MessageSquare, Clock, Maximize2, Minimize2, Printer, FileText, Image as ImageIcon } from 'lucide-react';
 import { ProcessMap, JourneyMap, ProcessNode, ProcessEdge, Comment, User, Project, RecycleBinItem, Task } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { ProcessFlowEditor } from '../components/ProcessFlowEditor';
@@ -8,6 +8,10 @@ import { CommentsPanel } from '../components/CommentsPanel';
 import { VersionHistory } from '../components/VersionHistory';
 import { v4 as uuidv4 } from 'uuid';
 import { usePermissions } from '../hooks/usePermissions';
+import { useToast } from '../context/ToastContext';
+import { fixOklch } from '../lib/utils';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface ProcessMapsProps {
   processMaps: ProcessMap[];
@@ -52,6 +56,71 @@ export function ProcessMaps({
   const { canEditProjectFeature } = usePermissions();
   const activeProject = projects.find(p => p.id === activeProjectId);
   const canEdit = activeProject ? canEditProjectFeature(activeProject) : false;
+  const { addToast } = useToast();
+
+  const handleExportImage = async (pmId: string) => {
+    const element = document.getElementById(`process-map-${pmId}`);
+    if (!element) return;
+    
+    try {
+      addToast('Generating image...', 'info');
+      const pm = processMaps.find(m => m.id === pmId);
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+      
+      const link = document.createElement('a');
+      link.download = `${pm?.title.replace(/\s+/g, '_') || 'Process_Map'}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      addToast('Image exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating image:', error);
+      addToast('Failed to export image', 'error');
+    }
+  };
+
+  const handleExportPDF = async (pmId: string) => {
+    const element = document.getElementById(`process-map-${pmId}`);
+    if (!element) return;
+
+    try {
+      addToast('Generating PDF...', 'info');
+      const pm = processMaps.find(m => m.id === pmId);
+      const canvas = await html2canvas(element, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width / 2;
+      const imgHeight = canvas.height / 2;
+      
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`${pm?.title.replace(/\s+/g, '_') || 'Process_Map'}.pdf`);
+      addToast('PDF exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addToast('Failed to export PDF', 'error');
+    }
+  };
 
   React.useEffect(() => {
     if (initialProcessMapId) {
@@ -204,7 +273,7 @@ export function ProcessMaps({
         {processMaps.map(pm => {
           const linkedJourney = pm.journeyId ? journeys.find(j => j.id === pm.journeyId) : null;
           return (
-          <div key={pm.id} className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+          <div key={pm.id} id={`process-map-${pm.id}`} className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
             <div className="p-5 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex justify-between items-center">
               <div className="flex items-center gap-4">
                 <h3 className="text-lg font-semibold text-zinc-900 dark:text-white">{pm.title}</h3>
@@ -217,6 +286,21 @@ export function ProcessMaps({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button 
+                  onClick={() => handleExportImage(pm.id)}
+                  className="p-2 text-zinc-400 hover:text-indigo-600 transition-colors no-export"
+                  title="Export as PNG"
+                >
+                  <Download className="w-5 h-5" />
+                </button>
+                <button 
+                  onClick={() => handleExportPDF(pm.id)}
+                  className="p-2 text-zinc-400 hover:text-rose-600 transition-colors no-export"
+                  title="Export as PDF"
+                >
+                  <FileText className="w-5 h-5" />
+                </button>
+                <div className="h-6 w-px bg-zinc-200 dark:bg-zinc-800 mx-1 no-export"></div>
                 <button 
                   onClick={() => setActiveVersionHistoryId(pm.id === activeVersionHistoryId ? null : pm.id)}
                   className={`p-2 rounded-lg transition-colors ${

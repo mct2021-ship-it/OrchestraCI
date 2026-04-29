@@ -36,7 +36,8 @@ import {
   Leaf,
   CheckSquare,
   ShieldAlert,
-  Check
+  Check,
+  Building2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -977,6 +978,29 @@ export function ProjectDetail({
               )}
             </div>
           </div>
+
+          <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
+            <div className="relative h-full flex flex-col">
+              <div className="flex items-center gap-2 mb-4">
+                <BrainCircuit className="w-4 h-4 text-indigo-600" />
+                <h3 className="text-xs font-bold text-zinc-900 dark:text-zinc-200 uppercase tracking-widest">Contextual Intelligence</h3>
+              </div>
+              <h4 className="text-lg font-bold text-zinc-900 dark:text-white mb-2 italic serif">
+                Contextual Intelligence
+              </h4>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed mb-4">
+                Add intelligence or context specific to this project to guide AI recommendations across Orchestra.
+              </p>
+              <div className="flex-1">
+                <EditableText
+                  value={project.contextualIntelligence || 'Enter any specific context, intelligence data, market constraints, or business assumptions that the AI should consider for this project...'}
+                  onChange={(val) => updateProjectField('contextualIntelligence', val)}
+                  className="w-full text-zinc-700 dark:text-zinc-300 text-sm whitespace-pre-wrap"
+                  multiline
+                />
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1256,6 +1280,28 @@ export function ProjectDetail({
           </div>
 
           <div className="space-y-8">
+            {/* Company Strategic Goals (Alignment) */}
+            {companyProfile?.goals && companyProfile.goals.length > 0 && (
+              <div className="p-6 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-3xl">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-indigo-500" />
+                    <h4 className="font-bold text-zinc-900 dark:text-white">Company Strategic Goals</h4>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 gap-2">
+                  {companyProfile.goals.map((goal, i) => (
+                    <div key={i} className="flex items-center gap-3 p-3 bg-white dark:bg-zinc-900 rounded-xl border border-indigo-100/50 shadow-sm">
+                      <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] font-bold">
+                        {i + 1}
+                      </div>
+                      <span className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">{goal}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Strategic Goals */}
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -1481,65 +1527,6 @@ export function ProjectDetail({
             )}
           </div>
 
-          <AnimatePresence>
-            {showStakeholderAiSuggestions && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                className="overflow-hidden mb-6"
-              >
-                <div className="bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-800/50 rounded-2xl p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-5 h-5 text-indigo-600" />
-                      <h3 className="font-bold text-zinc-900 dark:text-white">Suggested Stakeholders</h3>
-                    </div>
-                    <button onClick={() => setShowStakeholderAiSuggestions(false)} className="text-zinc-400 hover:text-zinc-600">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
-                  
-                  {isAiGeneratingStakeholders ? (
-                    <div className="py-8 text-center">
-                      <div className="w-8 h-8 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                      <p className="text-sm text-zinc-500">Generating suggestions...</p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {stakeholderAiSuggestions.map((suggestion, idx) => (
-                        <div key={idx} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-indigo-100 dark:border-indigo-800/50 flex flex-col justify-between gap-3 shadow-sm">
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded italic">AI Suggestion</span>
-                              <span className="text-[10px] font-bold text-zinc-400">{suggestion.category}</span>
-                            </div>
-                            <h4 className="font-bold text-zinc-900 dark:text-white text-sm">{suggestion.name}</h4>
-                            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1 line-clamp-2">{suggestion.about}</p>
-                          </div>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => handleAcceptStakeholderAiSuggestion(suggestion)}
-                              className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-xs font-bold hover:bg-indigo-700 transition-colors flex items-center justify-center gap-1"
-                            >
-                              <Check className="w-3.5 h-3.5" /> Accept
-                            </button>
-                            <button
-                              onClick={() => setStakeholderAiSuggestions(prev => prev.filter(s => s !== suggestion))}
-                              className="p-2 text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
           {isSelectingPersonas ? (
             <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
               {personas.map(p => (
@@ -1605,19 +1592,6 @@ export function ProjectDetail({
             description="Map and track project stakeholders on a power-interest grid to optimize engagement."
             onExplore={() => onNavigate('stakeholder_mapping')}
           />
-          <div className="relative group">
-            <FlipTile 
-              title="Stakeholder Insights" 
-              icon={BrainCircuit} 
-              colorClass="bg-indigo-50" 
-              iconColorClass="text-indigo-600"
-              description="Use AI to identify project-specific stakeholders and engagement strategies."
-              onExplore={handleAiSuggestStakeholders}
-            />
-            <div className="absolute top-4 right-4 pointer-events-none">
-              <Sparkles className="w-5 h-5 text-indigo-400 opacity-50 group-hover:opacity-100 transition-opacity" />
-            </div>
-          </div>
           <FlipTile 
             title="Journey Maps" 
             icon={MapIcon} 
@@ -1632,7 +1606,7 @@ export function ProjectDetail({
             colorClass="bg-blue-100" 
             iconColorClass="text-blue-600"
             description="Plan sprints and manage your product backlog to keep development on track."
-            onExplore={() => onNavigate('kanban')}
+            onExplore={() => onNavigate('backlog_sprints')}
           />
           <FlipTile 
             title="Kanban Board" 

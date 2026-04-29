@@ -109,41 +109,82 @@ export function TaskModal({ task, project, sprints = [], currentUser, users = []
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-              <Target className="w-3 h-3 text-indigo-500" />
-              Strategic Alignment
-            </label>
-            <select 
-              value={editingTask.strategicGoalIndex ?? ""}
-              disabled={isReadOnly}
-              onChange={(e) => setEditingTask({ ...editingTask, strategicGoalIndex: e.target.value === "" ? undefined : parseInt(e.target.value) })}
-              className={cn(
-                "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white capitalize",
-                isReadOnly && "opacity-70 cursor-not-allowed"
-              )}
-            >
-              <option value="">No Alignment</option>
-              {project.goals.map((goal, index) => (
-                <option key={index} value={index}>{goal}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Status</label>
               <select 
                 value={editingTask.kanbanStatus}
                 disabled={isReadOnly}
-                onChange={(e) => setEditingTask({ ...editingTask, kanbanStatus: e.target.value })}
+                onChange={(e) => {
+                  const newStatus = e.target.value;
+                  // If changing from backlog to something else, try to auto-select current sprint
+                  let newSprint = editingTask.sprint;
+                  if (newStatus !== 'Backlog' && !newSprint) {
+                    const activeSprint = sprints.find(s => s.projectId === project.id && s.status === 'In Progress');
+                    if (activeSprint) newSprint = activeSprint.id;
+                  }
+                  setEditingTask({ ...editingTask, kanbanStatus: newStatus, sprint: newSprint });
+                }}
                 className={cn(
                   "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white",
                   isReadOnly && "opacity-70 cursor-not-allowed"
                 )}
               >
-                {kanbanColumns.map(col => (
+                <option value="Backlog">Backlog (Project Level)</option>
+                {kanbanColumns.filter(col => col.id !== 'Backlog' && col.title !== 'Backlog').map(col => (
                   <option key={col.id} value={col.id}>{col.title}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center justify-between">
+                Sprint
+                {editingTask.kanbanStatus !== 'Backlog' && !editingTask.sprint && (
+                  <span className="text-[10px] text-rose-500 font-bold lowercase tracking-normal flex items-center gap-1">
+                    <AlertCircle className="w-2.5 h-2.5" />
+                    Required
+                  </span>
+                )}
+              </label>
+              <select 
+                value={editingTask.sprint || ''}
+                disabled={isReadOnly}
+                onChange={(e) => setEditingTask({ ...editingTask, sprint: e.target.value || undefined })}
+                className={cn(
+                  "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white",
+                  isReadOnly && "opacity-70 cursor-not-allowed",
+                  editingTask.kanbanStatus !== 'Backlog' && !editingTask.sprint && "border-rose-300 ring-rose-500 ring-1"
+                )}
+              >
+                <option value="">{editingTask.kanbanStatus === 'Backlog' ? 'No Sprint (Stay in Backlog)' : 'Select a Sprint...'}</option>
+                {sprints
+                  .filter(s => s.projectId === project.id)
+                  .sort((a, b) => (b.number || 0) - (a.number || 0))
+                  .map(s => (
+                    <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                <Target className="w-3 h-3 text-indigo-500" />
+                Strategic Alignment
+              </label>
+              <select 
+                value={editingTask.strategicGoalIndex ?? ""}
+                disabled={isReadOnly}
+                onChange={(e) => setEditingTask({ ...editingTask, strategicGoalIndex: e.target.value === "" ? undefined : parseInt(e.target.value) })}
+                className={cn(
+                  "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white capitalize",
+                  isReadOnly && "opacity-70 cursor-not-allowed"
+                )}
+              >
+                <option value="">No Alignment</option>
+                {project.goals.map((goal, index) => (
+                  <option key={index} value={index}>{goal}</option>
                 ))}
               </select>
             </div>
@@ -356,27 +397,6 @@ export function TaskModal({ task, project, sprints = [], currentUser, users = []
                 ))}
               </select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Sprint</label>
-            <select 
-              value={editingTask.sprint || ''}
-              disabled={isReadOnly}
-              onChange={(e) => setEditingTask({ ...editingTask, sprint: e.target.value || undefined })}
-              className={cn(
-                "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white",
-                isReadOnly && "opacity-70 cursor-not-allowed"
-              )}
-            >
-              <option value="">No Sprint (Backlog)</option>
-              {sprints
-                .filter(s => s.projectId === project.id)
-                .sort((a, b) => (b.number || 0) - (a.number || 0))
-                .map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
-                ))}
-            </select>
           </div>
 
           <div className="space-y-2">
@@ -651,7 +671,8 @@ export function TaskModal({ task, project, sprints = [], currentUser, users = []
             {!isReadOnly && (
               <button 
                 onClick={() => onSave(editingTask)}
-                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
+                disabled={editingTask.kanbanStatus !== 'Backlog' && !editingTask.sprint}
+                className="px-8 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-colors shadow-lg shadow-indigo-200 dark:shadow-none"
               >
                 Save
               </button>

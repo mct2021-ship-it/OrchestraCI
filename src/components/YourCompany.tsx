@@ -9,6 +9,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
+import { usePermissions } from '../hooks/usePermissions';
 
 export interface AnalysisReport {
   id: string;
@@ -72,6 +73,7 @@ const MEASUREMENTS = [
 ];
 
 export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveComplete, onNavigate, personasCount = 0 }: YourCompanyProps) {
+  const { isAdmin } = usePermissions();
   const [isEditing, setIsEditing] = useState(startInEditMode || false);
   const [wizardStep, setWizardStep] = useState<number | null>(null);
   const [showPersonaPrompt, setShowPersonaPrompt] = useState(false);
@@ -593,7 +595,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                 >
                   <div className="text-center space-y-2">
                     <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Target Customer Emotions</h4>
-                    <p className="text-zinc-500">How do you want your customers to feel when interacting with your brand?</p>
+                    <p className="text-zinc-500">How do you want your customers to feel when interacting with your brand? (You can add custom emotions later in settings)</p>
                   </div>
                   <div className="space-y-6">
                     <div className="flex flex-wrap gap-2 justify-center">
@@ -640,7 +642,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                 >
                   <div className="text-center space-y-2">
                     <h4 className="text-xl font-bold text-zinc-900 dark:text-white">Measurement Methods</h4>
-                    <p className="text-zinc-500">How do you currently measure the customer experience?</p>
+                    <p className="text-zinc-500">How do you currently measure the customer experience? (You can add custom measurement methods later in settings)</p>
                   </div>
                   <div className="space-y-6">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -814,7 +816,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                   value={tempProfile.name}
                   onChange={(e) => setTempProfile({ ...tempProfile, name: e.target.value })}
                   placeholder="Company Name"
-                  className="text-3xl font-bold bg-transparent border-b-2 border-transparent focus:border-indigo-500 outline-none text-zinc-900 dark:text-white tracking-tight w-full max-w-md"
+                  className="text-3xl font-black bg-transparent border-b-2 border-transparent focus:border-indigo-500 outline-none text-zinc-900 dark:text-white tracking-tight w-full max-w-md font-sans uppercase italic"
                 />
                 <div className="flex items-center gap-2">
                   <div className="relative">
@@ -989,7 +991,10 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Target Emotions</h4>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                  Target Emotions
+                  <span className="text-[10px] font-medium text-zinc-400 normal-case tracking-normal">Select or add custom emotions</span>
+                </h4>
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-2">
                     {EMOTIONS.map(emotion => (
@@ -1033,7 +1038,10 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Measurement Methods</h4>
+                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                  Measurement Methods
+                  <span className="text-[10px] font-medium text-zinc-400 normal-case tracking-normal">Common methods or add your own</span>
+                </h4>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     {MEASUREMENTS.map(method => (
@@ -1079,48 +1087,36 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
 
   return (
     <div className="space-y-8">
-      {showPersonaPrompt && (
-        <motion.div 
+      {personasCount === 0 && profile.wizardCompleted && (
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-indigo-600 rounded-3xl p-8 text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden"
+          className="overflow-hidden relative group"
         >
-          <div className="absolute top-0 right-0 p-12 bg-white/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl" />
-          <div className="relative z-10 flex flex-col md:flex-row items-center gap-6 justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-white/20 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/30 shrink-0">
-                <Users className="w-8 h-8 text-white" />
+          <div className="relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
+            <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                <Users className="w-8 h-8" />
               </div>
-              <div>
-                <h3 className="text-xl font-bold">Onboarding Step 2: Create your first persona</h3>
-                <p className="text-indigo-100 mt-1 max-w-xl">Great work completing your company profile! Now, let's define who your customers are so AI can generate tailored insights for them.</p>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-zinc-900 dark:text-white font-sans italic uppercase tracking-tight">
+                  Create Customer Personas
+                </h3>
+                <p className="text-zinc-500 dark:text-zinc-400 max-w-md">
+                  Create research-based personas to better understand your target audience and map their needs.
+                </p>
               </div>
             </div>
-            <div className="flex items-center gap-4 shrink-0">
-              <button 
-                onClick={() => {
-                  localStorage.setItem('onboarding_persona_prompt_seen', 'true');
-                  setShowPersonaPrompt(false);
-                }}
-                className="px-6 py-3 text-white/80 hover:text-white font-bold transition-colors"
-              >
-                Maybe Later
-              </button>
-              <button 
-                onClick={() => {
-                  localStorage.setItem('onboarding_persona_prompt_seen', 'true');
-                  setShowPersonaPrompt(false);
-                  if (onNavigate) onNavigate('personas');
-                }}
-                className="px-8 py-3 bg-white text-indigo-600 rounded-2xl font-bold hover:bg-indigo-50 transition-all shadow-lg"
-              >
-                Create Persona
-              </button>
-            </div>
+            <button
+              onClick={() => onNavigate?.('personas', 'new')}
+              className="px-8 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black uppercase italic tracking-tighter hover:bg-indigo-600 dark:hover:bg-indigo-400 transition-all flex items-center gap-2 group/btn shadow-lg"
+            >
+              Create Persona
+              <ChevronRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+            </button>
           </div>
         </motion.div>
       )}
-
       <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
         <div className="flex items-start justify-between mb-8">
           <div className="flex items-center gap-6">
@@ -1132,7 +1128,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
               )}
             </div>
             <div>
-              <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">{profile.name || 'Your Company'}</h2>
+              <h2 className="text-4xl font-black text-zinc-900 dark:text-white font-sans uppercase italic tracking-tighter">{profile.name || 'Your Company'}</h2>
               <p className="text-zinc-500 dark:text-zinc-400 mt-1 flex items-center gap-2">
                 <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 rounded text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
                   {profile.vertical || 'Industry Not Set'}
@@ -1140,12 +1136,14 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
               </p>
             </div>
           </div>
-          <button
-            onClick={handleStartWizard}
-            className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl text-sm font-bold shadow-lg hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all"
-          >
-            Edit Profile
-          </button>
+          {isAdmin && (
+            <button
+              onClick={handleStartWizard}
+              className="px-6 py-2 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-xl text-sm font-bold shadow-lg hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-all"
+            >
+              Edit Profile
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -1167,12 +1165,14 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Key Competitors</h4>
-                <button 
-                  onClick={() => setIsEditing(true)}
-                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
-                >
-                  <Plus className="w-3 h-3" /> Manage
-                </button>
+                {isAdmin && (
+                  <button 
+                    onClick={() => setIsEditing(true)}
+                    className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Manage
+                  </button>
+                )}
               </div>
               <div className="space-y-2">
                 {(profile.competitors || []).length > 0 ? (

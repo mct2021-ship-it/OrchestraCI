@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar, 
@@ -16,13 +16,17 @@ import {
   ArrowRight,
   Download,
   MoreVertical,
-  Info
+  Info,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
-import { cn, formatDate } from '../lib/utils';
+import { cn, formatDate, fixOklch } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
 import { v4 as uuidv4 } from 'uuid';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+import { useToast } from '../context/ToastContext';
 
 interface SprintManagementProps {
   projects: Project[];
@@ -40,6 +44,73 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
   const [projectFilter, setProjectFilter] = useState<string>(activeProjectId || 'All');
   const [selectedSprint, setSelectedSprint] = useState<Sprint | null>(null);
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
+  const { addToast } = useToast();
+
+  const handleExportReportImage = async () => {
+    if (!reportRef.current || isExporting) return;
+    
+    setIsExporting(true);
+    try {
+      addToast('Generating image...', 'info');
+      const canvas = await html2canvas(reportRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+      
+      const link = document.createElement('a');
+      link.download = `Sprint_Report_${selectedSprint?.name.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      addToast('Image exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating image:', error);
+      addToast('Failed to export image', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportReportPDF = async () => {
+    if (!reportRef.current || isExporting) return;
+
+    setIsExporting(true);
+    try {
+      addToast('Generating PDF...', 'info');
+      const canvas = await html2canvas(reportRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width / 2;
+      const imgHeight = canvas.height / 2;
+      
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`Sprint_Report_${selectedSprint?.name.replace(/\s+/g, '_')}.pdf`);
+      addToast('PDF exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addToast('Failed to export PDF', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const [isAddingSprint, setIsAddingSprint] = useState(false);
   const [newSprintData, setNewSprintData] = useState<Partial<Sprint>>({
@@ -764,7 +835,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                           </button>
                         )}
                       </div>
-                      <div className="p-6 max-h-[400px] overflow-y-auto">
+                      <div ref={reportRef} className="p-6 max-h-[600px] overflow-y-auto">
                         {isGeneratingReport ? (
                           <div className="flex flex-col items-center justify-center py-12 gap-4">
                             <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -790,10 +861,22 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
                         )}
                       </div>
                       {selectedSprint.report && (
-                        <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800">
-                          <button className="w-full flex items-center justify-center gap-2 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all">
+                        <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800 flex gap-2">
+                          <button 
+                            onClick={handleExportReportImage}
+                            disabled={isExporting}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all disabled:opacity-50"
+                          >
+                            <ImageIcon className="w-4 h-4" />
+                            PNG
+                          </button>
+                          <button 
+                            onClick={handleExportReportPDF}
+                            disabled={isExporting}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all disabled:opacity-50"
+                          >
                             <Download className="w-4 h-4" />
-                            Download PDF Report
+                            PDF
                           </button>
                         </div>
                       )}

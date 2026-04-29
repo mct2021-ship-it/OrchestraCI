@@ -102,7 +102,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
   }, [project.id]);
   
   const defaultColumns: KanbanColumn[] = [
-    { id: 'Backlog', title: 'Backlog', color: 'zinc', order: 0 },
+    { id: 'Not Started', title: 'Not Started', color: 'zinc', order: 0 },
     { id: 'In Progress', title: 'In Progress', color: 'blue', order: 1 },
     { id: 'Review/Test', title: 'Review/Test', color: 'purple', order: 2 },
     { id: 'Done', title: 'Done', color: 'emerald', order: 3 }
@@ -113,10 +113,18 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
   }, [project.kanbanColumns]);
 
   const filteredTasks = useMemo(() => {
+    // Exclude tasks that are explicitly in 'Backlog' status when viewing the Kanban board
+    const projectTasks = tasks.filter(t => 
+      t.projectId === project.id && 
+      !t.archived && 
+      t.kanbanStatus !== 'Backlog' && 
+      t.kanbanStatus !== 'backlog'
+    );
+    
     if (selectedSprintId === 'all') {
-      return tasks.filter(t => t.projectId === project.id && !t.archived);
+      return projectTasks;
     } else {
-      return tasks.filter(t => t.projectId === project.id && t.sprint === selectedSprintId && !t.archived);
+      return projectTasks.filter(t => t.sprint === selectedSprintId);
     }
   }, [tasks, project.id, selectedSprintId]);
 
@@ -291,25 +299,31 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
 
     let sprintId = selectedSprintId === 'all' ? undefined : selectedSprintId;
 
-    if (status !== 'Backlog' && status !== 'backlog' && !sprintId) {
-      sprintId = ensureActiveSprint();
+    // Try to find an active sprint if we're not in the backlog and don't have one selected
+    if (status !== 'Backlog' && !sprintId) {
+      sprintId = sprints.find(s => s.projectId === project.id && s.status === 'In Progress')?.id;
     }
 
     const newTask: Task = {
-      id: `t${Date.now()}`,
+      id: uuidv4(),
       projectId: project.id,
-      title: 'New Task',
-      description: 'Enter task description...',
-      status: 'Discover',
-      kanbanStatus: status,
+      title: '',
+      description: '',
+      status: project.status || 'Discover',
+      kanbanStatus: status as any,
       impact: 'Medium',
       effort: 'Medium',
       owner: '',
       sprint: sprintId,
       createdAt: new Date().toISOString(),
-      stageHistory: [{ stage: status, enteredAt: new Date().toISOString() }],
+      stageHistory: [{ stage: status as any, enteredAt: new Date().toISOString() }],
     };
-    setTasks(prev => [...prev, newTask]);
+    
+    // We update the local tasks state so the modal can handle it as an existing task or new task
+    setTasks(prev => {
+      if (prev.find(t => t.id === newTask.id)) return prev;
+      return [...prev, newTask];
+    });
     setEditingTask(newTask);
   };
 
@@ -441,7 +455,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
   };
 
   const incompleteTasks = useMemo(() => {
-    return filteredTasks.filter(t => t.kanbanStatus !== 'Done' && t.kanbanStatus !== 'Completed' && t.kanbanStatus !== 'Archived' && t.kanbanStatus !== 'Backlog');
+    return filteredTasks.filter(t => t.kanbanStatus !== 'Done' && t.kanbanStatus !== 'Completed' && t.kanbanStatus !== 'Archived' && t.kanbanStatus !== 'Not Started');
   }, [filteredTasks]);
 
   const handleFinishSprint = () => {
@@ -516,10 +530,10 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
     const newStatus = destColumn.id === destColumn.title ? destColumn.title : destColumn.id;
     const isDoneColumn = destColumn.title.toLowerCase() === 'done' || destColumn.title.toLowerCase() === 'completed';
 
-    // Auto-start sprint if task is in a "Not Started" sprint and moved out of Backlog
+    // Auto-start sprint if task is in a "Not Started" sprint and moved out of Not Started column
     if (taskToUpdate.sprint) {
       const sprint = sprints.find(s => s.id === taskToUpdate.sprint);
-      const isInProgressColumn = !['Backlog', 'To Do', 'Ready'].includes(destColumn.title);
+      const isInProgressColumn = !['Not Started', 'To Do', 'Ready'].includes(destColumn.title);
       
       if (sprint && sprint.status === 'Not Started' && isInProgressColumn) {
         setSprints(prev => prev.map(s => s.id === sprint.id ? { ...s, status: 'In Progress' } : s));
@@ -571,19 +585,6 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
               <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-lg text-sm font-bold border border-indigo-100 dark:border-indigo-500/20">
                 {project.name}
               </span>
-              <select
-                value={selectedSprintId}
-                onChange={(e) => setSelectedSprintId(e.target.value)}
-                className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg px-3 py-1 text-sm font-bold text-zinc-700 dark:text-zinc-300 focus:ring-2 focus:ring-indigo-500 outline-none cursor-pointer shadow-sm"
-              >
-                <option value="all">All Project Tasks</option>
-                {sprints
-                  .filter(s => s.projectId === project.id)
-                  .sort((a, b) => (b.number || 0) - (a.number || 0))
-                  .map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
-                  ))}
-              </select>
               <span className="px-3 py-1 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 rounded-lg text-sm font-bold border border-zinc-200 dark:border-zinc-700">
                 {project.status}
               </span>
@@ -726,7 +727,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
                 if (!sprints.some(s => s.projectId === project.id)) {
                   setIsInitialSprintModalOpen(true);
                 } else {
-                  handleAddTask('Backlog');
+                  handleAddTask(columns[0].id);
                 }
               }}
               className="bg-zinc-900 hover:bg-zinc-800 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg"
@@ -739,8 +740,8 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
       </div>
 
       <div id="kanban-board-content" className="flex-1 flex flex-col">
-      {filteredTasks.length === 0 ? (
-        <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
+        {filteredTasks.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-12 text-center">
           <div className="w-24 h-24 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-500 rounded-full flex items-center justify-center mb-6">
             <Target className="w-12 h-12" />
           </div>
@@ -804,7 +805,7 @@ export function KanbanBoard({ project, setProjects, tasks, setTasks, sprints, se
                       {...provided.droppableProps}
                       ref={provided.innerRef}
                       className={cn(
-                        "flex-1 space-y-4 overflow-y-auto min-h-[150px] transition-colors rounded-2xl",
+                        "flex-1 space-y-4 min-h-[150px] transition-colors rounded-2xl",
                         snapshot.isDraggingOver ? "bg-black/5 dark:bg-white/5" : ""
                       )}
                     >

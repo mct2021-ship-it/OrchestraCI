@@ -175,8 +175,8 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
       />
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">Dashboard</h2>
-          <p className="text-zinc-500 dark:text-zinc-400 mt-1">Overview of your Customer Experience program.</p>
+          <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight font-sans">Dashboard</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 mt-1 font-sans">Overview of your Customer Experience program.</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -240,8 +240,8 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
                   <Icon className="w-6 h-6" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">{stat.label}</p>
-                  <p className="text-2xl font-semibold text-zinc-900 dark:text-white">{stat.value}</p>
+                  <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400 font-sans">{stat.label}</p>
+                  <p className="text-2xl font-semibold text-zinc-900 dark:text-white font-sans uppercase italic">{stat.value}</p>
                 </div>
                 <div className="ml-auto">
                   {isExpanded ? <ChevronUp className="w-5 h-5 text-zinc-400" /> : <ChevronDown className="w-5 h-5 text-zinc-400" />}
@@ -564,7 +564,7 @@ export function Dashboard({ personas, journeys, tasks, processMaps, projects, on
             onClick={() => onNavigate('decarb')}
             className="text-lg font-semibold text-zinc-900 dark:text-white mb-4 hover:text-indigo-600 transition-colors text-left block w-full"
           >
-            Decarb Insights
+            Decarb Dashboard
           </button>
           <div className="flex flex-col items-center justify-center py-8 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-xl border border-zinc-100 dark:border-zinc-800">
             <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 rounded-full flex items-center justify-center mb-4">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus, AlertCircle, Layers, Tag, Filter, Search } from 'lucide-react';
+import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus, AlertCircle, Layers, Tag, Filter, Search, Users } from 'lucide-react';
 import { IntelligenceSignal, Product, Service, Persona, Project, JourneyMap, Task, Sprint } from '../types';
 import { motion } from 'motion/react';
 import { VocSection } from '../components/VocSection';
@@ -30,6 +30,7 @@ interface IntelligenceProps {
   currentUser?: any;
   onNavigate?: (tab: string, subTab?: string) => void;
   setActiveProjectId?: (id: string | null) => void;
+  onOpenJourney?: (id: string) => void;
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
   signals?: IntelligenceSignal[];
   setSignals?: React.Dispatch<React.SetStateAction<IntelligenceSignal[]>>;
@@ -53,6 +54,7 @@ export function Intelligence({
   currentUser,
   onNavigate,
   setActiveProjectId,
+  onOpenJourney,
   onAddToAuditLog,
   signals = [],
   setSignals,
@@ -74,6 +76,8 @@ export function Intelligence({
   }, [startInEditMode, initialTab]);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   
+  const hasCompanyInfo = propProfile && propProfile.name && propProfile.name.trim() !== '';
+
   const [uploadedData, setUploadedData] = useState([
     { id: 1, date: '2024-03-15', source: 'Trustpilot', type: 'Reviews', count: 1240, status: 'Synced' },
     { id: 3, date: '2024-03-10', source: 'Manual', type: 'Survey', count: 150, status: 'Processed' },
@@ -312,14 +316,14 @@ export function Intelligence({
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <ContextualHelp 
-        title="Intelligence Hub" 
+        title="Intelligence" 
         description="Centralize your customer data, company profile, and satisfaction metrics. Use this hub to inform your journey maps and drive data-backed improvements."
       />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold text-zinc-900 dark:text-white tracking-tight flex items-center gap-3">
             <BrainCircuit className="w-8 h-8 text-indigo-600" />
-            Intelligence Hub
+            Intelligence
             <span className="px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-black uppercase rounded-lg border border-indigo-200 dark:border-indigo-800">Pro</span>
           </h2>
           <p className="text-zinc-500 dark:text-zinc-400 mt-2 max-w-2xl">
@@ -351,7 +355,12 @@ export function Intelligence({
               : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
           )}
         >
-          <Building2 className="w-4 h-4" />
+          <div className="relative">
+            <Building2 className="w-4 h-4" />
+            {!hasCompanyInfo && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-rose-500 border border-white dark:border-zinc-900" />
+            )}
+          </div>
           Company Profile
         </button>
         <button
@@ -451,6 +460,7 @@ export function Intelligence({
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
+                  { name: 'Document Upload', icon: 'googlekeep', desc: 'Ingest PDF, CSV, or Excel files directly into the intelligence engine.', isUpload: true },
                   { name: 'Trustpilot', icon: 'trustpilot', desc: 'Sync customer reviews and ratings automatically.' },
                   { name: 'Zendesk', icon: 'zendesk', desc: 'Import support tickets and customer feedback.' },
                   { name: 'Salesforce', icon: 'salesforce', desc: 'Connect CRM data to your customer personas.' },
@@ -460,15 +470,24 @@ export function Intelligence({
                 ].map((integration) => (
                   <div key={integration.name} className="bg-white dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 hover:border-indigo-500/50 hover:shadow-lg transition-all group">
                     <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center p-2 mb-4 group-hover:scale-110 transition-transform">
-                      <img src={`https://cdn.simpleicons.org/${integration.icon}`} alt={integration.name} className="w-full h-full object-contain" />
+                      {integration.isUpload ? (
+                        <FileText className="w-6 h-6 text-indigo-600" />
+                      ) : (
+                        <img src={`https://cdn.simpleicons.org/${integration.icon}`} alt={integration.name} className="w-full h-full object-contain" />
+                      )}
                     </div>
-                    <h4 className="font-bold text-zinc-900 dark:text-white mb-1">{integration.name}</h4>
+                    <h4 className="font-bold text-zinc-900 dark:text-white mb-1 tracking-tight">{integration.name}</h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-4 line-clamp-2">{integration.desc}</p>
                     <button 
-                      onClick={() => handleConnect(integration)}
-                      className="w-full py-2 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-white text-xs font-bold rounded-lg hover:bg-indigo-600 hover:text-white transition-all"
+                      onClick={() => integration.isUpload ? handleUpload() : handleConnect(integration)}
+                      className={cn(
+                        "w-full py-2.5 text-xs font-black uppercase rounded-xl transition-all shadow-sm",
+                        integration.isUpload 
+                          ? "bg-indigo-600 text-white hover:bg-indigo-700 shadow-indigo-500/20" 
+                          : "bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white hover:bg-indigo-600 hover:text-white"
+                      )}
                     >
-                      Connect
+                      {integration.isUpload ? (isUploading ? 'Ingesting...' : 'Upload Files') : 'Connect'}
                     </button>
                   </div>
                 ))}
@@ -609,8 +628,46 @@ export function Intelligence({
                               />
                            </div>
                         </div>
-                      )
+                      );
                    })}
+                </div>
+
+                <div className="mt-12 text-center sm:text-left">
+                   <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center justify-center sm:justify-start gap-2">
+                     <Users className="w-3 h-3" />
+                     Persona Intelligence Map
+                   </h4>
+                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {personas.slice(0, 4).map(persona => {
+                        const personaSignals = signals.filter(s => s.personaIds?.includes(persona.id));
+                        const sentiment = personaSignals.length > 0 
+                          ? personaSignals.reduce((acc, s) => acc + (s.sentiment === 'positive' ? 1 : s.sentiment === 'negative' ? -1 : 0), 0) / personaSignals.length
+                          : 0;
+
+                        return (
+                          <div key={persona.id} className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 flex items-center gap-4">
+                             <img src={persona.imageUrl} className="w-10 h-10 rounded-xl object-cover grayscale" />
+                             <div className="flex-1 min-w-0 text-left">
+                                <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{persona.name}</p>
+                                <div className="flex items-center gap-2 mt-1">
+                                   <div className="h-1 flex-1 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                      <div 
+                                        className={cn("h-full", sentiment > 0 ? "bg-emerald-500" : sentiment < 0 ? "bg-rose-500" : "bg-zinc-400")} 
+                                        style={{ width: `${Math.max(10, Math.abs(sentiment) * 100)}%` }}
+                                      />
+                                   </div>
+                                   <span className="text-[8px] font-black uppercase text-zinc-400">{personaSignals.length} Sigs</span>
+                                </div>
+                             </div>
+                          </div>
+                        );
+                      })}
+                      {personas.length === 0 && (
+                        <div className="col-span-full p-8 text-center bg-white dark:bg-zinc-900 border border-dashed border-zinc-200 dark:border-zinc-800 rounded-3xl">
+                           <p className="text-xs text-zinc-400 italic">No personas found. Run Orchestration to evolve your persona library from customer signals.</p>
+                        </div>
+                      )}
+                   </div>
                 </div>
              </div>
 
@@ -949,6 +1006,7 @@ export function Intelligence({
           currentUser={currentUser}
           onNavigate={onNavigate}
           setActiveProjectId={setActiveProjectId}
+          onOpenJourney={onOpenJourney}
           uploadedData={uploadedData}
           onDeleteData={handleDeleteData}
           onUpload={handleUpload}

@@ -35,6 +35,13 @@ export interface PersonaSection {
   list?: string[];
 }
 
+export interface EmpathyMap {
+  says: string[];
+  thinks: string[];
+  does: string[];
+  feels: string[];
+}
+
 export interface Persona {
   id: string;
   name: string;
@@ -55,6 +62,8 @@ export interface Persona {
   userStories?: UserStory[];
   customSection?: CustomSection;
   additionalSections?: PersonaSection[];
+  empathyMap?: EmpathyMap;
+  contextData?: string;
 }
 
 export interface Swimlane {
@@ -245,6 +254,7 @@ export interface Project {
   };
   currentSprint?: number;
   currentSprintDescription?: string;
+  contextualIntelligence?: string;
   sprintSnapshots?: SprintSnapshot[];
   sprints?: Sprint[];
 }
@@ -254,10 +264,12 @@ export interface IntelligenceSignal {
   title: string;
   description: string;
   type: 'Complaint' | 'Praise' | 'Request' | 'Observation' | 'Error';
-  source: 'Zendesk' | 'Trustpilot' | 'Salesforce' | 'Slack' | 'Intercom' | 'HubSpot' | 'Manual';
+  source: 'Zendesk' | 'Trustpilot' | 'Salesforce' | 'Slack' | 'Intercom' | 'HubSpot' | 'Manual' | 'Survey' | 'Review' | 'Ticket';
   sentiment: 'positive' | 'neutral' | 'negative';
   productId?: string;
   serviceId?: string;
+  personaIds?: string[]; // Links to personas this signal represents
+  journeyStageId?: string; // Links to a specific stage in a journey
   tags?: string[];
   createdAt: string;
   status: 'New' | 'Mapped' | 'Dismissed' | 'Actioned' | 'In Progress' | 'Resolved';
@@ -267,6 +279,7 @@ export interface IntelligenceSignal {
     author?: string;
     rating?: number;
     url?: string;
+    rawText?: string;
   };
 }
 
@@ -357,6 +370,12 @@ export interface Stakeholder {
   email?: string;
   about?: string;
   isGlobal: boolean;
+  contextData?: string;
+  quote?: string;
+  goals?: string[];
+  frustrations?: string[];
+  demographics?: DemographicSlider[];
+  imageUrl?: string;
 }
 
 export interface StakeholderSentiment {
@@ -391,6 +410,8 @@ export interface GeminiChatbotProps {
     projectStakeholders?: any[];
   };
 }
+
+export type AppModule = 'home' | 'overview' | 'intelligence' | 'customers' | 'projects';
 
 
 

@@ -1,12 +1,15 @@
-import React, { useState } from 'react';
-import { X, Sparkles, Loader2, FileText } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Sparkles, Loader2, FileText, Download, Image as ImageIcon } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Sprint, Project, Task } from '../types';
 import { ThinkingLevel } from '@google/genai';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
+import { fixOklch } from '../lib/utils';
 import Markdown from 'react-markdown';
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface SprintReportModalProps {
   sprint: Sprint;
@@ -18,7 +21,87 @@ interface SprintReportModalProps {
 export function SprintReportModal({ sprint, tasks, project, onClose }: SprintReportModalProps) {
   const [report, setReport] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
+
+  const handleExportImage = async () => {
+    if (!contentRef.current || isExporting) return;
+    
+    setIsExporting(true);
+    try {
+      addToast('Generating image...', 'info');
+      // Temporarily set a fixed width to prevent cutoff
+      const originalWidth = contentRef.current.style.width;
+      contentRef.current.style.width = '800px';
+      
+      const canvas = await html2canvas(contentRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+      
+      contentRef.current.style.width = originalWidth;
+      
+      const link = document.createElement('a');
+      link.download = `Sprint_Report_${sprint.name.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      addToast('Image exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating image:', error);
+      addToast('Failed to export image', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!contentRef.current || isExporting) return;
+
+    setIsExporting(true);
+    try {
+      addToast('Generating PDF...', 'info');
+      // Temporarily set a fixed width to prevent cutoff
+      const originalWidth = contentRef.current.style.width;
+      contentRef.current.style.width = '800px';
+
+      const canvas = await html2canvas(contentRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        logging: false,
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+
+      contentRef.current.style.width = originalWidth;
+      
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width / 2;
+      const imgHeight = canvas.height / 2;
+      
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`Sprint_Report_${sprint.name.replace(/\s+/g, '_')}.pdf`);
+      addToast('PDF exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addToast('Failed to export PDF', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   const generateReport = async () => {
     setIsGenerating(true);
@@ -116,7 +199,7 @@ CRITICAL INSTRUCTIONS:
               <p className="text-zinc-500 dark:text-zinc-400">Generating your comprehensive sprint report.</p>
             </div>
           ) : (
-            <div className="bg-white dark:bg-zinc-900 p-8 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm prose prose-zinc dark:prose-invert max-w-none">
+            <div ref={contentRef} className="bg-white dark:bg-zinc-900 p-8 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm prose prose-zinc dark:prose-invert max-w-none">
               <div className="markdown-body">
                 <Markdown>{report}</Markdown>
               </div>
@@ -125,20 +208,42 @@ CRITICAL INSTRUCTIONS:
         </div>
 
         {report && (
-          <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 shrink-0 flex justify-end gap-3 bg-white dark:bg-zinc-900">
-            <button
-              onClick={generateReport}
-              className="px-4 py-2 text-zinc-600 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors flex items-center gap-2"
-            >
-              <Sparkles className="w-4 h-4" />
-              Regenerate
-            </button>
-            <button
-              onClick={onClose}
-              className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-6 py-2 rounded-xl font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
-            >
-              Close
-            </button>
+          <div className="p-6 border-t border-zinc-200 dark:border-zinc-800 shrink-0 flex items-center justify-between bg-white dark:bg-zinc-900">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleExportImage}
+                disabled={isExporting}
+                className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold disabled:opacity-50"
+                title="Export as Image"
+              >
+                <ImageIcon className="w-4 h-4" />
+                <span>PNG</span>
+              </button>
+              <button
+                onClick={handleExportPDF}
+                disabled={isExporting}
+                className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 rounded-lg transition-all flex items-center gap-1.5 text-xs font-bold disabled:opacity-50"
+                title="Export as PDF"
+              >
+                <FileText className="w-4 h-4" />
+                <span>PDF</span>
+              </button>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={generateReport}
+                className="px-4 py-2 text-zinc-600 dark:text-zinc-300 font-bold hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-xl transition-colors flex items-center gap-2"
+              >
+                <Sparkles className="w-4 h-4" />
+                Regenerate
+              </button>
+              <button
+                onClick={onClose}
+                className="bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-6 py-2 rounded-xl font-bold hover:bg-zinc-800 dark:hover:bg-zinc-100 transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         )}
       </motion.div>

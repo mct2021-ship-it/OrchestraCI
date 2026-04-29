@@ -39,7 +39,7 @@ export function usePermissions() {
   const canDeleteItems = (project: Project): boolean => {
     if (isAdmin) return true;
     const role = getProjectRole(project);
-    return role === 'Project Admin' || role === 'Project Lead';
+    return role === 'Project Admin';
   };
 
   const canManageRecycleBin = (): boolean => {

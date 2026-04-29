@@ -51,8 +51,8 @@ export function Logo({ className = "h-8", svgClassName = "h-full w-auto" }: Logo
         </g>
         
         {/* Text */}
-        <text x="65" y="32" fontFamily="sans-serif" fontWeight="800" fontSize="22" fill="#e4e4e7" letterSpacing="1.5">RCHESTRA</text>
-        <text x="65" y="52" fontFamily="sans-serif" fontWeight="800" fontSize="20" fill="#a1a1aa" letterSpacing="1.5">CI</text>
+        <text x="65" y="32" fontFamily="Inter, sans-serif" fontWeight="800" fontSize="22" fill="#e4e4e7" letterSpacing="1.5">RCHESTRA</text>
+        <text x="65" y="52" fontFamily="Inter, sans-serif" fontWeight="800" fontSize="20" fill="#a1a1aa" letterSpacing="1.5">CI</text>
       </svg>
     </div>
   );

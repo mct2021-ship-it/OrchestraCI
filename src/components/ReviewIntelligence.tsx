@@ -28,7 +28,8 @@ import {
   Trash2,
   BarChart3,
   BrainCircuit,
-  Frown
+  Frown,
+  Folder
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
@@ -39,6 +40,7 @@ import { Persona, Project, JourneyMap, Task, Sprint, IntelligenceSignal, Product
 import { VocSection } from './VocSection';
 import { NpsCalculator } from './NpsCalculator';
 import { useToast } from '../context/ToastContext';
+import { usePermissions } from '../hooks/usePermissions';
 
 interface Review {
   id: string;
@@ -97,6 +99,7 @@ interface ReviewIntelligenceProps {
   currentUser?: any;
   onNavigate?: (tab: string, subTab?: string) => void;
   setActiveProjectId?: (id: string | null) => void;
+  onOpenJourney?: (id: string) => void;
   uploadedData?: any[];
   onDeleteData?: (id: number) => void;
   onUpload?: () => void;
@@ -122,6 +125,7 @@ export function IntelligenceHub({
   currentUser,
   onNavigate,
   setActiveProjectId,
+  onOpenJourney,
   uploadedData = [],
   onDeleteData,
   onUpload,
@@ -134,6 +138,7 @@ export function IntelligenceHub({
   services = []
 }: ReviewIntelligenceProps) {
   const { addToast } = useToast();
+  const { isAdmin } = usePermissions();
   const [step, setStep] = useState<Step>('input');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +177,7 @@ export function IntelligenceHub({
       priority: signal.sentiment === 'negative' ? 'Critical' : 'Medium',
       assigneeId: currentUser.id,
       stage: 'Discover',
+      kanbanStatus: 'Backlog',
       createdAt: new Date().toISOString(),
       tags: [signal.source, 'Intelligence'],
       comments: []
@@ -484,11 +490,11 @@ export function IntelligenceHub({
       const newTasks: Task[] = selectedOpps.map((o, i) => ({
         id: `task_${Date.now()}_${i}`,
         projectId,
-        sprint: sprintId,
+        sprint: null, // Start in backlog, not in a sprint
         title: o.title,
         description: o.description,
         status: 'Discover',
-        kanbanStatus: 'todo',
+        kanbanStatus: 'Backlog', // Ensure they start in Backlog
         impact: o.severity === 'high' ? 'High' : o.severity === 'medium' ? 'Medium' : 'Low',
         effort: 'Medium',
         createdAt: new Date().toISOString(),
@@ -547,16 +553,104 @@ export function IntelligenceHub({
     );
   };
 
+  const [manualText, setManualText] = useState('');
+  const [manualSource, setManualSource] = useState<'Survey' | 'Review' | 'Ticket' | 'Complaint'>('Survey');
+  const [isProcessingManual, setIsProcessingManual] = useState(false);
+
+  const handleProcessRawData = async () => {
+    if (!manualText.trim()) return;
+    
+    setIsProcessingManual(true);
+    try {
+      const hasKey = await ensureApiKey();
+      if (!hasKey) {
+        addToast("Gemini API key is required.", "error");
+        return;
+      }
+      
+      const ai = await getGeminiClient();
+      if (!ai) return;
+
+      const prompt = `Analyze the following customer feedback/data from source: ${manualSource}.
+      Extract individual intelligence "signals" (observations, complaints, praises, requests, or errors).
+      Data:
+      """
+      ${manualText}
+      """
+
+      Provide a JSON object with:
+      1. signals: Array of objects. Each signal should have:
+         - title: Short summary of the signal.
+         - description: Detailed explanation.
+         - type: 'Complaint', 'Praise', 'Request', 'Observation', or 'Error'.
+         - sentiment: 'positive', 'neutral', or 'negative'.
+         - tags: Array of 2-3 keywords.
+      
+      Generate between 2 and 5 specific signals based on the content.`;
+
+      const result = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              signals: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    title: { type: Type.STRING },
+                    description: { type: Type.STRING },
+                    type: { type: Type.STRING, enum: ['Complaint', 'Praise', 'Request', 'Observation', 'Error'] },
+                    sentiment: { type: Type.STRING, enum: ['positive', 'neutral', 'negative'] },
+                    tags: { type: Type.ARRAY, items: { type: Type.STRING } }
+                   },
+                   required: ["title", "description", "type", "sentiment", "tags"]
+                }
+              }
+            },
+            required: ["signals"]
+          }
+        }
+      });
+
+      const data = JSON.parse(result.text || '{}');
+      const newSignals: IntelligenceSignal[] = (data.signals || []).map((s: any) => ({
+        ...s,
+        id: `manual_${Date.now()}_${Math.random()}`,
+        source: manualSource,
+        createdAt: new Date().toISOString(),
+        status: 'New',
+        metadata: { rawText: manualText.substring(0, 500) }
+      }));
+
+      if (setSignals) {
+        setSignals(prev => [...newSignals, ...prev]);
+        addToast(`Successfully processed ${newSignals.length} intelligence signals!`, "success");
+        setManualText('');
+        setStep('signals');
+        
+        onAddToAuditLog?.('Processed Raw Data', `AI extracted ${newSignals.length} signals from manual ${manualSource} upload`, 'Create', 'Intelligence', manualSource, 'AI');
+      }
+    } catch (err: any) {
+      addToast(err.message || "Failed to process data", "error");
+    } finally {
+      setIsProcessingManual(false);
+    }
+  };
+
   return (
     <div className="space-y-8">
       {/* Progress Stepper */}
       <div className="flex items-center justify-center max-w-3xl mx-auto mb-12">
         {[
-          { id: 'input', label: 'Data Input', icon: Database },
-          { id: 'signals', label: 'Intelligence', icon: BrainCircuit },
-          { id: 'personas', label: 'Personas', icon: Users },
-          { id: 'projects', label: 'Strategy', icon: Rocket },
-          { id: 'execution', label: 'Execution', icon: CheckCircle2 },
+          { id: 'input', label: 'Data Ingestion', icon: Database },
+          { id: 'signals', label: 'Intelligence Feed', icon: BrainCircuit },
+          { id: 'personas', label: 'Persona Evolution', icon: Users },
+          { id: 'projects', label: 'Strategic Plan', icon: Rocket },
+          { id: 'execution', label: 'Orchestration', icon: CheckCircle2 },
         ].map((s, i, arr) => (
           <React.Fragment key={s.id}>
             <div className="flex flex-col items-center gap-2 relative">
@@ -591,73 +685,194 @@ export function IntelligenceHub({
             exit={{ opacity: 0, y: -20 }}
             className="space-y-8"
           >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-              {/* Trustpilot Connector */}
-              <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-6 relative overflow-hidden">
-                <div className="absolute top-4 right-4 px-2 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase rounded-md border border-indigo-200 dark:border-indigo-800">Pro Feature</div>
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-zinc-950 rounded-2xl flex items-center justify-center p-2">
-                    <img src="https://cdn.simpleicons.org/trustpilot/white" className="w-full h-full object-contain" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Trustpilot Integration</h3>
-                    <p className="text-sm text-zinc-500">Connect your business account to sync reviews.</p>
-                  </div>
-                </div>
-                <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-zinc-500 uppercase">Status</span>
-                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-[10px] font-bold rounded-full uppercase">Connected</span>
-                  </div>
-                  <p className="text-xs text-zinc-600 dark:text-zinc-400">Successfully synced 1,240 reviews from the last 30 days.</p>
-                </div>
-                
-                <div className="space-y-4">
-                  <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/50 rounded-2xl">
-                    <div className="flex items-center gap-2 text-amber-700 dark:text-amber-400 mb-1">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-xs font-bold uppercase tracking-wider">Usage Limit</span>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 bg-white dark:bg-zinc-900 border-2 border-indigo-500/30 rounded-[2.5rem] shadow-2xl shadow-indigo-500/10 overflow-hidden group">
+              <div className="grid grid-cols-1 lg:grid-cols-2">
+                <div className="p-10 space-y-8 border-b lg:border-b-0 lg:border-r border-zinc-100 dark:border-zinc-800">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-3">
+                      <div className="p-3 bg-indigo-600 rounded-2xl shadow-lg shadow-indigo-500/20 text-white">
+                        <Database className="w-6 h-6" />
+                      </div>
+                      <h3 className="text-2xl font-black uppercase italic tracking-tight text-zinc-900 dark:text-white">
+                        Universal Ingestion
+                      </h3>
                     </div>
-                    <p className="text-xs text-amber-600 dark:text-amber-500">
-                      Strategic analysis can only be run **once per month** to ensure data quality and focus.
+                    <p className="text-zinc-500 dark:text-zinc-400 font-medium">
+                      Hydrate the Orchestra CI engine with raw intelligence from any source.
                     </p>
                   </div>
 
-                  <button 
-                    onClick={() => setStep('signals')}
-                    className="w-full bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/20"
-                  >
-                    View Intelligence Signals
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
+                  <div className="space-y-6 flex-1 flex flex-col">
+                    <div className="flex flex-wrap items-center gap-2 bg-zinc-100 dark:bg-zinc-800/80 p-1.5 rounded-2xl border border-zinc-200/80 dark:border-zinc-700/80">
+                      {['Survey', 'Review', 'Ticket', 'Complaint'].map((s) => (
+                        <button
+                          key={s}
+                          onClick={() => setManualSource(s as any)}
+                          className={cn(
+                            "flex-1 min-w-[70px] px-3 py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wide transition-all",
+                            manualSource === s 
+                              ? "bg-white dark:bg-zinc-900 text-indigo-600 shadow-md shadow-indigo-500/5 ring-1 ring-black/5 dark:ring-white/10" 
+                              : "text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 hover:bg-zinc-200/50 dark:hover:bg-zinc-800"
+                          )}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+
+                    <div className="relative flex-1 flex flex-col min-h-[200px]">
+                      <textarea
+                        value={manualText}
+                        onChange={(e) => setManualText(e.target.value)}
+                        placeholder="Paste transcripts, support logs, or raw user feedback here..."
+                        className="flex-1 w-full min-h-[200px] bg-white dark:bg-black/40 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-6 text-sm focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none resize-y transition-all text-zinc-700 dark:text-zinc-200 shadow-inner"
+                      />
+                      <div className="absolute top-5 right-5 pointer-events-none opacity-50">
+                         <Sparkles className="w-5 h-5 text-indigo-400 dark:text-indigo-600" />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                      <button 
+                        onClick={onUpload}
+                        disabled={isUploadingProp}
+                        className="flex-1 px-6 py-3.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-2xl font-bold uppercase tracking-wider text-xs transition-shadow flex items-center justify-center gap-2 shadow-sm hover:shadow"
+                      >
+                         {isUploadingProp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-zinc-500" />}
+                         {isUploadingProp ? 'Uploading...' : 'Upload File'}
+                      </button>
+                      <button 
+                        onClick={handleProcessRawData}
+                        disabled={isProcessingManual || !manualText.trim()}
+                        className="flex-1 px-6 py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed text-white rounded-2xl font-bold uppercase tracking-wider text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-indigo-500/30 hover:shadow-xl hover:shadow-indigo-500/40 hover:-translate-y-0.5"
+                      >
+                        {isProcessingManual ? <Loader2 className="w-4 h-4 animate-spin" /> : <BrainCircuit className="w-4 h-4" />}
+                        {isProcessingManual ? 'Synthesizing...' : 'Sync to Engine'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-10 bg-zinc-50 dark:bg-black/10 space-y-8">
+                   <div className="space-y-4">
+                      <h4 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4" />
+                        Ingestion Capabilities
+                      </h4>
+                      <div className="space-y-4">
+                         {[
+                           { label: 'Emotion Mapping', desc: 'Auto-tagging sentiment in free-text' },
+                           { label: 'Segment Discovery', desc: 'Identify personas in raw feedback' },
+                           { label: 'Strategic Alignment', desc: 'Map signals to project goals' }
+                         ].map((cap, i) => (
+                           <div key={i} className="flex gap-4 group/cap">
+                              <div className="w-1.5 h-12 bg-indigo-100 dark:bg-zinc-800 rounded-full group-hover/cap:bg-indigo-600 transition-colors" />
+                              <div className="space-y-1">
+                                 <p className="text-sm font-bold text-zinc-900 dark:text-white uppercase tracking-tight">{cap.label}</p>
+                                 <p className="text-xs text-zinc-500">{cap.desc}</p>
+                              </div>
+                           </div>
+                         ))}
+                      </div>
+                   </div>
+
+                   <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-6 text-white shadow-xl shadow-indigo-500/20">
+                      <div className="flex items-center gap-3 mb-3">
+                         <Star className="w-5 h-5 fill-white" />
+                         <p className="text-sm font-black uppercase tracking-widest italic leading-none">Auto-Calibration</p>
+                      </div>
+                      <p className="text-xs text-indigo-100 leading-relaxed font-medium">
+                        The engine learns from every ingestion, refining your persona journey maps automatically.
+                      </p>
+                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Other Connectors Preview */}
-              <div className="bg-white dark:bg-zinc-900 p-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-6">
-                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center text-indigo-600">
-                    <Database className="w-6 h-6" />
+              {/* Pro Connectors */}
+              <div className="space-y-6">
+                <div className="bg-white dark:bg-zinc-900 p-6 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 p-8 bg-indigo-600/5 rounded-full translate-x-1/3 -translate-y-1/3 group-hover:scale-125 transition-transform duration-700" />
+                  <div className="flex items-center gap-4 mb-4">
+                    <div className="w-10 h-10 bg-zinc-950 rounded-xl flex items-center justify-center p-2">
+                       <img src="https://cdn.simpleicons.org/trustpilot/white" className="w-full h-full object-contain" />
+                    </div>
+                    <h4 className="font-bold text-zinc-900 dark:text-white">API Connectors</h4>
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white">External Connectors</h3>
-                    <p className="text-sm text-zinc-500">Sync data from Zendesk, Intercom, or Salesforce.</p>
+                  <p className="text-xs text-zinc-500 leading-relaxed mb-4">
+                    Automatically sync live data from Trustpilot, Zendesk, and 12+ other sources.
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => setStep('signals')}
+                      className="flex-1 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-900 dark:text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-zinc-200"
+                    >
+                      Manage Synced Signals
+                    </button>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-3 gap-3">
-                  {['Zendesk', 'Intercom', 'Salesforce'].map(s => (
-                    <div key={s} className="flex flex-col items-center gap-2 p-3 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl grayscale hover:grayscale-0 transition-all cursor-not-allowed border border-transparent hover:border-zinc-200">
-                      <img src={`https://cdn.simpleicons.org/${s.toLowerCase()}`} className="w-6 h-6 object-contain" />
-                      <span className="text-[10px] font-bold text-zinc-500">{s}</span>
+
+                <div className="bg-zinc-900 dark:bg-zinc-800 p-6 rounded-3xl border border-zinc-800 shadow-lg text-white space-y-4">
+                  <h4 className="text-sm font-bold flex items-center gap-2">
+                    <Database className="w-4 h-4 text-indigo-400" />
+                    Orchestra Memory
+                  </h4>
+                  <p className="text-[10px] text-zinc-400 leading-relaxed">
+                    Intelligence processed here is stored in your company's persistent memory, allowing AI to suggest improvements across all modules.
+                  </p>
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between text-[8px] font-black uppercase text-zinc-500 tracking-widest mb-1">
+                      <span>Memory Load</span>
+                      <span>12%</span>
+                    </div>
+                    <div className="h-1 w-full bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full w-[12%] bg-indigo-500" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Upload History */}
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 shadow-sm lg:col-span-3">
+              <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-6">Recent Data Ingestions</h3>
+              {uploadedData && uploadedData.length > 0 ? (
+                <div className="space-y-4">
+                  {uploadedData.map((data: any) => (
+                    <div key={data.id} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 group hover:border-indigo-500/50 transition-all gap-4 hidden-print">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 shrink-0 bg-white dark:bg-zinc-900 rounded-xl flex items-center justify-center border border-zinc-200 dark:border-zinc-700 shadow-sm">
+                           <Database className="w-5 h-5 text-indigo-500" />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                             <h4 className="font-bold text-zinc-900 dark:text-white">{data.source}</h4>
+                             <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 rounded-md text-[10px] font-bold uppercase tracking-wider">{data.type}</span>
+                          </div>
+                          <p className="text-xs text-zinc-500 font-medium mt-1">Processed {data.count} items • {data.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4 w-full sm:w-auto justify-end">
+                        <span className="px-3 py-1 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-lg text-xs font-bold border border-emerald-100 dark:border-emerald-800">{data.status}</span>
+                        {onDeleteData && isAdmin && (
+                          <button 
+                            onClick={() => onDeleteData(data.id)}
+                            className="p-2 text-zinc-400 hover:text-rose-500 transition-colors opacity-0 group-hover:opacity-100 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-sm rounded-lg"
+                            title="Remove Data"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
-                
-                <p className="text-xs text-center text-zinc-400">
-                  Connectors allow the Intelligence Engine to continuously monitor for "Signals" that may impact your projects.
-                </p>
-              </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Database className="w-8 h-8 text-zinc-300 mx-auto mb-3" />
+                  <p className="text-sm font-medium text-zinc-500">No data has been ingested yet.</p>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
@@ -1025,54 +1240,127 @@ export function IntelligenceHub({
             key="execution"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-2xl mx-auto text-center space-y-8"
+            className="max-w-4xl mx-auto"
           >
-            <div className="w-20 h-20 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mx-auto text-emerald-600">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
-            <div>
-              <h3 className="text-3xl font-bold text-zinc-900 dark:text-white">Strategy Initialized</h3>
-              <p className="text-zinc-500 mt-2">The system has successfully created your strategic assets. You can now begin execution.</p>
-            </div>
+            <div className="bg-white dark:bg-zinc-900 rounded-[3rem] border border-zinc-200 dark:border-zinc-800 shadow-2xl overflow-hidden">
+              <div className="bg-indigo-600 p-12 text-center text-white relative">
+                 <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10" />
+                 <div className="relative z-10">
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="w-20 h-20 bg-white/20 backdrop-blur-md rounded-3xl flex items-center justify-center mx-auto mb-6"
+                    >
+                      <CheckCircle2 className="w-10 h-10 text-white" />
+                    </motion.div>
+                    <h3 className="text-4xl font-black mb-2">Orchestration Complete</h3>
+                    <p className="text-indigo-100 font-medium opacity-80 uppercase tracking-[0.2em] text-xs">The Intelligence Hub has updated your ecosystem</p>
+                 </div>
+              </div>
 
-            <div className="grid grid-cols-2 gap-4 text-left">
-              {[
-                { label: 'Project Created', value: selectedProject?.title, icon: Rocket },
-                { label: 'Personas Added', value: `${acceptedPersonas.length} New Profiles`, icon: Users },
-                { label: 'Journey Map', value: 'Initial Map Generated', icon: MapIcon },
-                { label: 'Sprint 1', value: 'Active & Ready', icon: Calendar },
-                { label: 'Backlog', value: `${selectedOpportunities.length} Tasks Created`, icon: ListTodo },
-              ].map((item, i) => (
-                <div key={i} className="bg-white dark:bg-zinc-900 p-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 flex items-start gap-4">
-                  <div className="w-10 h-10 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400">
-                    <item.icon className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">{item.label}</p>
-                    <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{item.value}</p>
+              <div className="p-12 space-y-12">
+                {/* Semantic Flow Diagram */}
+                <div className="relative">
+                  <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-zinc-100 dark:bg-zinc-800 -translate-y-1/2" />
+                  <div className="grid grid-cols-4 gap-4 sm:gap-8 relative z-10">
+                    {[
+                      { icon: Database, label: 'Data Ingested', color: 'bg-zinc-100 dark:bg-zinc-800' },
+                      { icon: BrainCircuit, label: 'Signals Mapped', color: 'bg-indigo-100 dark:bg-indigo-900/30' },
+                      { icon: Users, label: 'Personas Evolved', color: 'bg-purple-100 dark:bg-purple-900/30' },
+                      { icon: Rocket, label: 'Strategy Deployed', color: 'bg-emerald-100 dark:bg-emerald-900/30' },
+                    ].map((step, i) => (
+                      <div key={i} className="flex flex-col items-center">
+                        <div className={cn("w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center mb-4 border-4 border-white dark:border-zinc-900 shadow-xl", step.color)}>
+                          <step.icon className="w-5 h-5 sm:w-6 sm:h-6" />
+                        </div>
+                        <span className="text-[8px] sm:text-[10px] text-center font-black uppercase tracking-widest text-zinc-500">{step.label}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="pt-8 flex gap-4 justify-center">
-              <button
-                onClick={() => setStep('input')}
-                className="px-8 py-3 rounded-xl font-bold text-zinc-500 hover:text-zinc-900 transition-all"
-              >
-                Finish
-              </button>
-              <button
-                onClick={() => {
-                  if (createdProjectId && setActiveProjectId && onNavigate) {
-                    setActiveProjectId(createdProjectId);
-                    onNavigate('project_detail');
-                  }
-                }}
-                className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
-              >
-                Go to Project <ArrowRight className="w-5 h-5" />
-              </button>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400">Newly Minted Assets</h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                        <Folder className="w-5 h-5 text-indigo-600" />
+                        <div className="flex-1">
+                          <p className="text-[10px] font-bold text-zinc-400 uppercase">Project</p>
+                          <p className="text-sm font-bold text-zinc-900 dark:text-white truncate">{selectedProject.title}</p>
+                        </div>
+                        <button 
+                          onClick={() => {
+                             if (executionResult.projectId && setActiveProjectId && onNavigate) {
+                               setActiveProjectId(executionResult.projectId);
+                               onNavigate('project_detail');
+                             }
+                          }}
+                          className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-bold hover:shadow-sm"
+                        >
+                          View
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-4 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                        <MapIcon className="w-5 h-5 text-purple-600" />
+                        <div className="flex-1">
+                          <p className="text-[10px] font-bold text-zinc-400 uppercase">Journey Map</p>
+                          <p className="text-sm font-bold text-zinc-900 dark:text-white">Active Roadmap</p>
+                        </div>
+                        <button 
+                          onClick={() => onOpenJourney?.(executionResult.journeyId || '')}
+                          className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-lg text-[10px] font-bold hover:shadow-sm"
+                        >
+                          Open
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-indigo-50 dark:bg-indigo-900/10 p-8 rounded-3xl border border-indigo-100 dark:border-indigo-800 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Sparkles className="w-5 h-5 text-indigo-600" />
+                      <h4 className="text-sm font-bold text-indigo-900 dark:text-indigo-300">Continuous Feedback Loop</h4>
+                    </div>
+                    <p className="text-xs text-indigo-700 dark:text-indigo-400 leading-relaxed">
+                      Your processed signals are now part of the **Semantic Context**. 
+                      When using AI to generate tasks or update personas in the future, these real-world insights will be automatically weighted.
+                    </p>
+                    <div className="pt-2 text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-2">
+                       <Check className="w-3 h-3" />
+                       Audit Log Updated
+                    </div>
+                    <div className="text-[10px] font-bold text-indigo-600 uppercase flex items-center gap-2">
+                       <Check className="w-3 h-3" />
+                       Company Profile Refined
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-center flex-wrap gap-4 pt-4">
+                  <button 
+                    onClick={() => {
+                      setStep('input');
+                      setRawInsights(null);
+                      setAcceptedPersonas([]);
+                    }}
+                    className="px-8 py-3 bg-zinc-900 dark:bg-zinc-800 text-white rounded-xl font-bold hover:bg-zinc-800 transition-all shadow-xl shadow-zinc-500/10"
+                  >
+                    Ingest More Data
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if (executionResult.projectId && setActiveProjectId && onNavigate) {
+                        setActiveProjectId(executionResult.projectId);
+                        onNavigate('project_detail');
+                      }
+                    }}
+                    className="px-8 py-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-white rounded-xl font-bold hover:bg-zinc-50 transition-all"
+                  >
+                    Go to Project
+                  </button>
+                </div>
+              </div>
             </div>
           </motion.div>
         )}

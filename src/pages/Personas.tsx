@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { mockPersonas, personaTemplates, mockProjects } from '../data/mockData';
-import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen, Briefcase, ArrowRight } from 'lucide-react';
+import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen, Briefcase, ArrowRight, MessageSquare, Calendar, Globe, TrendingUp } from 'lucide-react';
 import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { AiPersonaGenerator } from '../components/AiPersonaGenerator';
@@ -35,6 +35,10 @@ interface PersonasProps {
 
 import { LimitReachedModal } from '../components/LimitReachedModal';
 
+import { PersonaInterview } from '../components/PersonaInterview';
+import { PersonaEmpathyMap } from '../components/PersonaEmpathyMap';
+import { EmpathyMap } from '../types';
+
 export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate, onAddToAuditLog, companyProfile, projects = [] }: PersonasProps) {
   const { plan, details } = usePlan();
   const { addToast } = useToast();
@@ -45,7 +49,6 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [isCreationWizardOpen, setIsCreationWizardOpen] = useState(false);
   const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [personaToUpdateAvatar, setPersonaToUpdateAvatar] = useState<string | null>(null);
@@ -61,6 +64,8 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [isAddingImageToSection, setIsAddingImageToSection] = useState<string | null>(null);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isInterviewOpen, setIsInterviewOpen] = useState(false);
+  const [activeView, setActiveView] = useState<'profile' | 'empathy' | 'context'>('profile');
   const addSectionMenuRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -102,7 +107,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       setShowLimitModal(true);
       return;
     }
-    setIsCreationWizardOpen(true);
+    setIsModalOpen(true);
   };
 
   const handleCreateBlankPersona = () => {
@@ -126,7 +131,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       ]
     };
     handleSavePersona(newPersona);
-    setIsCreationWizardOpen(false);
+    setIsModalOpen(false);
   };
 
   const handleOpenAiGenerator = () => {
@@ -284,6 +289,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         allowTaint: false,
         logging: false,
         backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        ignoreElements: (element) => element.classList.contains('no-export'),
         onclone: (clonedDoc) => {
           fixOklch(clonedDoc);
           const clonedElement = clonedDoc.getElementById('persona-content');
@@ -296,17 +302,66 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       });
       
       const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgProps = pdf.getImageProperties(imgData);
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      const imgWidth = canvas.width / 2;
+      const imgHeight = canvas.height / 2;
       
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       pdf.save(`${selectedPersona.name.replace(/\s+/g, '_')}_persona.pdf`);
       addToast('PDF generated successfully', 'success');
     } catch (err) {
       console.error('Failed to generate PDF', err);
       addToast('Failed to generate PDF', 'error');
+    }
+  };
+
+  const handleGenerateEmpathyMap = async () => {
+    if (!selectedPersona) return;
+    
+    addToast('Generating Empathy Map...', 'info');
+
+    try {
+      const ai = await getGeminiClient();
+      if (!ai) {
+        addToast('Gemini API key is missing. Please select one to enable AI features.', 'error');
+        await ensureApiKey();
+        return;
+      }
+      const response = await ai.models.generateContent({
+        model: "gemini-3-flash-preview",
+        contents: `Generate a comprehensive Empathy Map for the following customer persona:
+        Name: ${stripPIData(selectedPersona.name)}
+        Role: ${stripPIData(selectedPersona.role)}
+        Goals: ${selectedPersona.goals.map(stripPIData).join(', ')}
+        Frustrations: ${selectedPersona.frustrations.map(stripPIData).join(', ')}
+        
+        Format the output as a JSON object with the following structure:
+        { "says": ["...", "..."], "thinks": ["...", "..."], "does": ["...", "..."], "feels": ["...", "..."] }
+        
+        Include 3-5 high-quality insights for each quadrant.
+        - Says: Specific quotes or statements they might make.
+        - Thinks: Internal beliefs, motivations, or unspoken thoughts.
+        - Does: Physical actions, behaviors, or routines.
+        - Feels: Emotional states, worries, or aspirations.`,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const text = response.text || '{}';
+      const data = JSON.parse(text);
+      
+      updatePersonaField(selectedPersona.id, 'empathyMap', data);
+      addToast('Empathy Map generated successfully', 'success');
+      onAddToAuditLog?.('AI Generated Empathy Map', `Generated empathy traits for ${selectedPersona.name}`, 'Update', 'Persona', selectedPersona.id, 'AI');
+    } catch (error) {
+      console.error('Error generating empathy map:', error);
+      addToast('Failed to generate empathy map', 'error');
     }
   };
 
@@ -483,6 +538,12 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     })));
   };
 
+  const handleSelectPersona = (id: string) => {
+    setSelectedPersonaId(id);
+    setActiveView('profile');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const deletePersona = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     setPersonas(personas.filter(p => p.id !== id));
@@ -490,7 +551,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   };
 
   return (
-    <div className="p-8 max-w-7xl mx-auto space-y-8 print:p-0 print:max-w-none">
+    <div className="p-8 max-w-[1440px] mx-auto space-y-8 print:p-0 print:max-w-none">
       <ContextualHelp 
         title="Personas" 
         description="Create and manage detailed customer profiles. Personas help your team build empathy and ensure products are designed for real user needs, behaviors, and goals."
@@ -499,7 +560,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         <div className="flex items-center gap-4">
           {selectedPersonaId && (
             <button 
-              onClick={() => setSelectedPersonaId(null)}
+              onClick={() => handleSelectPersona(null!)}
               className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-full transition-colors text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:text-white"
             >
               <ChevronLeft className="w-6 h-6" />
@@ -558,12 +619,6 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                       className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-zinc-900 rounded-xl shadow-xl border border-zinc-200 dark:border-zinc-800 overflow-hidden z-50"
                     >
                       <button 
-                        onClick={handlePrint}
-                        className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <Printer className="w-4 h-4" /> Print
-                      </button>
-                      <button 
                         onClick={handleDownloadPdf}
                         className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                       >
@@ -574,18 +629,6 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                         className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
                       >
                         <ImageIcon className="w-4 h-4" /> Save as Image
-                      </button>
-                      <button 
-                        onClick={handleExportWord}
-                        className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <FileText className="w-4 h-4" /> Export to Word
-                      </button>
-                      <button 
-                        onClick={handleExport}
-                        className="w-full px-4 py-3 text-left text-sm font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 flex items-center gap-2"
-                      >
-                        <Download className="w-4 h-4" /> Export to JSON
                       </button>
                     </motion.div>
                   )}
@@ -837,7 +880,16 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
             {templates.map(template => (
               <div key={template.id} className={`bg-white dark:bg-zinc-900 p-4 rounded-xl border transition-all ${template.isDefaultTemplate ? 'border-amber-400 ring-1 ring-amber-400' : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300'}`}>
                 <div className="flex items-center gap-3 mb-3">
-                  <img src={template.imageUrl} alt={template.name} className="w-10 h-10 rounded-full object-cover" crossOrigin="anonymous" />
+                  <img 
+                    src={template.imageUrl} 
+                    alt={template.name} 
+                    className="w-10 h-10 rounded-full object-cover" 
+                    crossOrigin="anonymous" 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(template.name)}&background=random&size=128`;
+                    }}
+                  />
                   <div className="flex-1 min-w-0">
                     <h4 className="font-bold text-zinc-900 dark:text-white truncate">{template.name}</h4>
                     <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate">{template.role}</p>
@@ -865,287 +917,409 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
           </div>
         </div>
       ) : !selectedPersonaId ? (
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Person Name</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Persona Name</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Role</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Age</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">Gender</th>
-                <th className="px-6 py-4 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-200">
-              {personas.map(persona => (
-                <tr 
-                  key={persona.id} 
-                  onClick={() => setSelectedPersonaId(persona.id)}
-                  className="hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 cursor-pointer transition-colors group"
-                >
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <img src={persona.imageUrl} alt={persona.name} className="w-10 h-10 rounded-full object-cover border border-zinc-200 dark:border-zinc-800" crossOrigin="anonymous" />
-                      <span className="font-bold text-zinc-900 dark:text-white">{persona.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300 font-medium">{persona.type || 'Standard'}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-600 dark:text-zinc-300 font-medium">{persona.role}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">{persona.age}</td>
-                  <td className="px-6 py-4 text-sm text-zinc-500 dark:text-zinc-400">{persona.gender || 'Not specified'}</td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      {canEdit && (
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setSelectedPersonaId(persona.id); }}
-                          className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-all"
-                          title="Edit Persona"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
-                      )}
-                      {canEdit && (
-                        <button 
-                          onClick={(e) => deletePersona(persona.id, e)}
-                          className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all"
-                          title="Delete Persona"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {personas.map((persona, idx) => (
+            <motion.div
+              key={persona.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.05 }}
+              onClick={() => handleSelectPersona(persona.id)}
+              className="group bg-white dark:bg-zinc-900 rounded-[2.5rem] border-2 border-zinc-100 dark:border-zinc-800 p-8 cursor-pointer hover:border-indigo-500 transition-all hover:shadow-2xl hover:shadow-indigo-500/10 relative overflow-hidden"
+            >
+              <div className="flex items-start justify-between mb-6">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-3xl overflow-hidden border-2 border-zinc-100 dark:border-zinc-800 group-hover:scale-105 transition-transform duration-500">
+                    <img 
+                      src={persona.imageUrl} 
+                      alt={persona.name} 
+                      className="w-full h-full object-cover"
+                      crossOrigin="anonymous" 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(persona.name)}&background=random&size=128`;
+                      }}
+                    />
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg">
+                    <User className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  {canEdit && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleSelectPersona(persona.id); }}
+                      className="w-10 h-10 bg-zinc-50 dark:bg-zinc-800 rounded-xl flex items-center justify-center text-zinc-400 hover:text-indigo-600 transition-all"
+                    >
+                      <Edit3 className="w-5 h-5" />
+                    </button>
+                  )}
+                  {canEdit && (
+                    <button 
+                      onClick={(e) => deletePersona(persona.id, e)}
+                      className="w-10 h-10 bg-rose-50 dark:bg-rose-900/30 rounded-xl flex items-center justify-center text-rose-500 hover:bg-rose-500 hover:text-white transition-all"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-2xl font-black text-zinc-900 dark:text-white leading-tight group-hover:text-indigo-600 transition-colors uppercase tracking-tight">
+                    {persona.name}
+                  </h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-[10px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">
+                      {persona.type || 'Standard'}
+                    </span>
+                    <span className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 text-[10px] font-black uppercase rounded-lg border border-zinc-200 dark:border-zinc-700">
+                      Age: {persona.age}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-zinc-600 dark:text-zinc-400 font-bold text-sm leading-relaxed line-clamp-2">
+                  {persona.role}
+                </p>
+
+                <div className="pt-4 border-t border-zinc-50 dark:border-zinc-800 flex items-center justify-between">
+                   <div className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest">
+                      <Target className="w-4 h-4" />
+                      {persona.goals.length} Goals
+                   </div>
+                   <div className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest">
+                      <Heart className="w-4 h-4" />
+                      {persona.sentiment}/5
+                   </div>
+                </div>
+              </div>
+
+              <div className="absolute top-0 right-0 p-12 bg-indigo-600/5 rounded-full translate-x-1/2 -translate-y-1/2 blur-2xl" />
+            </motion.div>
+          ))}
           {personas.length === 0 && (
-            <div className="flex-1 flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-12 text-center min-h-[500px]">
-              <div className="w-24 h-24 bg-rose-50 dark:bg-rose-900/30 text-rose-500 rounded-full flex items-center justify-center mb-6">
+            <div className="col-span-full flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50 rounded-[3rem] border-2 border-dashed border-zinc-200 dark:border-zinc-800 p-24 text-center">
+              <div className="w-24 h-24 bg-rose-50 dark:bg-rose-900/30 text-rose-500 rounded-[2rem] flex items-center justify-center mb-6 shadow-inner">
                 <Users className="w-12 h-12" />
               </div>
-              <h3 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">No personas yet</h3>
-              <p className="text-zinc-500 dark:text-zinc-400 max-w-md mb-8">
-                Start understanding your customers better by creating your first user persona.
+              <h3 className="text-3xl font-black text-zinc-900 dark:text-white mb-2 uppercase tracking-tighter">No personas identified</h3>
+              <p className="text-zinc-500 dark:text-zinc-400 max-w-sm mb-10 font-bold text-lg">
+                Your customer ecosystem is empty. Start mapping your target audience to build better products.
               </p>
               <button 
                 onClick={() => setIsModalOpen(true)}
-                className="bg-zinc-900 hover:bg-zinc-800 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg"
+                className="bg-indigo-600 hover:bg-indigo-500 text-white px-10 py-5 rounded-[2rem] font-black uppercase text-sm tracking-widest transition-all shadow-2xl shadow-indigo-500/20 active:scale-95 flex items-center gap-3"
               >
-                <Plus className="w-5 h-5" />
-                Create New Persona
+                <Plus className="w-6 h-6" />
+                Initialize Persona
               </button>
             </div>
           )}
         </div>
-      </div>
       ) : (
         <div id="persona-content" className="space-y-8">
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden flex flex-col md:flex-row print:shadow-none print:border-zinc-300 break-inside-avoid">
-            <div className="bg-zinc-50 dark:bg-zinc-900 p-8 md:w-1/3 flex flex-col items-center text-center border-b md:border-b-0 md:border-r border-zinc-200 dark:border-zinc-800 print:bg-white dark:bg-zinc-900">
-            <div className="relative group">
-              <div className="relative cursor-pointer" onClick={() => setSelectedImage(selectedPersona!.imageUrl)}>
-                <img src={selectedPersona!.imageUrl} alt={selectedPersona!.name} className="w-32 h-32 rounded-full object-cover border-4 border-white shadow-md mb-6 transition-all group-hover:brightness-75" referrerPolicy="no-referrer" crossOrigin="anonymous" />
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity mb-6">
-                  <Eye className="w-8 h-8 text-white" />
-                </div>
-              </div>
-              {canEdit && (
-                <button 
-                  onClick={() => changeAvatar(selectedPersona!.id)}
-                  className="absolute bottom-6 right-0 p-2 bg-white dark:bg-zinc-800 rounded-full shadow-lg border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:text-indigo-600 transition-all no-export"
-                  title="Change Avatar"
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between no-export print:hidden mb-4 gap-4">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setSelectedPersonaId(null)}
+                className="px-4 py-2 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 text-zinc-600 dark:text-zinc-300 rounded-xl font-bold text-sm shadow-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-all flex items-center gap-2"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Back to Personas
+              </button>
+              {canAddPersona && (
+                <button
+                  onClick={() => setIsLibraryOpen(true)}
+                  className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white rounded-xl font-bold text-sm transition-all flex items-center gap-2"
                 >
-                  <Edit3 className="w-4 h-4" />
+                  <Users className="w-4 h-4" />
+                  Library
                 </button>
               )}
             </div>
             
-            <EditableText 
-              value={selectedPersona!.name} 
-              onChange={(val) => updatePersonaField(selectedPersona!.id, 'name', val)}
-              className="text-2xl font-bold text-zinc-900 dark:text-white text-center"
-              disabled={!canEdit}
-            />
-            
-            <EditableText 
-              value={selectedPersona!.type || 'Standard Persona'} 
-              onChange={(val) => updatePersonaField(selectedPersona!.id, 'type', val)}
-              className="text-indigo-600 dark:text-indigo-400 font-bold text-sm text-center mt-2 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1 rounded-full inline-block"
-              disabled={!canEdit}
-            />
-
-            <EditableText 
-              value={selectedPersona!.role} 
-              onChange={(val) => updatePersonaField(selectedPersona!.id, 'role', val)}
-              className="text-zinc-600 dark:text-zinc-300 font-semibold text-lg text-center mt-3"
-              disabled={!canEdit}
-            />
-            
-            <div className="flex items-center justify-center gap-4 mt-1">
-              <div className="flex items-center gap-2">
-                <span className="text-zinc-500 dark:text-zinc-400">Age:</span>
-                <EditableText 
-                  value={selectedPersona!.age.toString()} 
-                  onChange={(val) => updatePersonaField(selectedPersona!.id, 'age', parseInt(val) || selectedPersona!.age)}
-                  className="text-zinc-500 dark:text-zinc-400"
-                  disabled={!canEdit}
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-zinc-500 dark:text-zinc-400">Gender:</span>
-                {canEdit ? (
-                  <select
-                    value={selectedPersona!.gender || 'Female'}
-                    onChange={(e) => updatePersonaField(selectedPersona!.id, 'gender', e.target.value)}
-                    className="bg-transparent text-zinc-500 dark:text-zinc-400 outline-none cursor-pointer hover:text-zinc-700 dark:hover:text-zinc-300"
-                  >
-                    <option value="Female">Female</option>
-                    <option value="Male">Male</option>
-                    <option value="Non-binary">Non-binary</option>
-                  </select>
-                ) : (
-                  <span className="text-zinc-500 dark:text-zinc-400">{selectedPersona!.gender || 'Not specified'}</span>
+            <div className="flex bg-zinc-100 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700">
+              <button
+                onClick={() => setActiveView('profile')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                  activeView === 'profile'
+                    ? "bg-white dark:bg-zinc-900 text-indigo-600 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
                 )}
-              </div>
-            </div>
-            
-            <div className="mt-8 text-left w-full bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
-              <Quote className="w-6 h-6 text-zinc-300 mb-2" />
-              <EditableText 
-                value={selectedPersona!.quote} 
-                onChange={(val) => updatePersonaField(selectedPersona!.id, 'quote', val)}
-                multiline
-                className="text-zinc-700 dark:text-zinc-200 italic leading-relaxed"
-                disabled={!canEdit}
-              />
+              >
+                <User className="w-4 h-4" />
+                Profile
+              </button>
+              <button
+                onClick={() => setActiveView('empathy')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                  activeView === 'empathy'
+                    ? "bg-white dark:bg-zinc-900 text-indigo-600 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                )}
+              >
+                <Heart className="w-4 h-4" />
+                Empathy Map
+              </button>
+              <button
+                onClick={() => setActiveView('context')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                  activeView === 'context'
+                    ? "bg-white dark:bg-zinc-900 text-indigo-600 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                )}
+              >
+                <BookOpen className="w-4 h-4" />
+                Context
+              </button>
             </div>
 
-            <div className="mt-8 w-full space-y-4 print:hidden">
-              <div className="flex items-center justify-between">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider flex items-center gap-1">
-                  <Sliders className="w-3 h-3" /> Demographics
-                </h4>
-                {canEdit && (
-                  <button onClick={() => setIsAddingDemographic(selectedPersona!.id)} className="text-xs text-zinc-400 hover:text-zinc-900 dark:text-white no-export">
-                    <Plus className="w-3 h-3" />
-                  </button>
-                )}
-              </div>
-              
-              {isAddingDemographic === selectedPersona!.id && (
-                <div className="flex items-center gap-2 bg-zinc-100 dark:bg-zinc-800 p-2 rounded-lg no-export">
-                  <input 
-                    type="text"
-                    value={newDemographicLabel}
-                    onChange={(e) => setNewDemographicLabel(e.target.value)}
-                    placeholder="Label..."
-                    className="flex-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded px-2 py-1 text-xs outline-none focus:border-indigo-500"
-                    autoFocus
-                    onKeyDown={(e) => e.key === 'Enter' && addDemographic(selectedPersona!.id)}
-                  />
-                  <button onClick={() => addDemographic(selectedPersona!.id)} className="text-emerald-600">
-                    <CheckCircle2 className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => setIsAddingDemographic(null)} className="text-zinc-400">
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+            {activeView === 'empathy' && canEdit && (
+              <button
+                onClick={handleGenerateEmpathyMap}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 rounded-xl text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all border border-indigo-200 dark:border-indigo-800 shadow-sm"
+              >
+                <Sparkles className="w-4 h-4" />
+                AI Refresh
+              </button>
+            )}
+          </div>
 
-              <div className="space-y-4">
-                {selectedPersona!.demographics?.map(demo => (
-                  <div key={demo.id} className="space-y-2 group/slider">
-                    <div className="flex items-center justify-between text-[11px] font-bold text-zinc-500 dark:text-zinc-400">
-                      <EditableText 
-                        value={demo.label}
-                        onChange={(val) => updateDemographicLabel(selectedPersona!.id, demo.id, val)}
-                        className="hover:text-zinc-900 dark:text-white"
-                        disabled={!canEdit}
-                      />
-                      <div className="flex items-center gap-2">
-                        <span>{demo.value}%</span>
-                        {canEdit && (
-                          <button onClick={() => removeDemographic(selectedPersona!.id, demo.id)} className="text-zinc-300 hover:text-rose-500 opacity-0 group-hover/slider:opacity-100 transition-opacity no-export">
-                            <X className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                    <div className="relative h-2 w-full rounded-lg bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500">
-                      <input 
-                        type="range" 
-                        min="0" 
-                        max="100" 
-                        value={demo.value} 
-                        onChange={(e) => updateDemographic(selectedPersona!.id, demo.id, parseInt(e.target.value))}
-                        className="absolute inset-0 w-full h-2 bg-transparent appearance-none cursor-pointer accent-white disabled:opacity-50"
-                        disabled={!canEdit}
-                      />
-                    </div>
+            {/* Header / Meta Info */}
+            <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 p-8 shadow-sm text-center md:text-left relative group mb-8">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-zinc-50 dark:border-zinc-800 shadow-md group/img">
+                    <img 
+                      src={selectedPersona!.imageUrl} 
+                      className="w-full h-full object-cover group-hover/img:scale-110 transition-transform duration-500" 
+                      alt={selectedPersona!.name} 
+                    />
                   </div>
-                ))}
-              </div>
-
-              <div className="mt-8 pt-6 border-t border-zinc-100 dark:border-zinc-800">
-                <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-4 flex items-center gap-1">
-                  <Star className="w-3 h-3" /> Current Sentiment
-                </h4>
-                <div className="flex flex-col items-center gap-4">
-                  <div className="flex justify-between w-full px-2">
-                    {[1, 2, 3, 4, 5].map((score) => (
-                      <button
-                        key={score}
-                        onClick={() => updatePersonaField(selectedPersona!.id, 'sentiment', score)}
-                        disabled={!canEdit}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                          selectedPersona!.sentiment === score
-                            ? score <= 2 ? 'bg-rose-500 text-white shadow-md scale-110'
-                            : score === 3 ? 'bg-amber-500 text-white shadow-md scale-110'
-                            : 'bg-emerald-500 text-white shadow-md scale-110'
-                            : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700'
-                        }`}
-                      >
-                        {score}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex justify-between w-full text-[10px] font-bold text-zinc-400 uppercase tracking-wider px-1">
-                    <span>Negative</span>
-                    <span>Neutral</span>
-                    <span>Positive</span>
-                  </div>
-                  {selectedPersona!.sentiment && (
-                    <div className="mt-4 flex flex-col items-center animate-in zoom-in duration-300">
-                      {selectedPersona!.sentiment === 1 ? (
-                        <Angry className="w-16 h-16 text-rose-600" />
-                      ) : selectedPersona!.sentiment === 2 ? (
-                        <Frown className="w-16 h-16 text-rose-500" />
-                      ) : selectedPersona!.sentiment === 3 ? (
-                        <Meh className="w-16 h-16 text-amber-500" />
-                      ) : selectedPersona!.sentiment === 4 ? (
-                        <Smile className="w-16 h-16 text-emerald-500" />
-                      ) : (
-                        <Laugh className="w-16 h-16 text-emerald-600" />
-                      )}
-                      <span className="text-xs font-bold mt-2 text-zinc-500">
-                        {selectedPersona!.sentiment === 1 ? 'Angry' 
-                         : selectedPersona!.sentiment === 2 ? 'Frustrated' 
-                         : selectedPersona!.sentiment === 3 ? 'Neutral' 
-                         : selectedPersona!.sentiment === 4 ? 'Satisfied' 
-                         : 'Delighted'}
-                      </span>
-                    </div>
+                  {canEdit && (
+                    <button 
+                      onClick={() => changeAvatar(selectedPersona!.id)}
+                      className="absolute bottom-0 right-0 p-2.5 bg-white dark:bg-zinc-800 text-indigo-600 dark:text-indigo-400 rounded-full shadow-lg border border-zinc-100 dark:border-zinc-700 hover:scale-110 active:scale-95 transition-all no-export"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
                   )}
                 </div>
+                <div className="flex-1 space-y-3">
+                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
+                      <EditableText 
+                        value={selectedPersona!.name} 
+                        onChange={(val) => updatePersonaField(selectedPersona!.id, 'name', val)}
+                        className="text-3xl font-black text-zinc-900 dark:text-white"
+                        disabled={!canEdit}
+                      />
+                      <EditableText 
+                        value={selectedPersona!.type || 'Core Persona'} 
+                        onChange={(value) => updatePersonaField(selectedPersona!.id, 'type', value)}
+                        className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold border border-indigo-100 dark:border-indigo-800 shadow-sm inline-block"
+                        disabled={!canEdit}
+                      />
+                   </div>
+                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 text-zinc-500 dark:text-zinc-400 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-zinc-400" />
+                        <EditableText 
+                          value={selectedPersona!.role || 'Customer'} 
+                          onChange={(value) => updatePersonaField(selectedPersona!.id, 'role', value)}
+                          className="bg-transparent border-none outline-none p-0 inline-block text-zinc-500 dark:text-zinc-400 font-medium w-auto m-0 leading-none"
+                          disabled={!canEdit}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Calendar className="w-4 h-4 text-zinc-400" />
+                        <div className="flex items-center">
+                          <EditableText 
+                            value={selectedPersona!.age?.toString() || '30'} 
+                            onChange={(value) => updatePersonaField(selectedPersona!.id, 'age', parseInt(value) || 0)}
+                            className="bg-transparent border-none outline-none p-0 inline-block text-zinc-500 dark:text-zinc-400 font-medium w-auto m-0 leading-none text-center"
+                            disabled={!canEdit}
+                          />
+                          <span className="ml-1">Years Old</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-zinc-400" />
+                        {canEdit ? (
+                          <select 
+                            value={selectedPersona!.gender || 'Universal'} 
+                            onChange={(e) => updatePersonaField(selectedPersona!.id, 'gender', e.target.value as any)}
+                            className="bg-transparent border-none outline-none p-0 inline-block text-zinc-500 dark:text-zinc-400 font-medium w-auto m-0 leading-none cursor-pointer"
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Non-binary">Non-binary</option>
+                            <option value="Universal">Universal</option>
+                          </select>
+                        ) : (
+                          <span className="text-zinc-500 dark:text-zinc-400 font-medium">
+                            {selectedPersona!.gender || 'Universal'}
+                          </span>
+                        )}
+                      </div>
+                   </div>
+                </div>
+                <div className="flex flex-col gap-3 shrink-0 no-export w-full md:w-auto mt-6 md:mt-0">
+                   <button
+                    onClick={() => setIsInterviewOpen(true)}
+                    className="w-full px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Interview AI
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="w-full px-6 py-3 bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-xl font-bold text-sm shadow-sm transition-all text-center"
+                  >
+                    Export
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-          
-          <div className="p-8 md:w-2/3 space-y-8">
-            <div className="grid grid-cols-1 gap-8">
+
+            {activeView === 'profile' ? (
+              <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                  {/* Left Column: Personality & Metrics */}
+                  <div className="lg:col-span-4 space-y-8">
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] border-2 border-zinc-100 dark:border-zinc-800 shadow-sm space-y-8">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center gap-2">
+                       <Quote className="w-4 h-4 text-indigo-600" />
+                       Behavioral Mantra
+                    </h4>
+                    <div className="bg-zinc-50 dark:bg-zinc-800/30 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800 relative">
+                      <EditableText 
+                        value={selectedPersona!.quote} 
+                        onChange={(val) => updatePersonaField(selectedPersona!.id, 'quote', val)}
+                        multiline
+                        className="text-lg font-bold text-zinc-700 dark:text-zinc-200 italic leading-relaxed"
+                        disabled={!canEdit}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center gap-2">
+                       <Sliders className="w-4 h-4 text-indigo-600" />
+                       Market Archetype
+                    </h4>
+                    <div className="space-y-6">
+                      {selectedPersona!.demographics?.map(demo => (
+                        <div key={demo.id} className="space-y-3 group/slider">
+                          <div className="flex items-center justify-between">
+                            <EditableText 
+                              value={demo.label}
+                              onChange={(val) => updateDemographicLabel(selectedPersona!.id, demo.id, val)}
+                              className="text-[10px] font-black uppercase tracking-widest text-zinc-500 hover:text-indigo-600"
+                              disabled={!canEdit}
+                            />
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-indigo-600">{demo.value}%</span>
+                              {canEdit && (
+                                <button onClick={() => removeDemographic(selectedPersona!.id, demo.id)} className="text-zinc-300 hover:text-rose-500 opacity-0 group-hover/slider:opacity-100 transition-opacity no-export">
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="relative h-3 w-full rounded-2xl bg-zinc-100 dark:bg-zinc-800 p-0.5 border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${demo.value}%` }}
+                              className="h-full bg-indigo-600 rounded-3xl shadow-sm"
+                            />
+                            <input 
+                              type="range" 
+                              min="0" 
+                              max="100" 
+                              value={demo.value} 
+                              onChange={(e) => updateDemographic(selectedPersona!.id, demo.id, parseInt(e.target.value))}
+                              className="absolute inset-0 w-full h-full bg-transparent appearance-none cursor-pointer accent-white opacity-0"
+                              disabled={!canEdit}
+                            />
+                          </div>
+                        </div>
+                      ))}
+                      {canEdit && (
+                        isAddingDemographic === selectedPersona!.id ? (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="text"
+                              value={newDemographicLabel}
+                              onChange={(e) => setNewDemographicLabel(e.target.value)}
+                              placeholder="e.g. Technical Skill"
+                              className="flex-1 bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') addDemographic(selectedPersona!.id);
+                                if (e.key === 'Escape') setIsAddingDemographic(null);
+                              }}
+                              autoFocus
+                            />
+                            <button
+                              onClick={() => addDemographic(selectedPersona!.id)}
+                              className="p-2 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
+                            >
+                              <CheckCircle2 className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => setIsAddingDemographic(null)}
+                              className="p-2 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-zinc-900 dark:hover:text-white rounded-xl transition-colors"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          </div>
+                        ) : (
+                          <button 
+                            onClick={() => setIsAddingDemographic(selectedPersona!.id)}
+                            className="w-full py-3 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-2xl text-zinc-400 hover:text-indigo-600 hover:border-indigo-600 transition-all text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 no-export"
+                          >
+                            <Plus className="w-3 h-3" /> Add Slider
+                          </button>
+                        )
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-8 border-t border-zinc-50 dark:border-zinc-800">
+                    <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center gap-2">
+                       <TrendingUp className="w-4 h-4 text-indigo-600" />
+                       Experience Sentiment
+                    </h4>
+                    <div className="grid grid-cols-5 gap-3">
+                      {[1, 2, 3, 4, 5].map((score) => (
+                        <button
+                          key={score}
+                          onClick={() => updatePersonaField(selectedPersona!.id, 'sentiment', score)}
+                          disabled={!canEdit}
+                          className={cn(
+                            "aspect-square rounded-2xl flex items-center justify-center text-sm font-black transition-all border-2",
+                            selectedPersona!.sentiment === score
+                              ? score <= 2 ? 'bg-rose-50 border-rose-600 text-rose-600 shadow-xl'
+                              : score === 3 ? 'bg-amber-50 border-amber-600 text-amber-600 shadow-xl'
+                              : 'bg-emerald-50 border-emerald-600 text-emerald-600 shadow-xl'
+                              : 'bg-zinc-50 dark:bg-zinc-800/50 border-transparent text-zinc-400 hover:border-zinc-200'
+                          )}
+                        >
+                          {score}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: Strategic Alignment */}
+              <div className="lg:col-span-8 space-y-8">
               <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-100">
                 <div className="flex items-center gap-2 mb-4">
                   <Target className="w-6 h-6 text-emerald-500" />
@@ -1503,7 +1677,6 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
               )}
             </div>
           </div>
-        </div>
 
         {/* User Stories */}
         <div className="bg-white dark:bg-zinc-900 p-8 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm print:shadow-none print:border-zinc-300 break-inside-avoid">
@@ -1613,6 +1786,64 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
             </div>
           </div>
         </div>
+      ) : activeView === 'empathy' ? (
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl p-8 border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all duration-500 animate-in fade-in slide-in-from-bottom-4">
+              <PersonaEmpathyMap 
+                persona={selectedPersona!} 
+                canEdit={canEdit} 
+                onChange={(empathyMap) => updatePersonaField(selectedPersona!.id, 'empathyMap', empathyMap)} 
+              />
+            </div>
+          ) : (
+            <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl border-2 border-zinc-100 dark:border-zinc-800 p-12 space-y-8 animate-in fade-in zoom-in-95 duration-500">
+               <div className="flex items-center justify-between border-b-2 border-zinc-50 dark:border-zinc-800 pb-8">
+                  <div>
+                    <h3 className="text-3xl font-black text-zinc-900 dark:text-white tracking-tight">Persona Context</h3>
+                    <p className="text-zinc-500 dark:text-zinc-400 font-bold mt-1 uppercase text-xs tracking-widest">Universal Intelligence Data</p>
+                  </div>
+                  <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600">
+                    <BookOpen className="w-8 h-8" />
+                  </div>
+               </div>
+
+               <div className="space-y-6">
+                  <div className="p-6 bg-zinc-50 dark:bg-zinc-800/30 rounded-3xl border border-zinc-200 dark:border-zinc-800">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Sparkles className="w-5 h-5 text-indigo-500" />
+                      <h4 className="font-black text-lg text-zinc-900 dark:text-white">Additional Research & Evidence</h4>
+                    </div>
+                    <p className="text-sm text-zinc-500 dark:text-zinc-400 mb-6 leading-relaxed">
+                      Add extra context to this persona by pasting interview transcripts, survey results, or specific customer feedback. This data is used by AI to refine roleplay scenarios and empathy mapping.
+                    </p>
+                    <textarea
+                      value={selectedPersona!.contextData || ''}
+                      onChange={(e) => updatePersonaField(selectedPersona!.id, 'contextData', e.target.value)}
+                      disabled={!canEdit}
+                      className="w-full px-6 py-4 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 font-medium outline-none focus:border-indigo-500 min-h-[300px] transition-all"
+                      placeholder="Paste your raw intelligence data here..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="p-8 bg-indigo-600 rounded-[2rem] text-white shadow-xl shadow-indigo-500/20 relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-16 bg-white/10 rounded-full translate-x-1/3 -translate-y-1/3 blur-2xl group-hover:scale-110 transition-transform" />
+                      <h5 className="text-xl font-bold mb-2 relative z-10">AI Integration</h5>
+                      <p className="text-indigo-100 text-sm leading-relaxed relative z-10">
+                        This context will be injected into future "Interviews with AI" to make the simulation even more accurate to real-world data points.
+                      </p>
+                    </div>
+                    <div className="p-8 bg-zinc-900 dark:bg-zinc-800 rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
+                      <div className="absolute top-0 right-0 p-16 bg-white/5 rounded-full translate-x-1/3 -translate-y-1/3 blur-2xl group-hover:scale-110 transition-transform" />
+                      <h5 className="text-xl font-bold mb-2 relative z-10">Evolve & Refine</h5>
+                      <p className="text-zinc-400 text-sm leading-relaxed relative z-10">
+                        Use the "AI Refresh" button on the Empathy Map tab after adding context data to see how the profile evolves based on your new evidence.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+        </div>
       )}
 
       <LimitReachedModal
@@ -1631,6 +1862,10 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         isOpen={isModalOpen} 
         onClose={() => setIsModalOpen(false)} 
         onSave={handleSavePersona}
+        onUseAi={() => {
+          setIsModalOpen(false);
+          setIsAiGeneratorOpen(true);
+        }}
         companyProfile={companyProfile}
       />
 
@@ -1688,95 +1923,14 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         onSelect={handleAvatarSelect}
       />
 
-      {/* Creation Wizard Selection Modal */}
-      <AnimatePresence>
-        {isCreationWizardOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white dark:bg-zinc-900 rounded-3xl w-full max-w-5xl overflow-hidden shadow-2xl border border-zinc-200 dark:border-zinc-800"
-            >
-              <div className="p-8 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                <div>
-                  <h3 className="text-2xl font-bold text-zinc-900 dark:text-white">Create New Persona</h3>
-                  <p className="text-zinc-500 dark:text-zinc-400">Choose how you'd like to build your customer profile</p>
-                </div>
-                <button onClick={() => setIsCreationWizardOpen(false)} className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-colors">
-                  <X className="w-6 h-6 text-zinc-400" />
-                </button>
-              </div>
-
-              <div className="p-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                {/* Browse Library */}
-                <button
-                  onClick={() => {
-                    if (plan === 'starter') {
-                      addToast("Persona Library is a Pro feature. Upgrade to unlock.", "info");
-                      return;
-                    }
-                    setIsLibraryOpen(true);
-                    setIsCreationWizardOpen(false);
-                  }}
-                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-indigo-600 hover:bg-indigo-50/30 transition-all group text-center"
-                >
-                  <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <BookOpen className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
-                  </div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Browse Library</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Choose from pre-built industry templates</p>
-                  {plan === 'starter' && (
-                    <span className="mt-3 px-2 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 text-[10px] font-bold rounded uppercase tracking-wider">Pro Feature</span>
-                  )}
-                </button>
-
-                {/* Use a Template */}
-                <button
-                  onClick={() => {
-                    setShowTemplates(true);
-                    setIsCreationWizardOpen(false);
-                  }}
-                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-blue-600 hover:bg-blue-50/30 transition-all group text-center"
-                >
-                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <LayoutTemplate className="w-8 h-8 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Use a Template</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Start with a structured persona framework</p>
-                </button>
-
-                {/* Create New Persona (Manual) */}
-                <button
-                  onClick={handleCreateBlankPersona}
-                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-emerald-600 hover:bg-emerald-50/30 transition-all group text-center"
-                >
-                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <User className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Create New</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Start with a blank profile and edit manually</p>
-                </button>
-
-                {/* Use AI */}
-                <button
-                  onClick={() => {
-                    setIsAiGeneratorOpen(true);
-                    setIsCreationWizardOpen(false);
-                  }}
-                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-purple-600 hover:bg-purple-50/30 transition-all group text-center"
-                >
-                  <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                    <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Use AI</h4>
-                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Generate personas from research data</p>
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {selectedPersona && (
+        <PersonaInterview
+          persona={selectedPersona}
+          isOpen={isInterviewOpen}
+          onClose={() => setIsInterviewOpen(false)}
+          isDarkMode={isDarkMode}
+        />
+      )}
 
       {selectedPersonaId && (
         <VersionHistory

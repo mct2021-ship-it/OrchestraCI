@@ -3,6 +3,7 @@ import { Users, Plus, Search, Filter, Trash2, Edit2, Globe, Building2, Mail, Tag
 import { Stakeholder, ProjectStakeholder, Project, StakeholderSentiment } from '../types';
 import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
+import { PersonaInterview } from './PersonaInterview';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
@@ -26,6 +27,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isGeneratingStrategy, setIsGeneratingStrategy] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isInterviewOpen, setIsInterviewOpen] = useState(false);
+  const [selectedInterviewer, setSelectedInterviewer] = useState<any>(null);
   const gridRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
@@ -33,15 +36,18 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     if (!gridRef.current) return;
     const rect = gridRef.current.getBoundingClientRect();
     
+    // Use the element's actual position relative to the grid container
     const x = info.point.x - rect.left;
     const y = info.point.y - rect.top;
     
-    let percentX = ((x / rect.width) * 100);
-    let percentY = ((y / rect.height) * 100);
+    const percentX = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    const percentY = Math.max(0, Math.min(100, (y / rect.height) * 100));
     
-    // Convert to 1-10 scale, accounting for 12% padding on each side to keep cards inside bounds
-    const newInterest = Math.max(1, Math.min(10, Math.round(((percentX - 12) / 76) * 9) + 1));
-    const newPower = Math.max(1, Math.min(10, 10 - Math.round(((percentY - 12) / 76) * 9)));
+    // Map percentages directly to 0-100 scale
+    // Interest is X (Left to Right)
+    // Power is Y (Bottom to Top, so 100 - percentY)
+    const newInterest = Math.round(percentX);
+    const newPower = Math.round(100 - percentY);
     
     setProjectStakeholders(prev => prev.map(s => 
       s.id === id ? { ...s, interest: newInterest, power: newPower } : s
@@ -53,8 +59,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     category: 'Operational Manager',
     organization: '',
     email: '',
-    power: 5,
-    interest: 5,
+    power: 50,
+    interest: 50,
     sentiment: 'Neutral',
     engagementStrategy: '',
     linkedItems: []
@@ -91,8 +97,8 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
     const newProjectStakeholder: ProjectStakeholder = {
       ...global,
       projectId: project.id,
-      power: 5,
-      interest: 5,
+      power: 50,
+      interest: 50,
       sentiment: 'Neutral',
       sentimentHistory: [{ date: new Date().toISOString(), sentiment: 'Neutral', note: 'Added to project' }],
       engagementStrategy: '',
@@ -204,9 +210,9 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
   const gridStakeholders = useMemo(() => {
     return projectStakeholders.map(s => ({
       ...s,
-      // Map 1-10 scale to 12-88% for positioning to keep cards inside bounds and avoid labels
-      x: 12 + (((s.interest - 1) / 9) * 76),
-      y: 88 - (((s.power - 1) / 9) * 76)
+      // Map 0-100 scale to 5-95% for positioning to keep cards essentially inside but allow full range
+      x: 5 + ((s.interest / 100) * 90),
+      y: 95 - ((s.power / 100) * 90)
     }));
   }, [projectStakeholders]);
 
@@ -237,7 +243,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
             onClick={() => {
               setIsAdding(true);
               setEditingId(null);
-              setFormData({ name: '', category: 'Operational Manager', organization: '', email: '', power: 5, interest: 5, sentiment: 'Neutral', engagementStrategy: '', linkedItems: [] });
+              setFormData({ name: '', category: 'Operational Manager', organization: '', email: '', power: 50, interest: 50, sentiment: 'Neutral', engagementStrategy: '', linkedItems: [] });
             }}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
           >
@@ -373,8 +379,30 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                     )} />
                     <h4 className="font-bold text-sm truncate">{s.name}</h4>
                   </div>
-                  <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">
-                    P:{s.power} I:{s.interest}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedInterviewer({
+                          id: s.id,
+                          name: s.name,
+                          role: s.category,
+                          about: s.about,
+                          power: s.power,
+                          interest: s.interest,
+                          engagementStrategy: s.engagementStrategy,
+                          imageUrl: `https://api.dicebear.com/7.x/avataaars/svg?seed=${s.name}`
+                        });
+                        setIsInterviewOpen(true);
+                      }}
+                      className="p-1.5 text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+                      title="Interview Stakeholder with AI"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </button>
+                    <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-tighter">
+                      P:{s.power} I:{s.interest}
+                    </div>
                   </div>
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 truncate mb-3">{s.category}</p>
@@ -493,36 +521,36 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
                   </div>
                   
                   <div className="space-y-4">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Power</label>
-                        <span className="text-xs font-bold text-indigo-600">{formData.power}</span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Power</label>
+                          <span className="text-xs font-bold text-indigo-600">{formData.power}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={formData.power}
+                          onChange={(e) => setFormData({ ...formData, power: parseInt(e.target.value) })}
+                          className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min="1"
-                        max="10"
-                        step="1"
-                        value={formData.power}
-                        onChange={(e) => setFormData({ ...formData, power: parseInt(e.target.value) })}
-                        className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Interest</label>
-                        <span className="text-xs font-bold text-indigo-600">{formData.interest}</span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <label className="text-sm font-bold text-zinc-700 dark:text-zinc-300">Interest</label>
+                          <span className="text-xs font-bold text-indigo-600">{formData.interest}</span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0"
+                          max="100"
+                          step="1"
+                          value={formData.interest}
+                          onChange={(e) => setFormData({ ...formData, interest: parseInt(e.target.value) })}
+                          className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                        />
                       </div>
-                      <input
-                        type="range"
-                        min="1"
-                        max="10"
-                        step="1"
-                        value={formData.interest}
-                        onChange={(e) => setFormData({ ...formData, interest: parseInt(e.target.value) })}
-                        className="w-full h-2 bg-zinc-200 dark:bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                      />
-                    </div>
                   </div>
 
                   <div className="space-y-2">
@@ -636,6 +664,19 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
           </div>
         )}
       </AnimatePresence>
+      {/* AI Interview Modal */}
+      {isInterviewOpen && selectedInterviewer && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <PersonaInterview 
+            persona={selectedInterviewer}
+            isOpen={isInterviewOpen}
+            onClose={() => {
+              setIsInterviewOpen(false);
+              setSelectedInterviewer(null);
+            }}
+          />
+        </div>
+      )}
     </div>
   );
 }

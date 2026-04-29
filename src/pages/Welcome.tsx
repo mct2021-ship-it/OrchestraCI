@@ -14,7 +14,9 @@ export function Welcome({
   companyProfile, 
   personas = [], 
   projects = [],
-  signals = []
+  signals = [],
+  activeModule,
+  setActiveModule
 }: { 
   onNavigate: (tab: string, subTab?: string) => void, 
   onSelectProject: (id: string) => void, 
@@ -22,329 +24,219 @@ export function Welcome({
   companyProfile?: CompanyProfile, 
   personas?: Persona[], 
   projects?: Project[],
-  signals?: IntelligenceSignal[]
+  signals?: IntelligenceSignal[],
+  activeModule: string,
+  setActiveModule: (module: any) => void
 }) {
   const name = userName || "there";
   const controls = useAnimation();
-  const [scrollX, setScrollX] = useState(0);
-
+  
   const hasCompanyInfo = companyProfile && companyProfile.name && companyProfile.name.trim() !== '';
   const hasPersonas = personas && personas.some(p => !mockPersonas.find(mp => mp.id === p.id));
   const hasProjects = projects && projects.some(p => !mockProjects.find(mp => mp.id === p.id));
-  const hasSignals = signals && signals.length > 3; // Mock signals are 3
+  const hasSignals = signals && signals.length > 5; // Assuming mock signals total is roughly 3-5
 
-  const handleScrollClick = () => {
-    const newX = scrollX - 350;
-    setScrollX(newX);
-    controls.start({ x: newX });
-  };
-
-  const globalFeatures = [
-    { 
-      id: 'taxonomy', 
-      label: 'Global Taxonomy', 
-      icon: Tags, 
-      description: 'Standardize your language and data structures across the entire organization.',
-      details: 'Ensure consistency in how you define products, services, and customer interactions.',
-      color: 'bg-emerald-500'
+  const launchpads = [
+    {
+      id: 'intelligence',
+      title: 'Intelligence',
+      icon: BrainCircuit,
+      description: 'AI-driven synthesis of signals, reviews, and strategic opportunities.',
+      color: 'from-indigo-600 to-purple-600',
+      iconColor: 'text-indigo-400',
+      defaultTab: 'intelligence',
+      metrics: `${signals.length} Active Signals`
     },
-    { 
-      id: 'personas', 
-      label: 'User Personas', 
-      icon: Users, 
-      description: 'Create research-based profiles to represent your target audience.',
-      details: 'Understand who your customers are, what they need, and what drives their behavior.',
-      color: 'bg-blue-500'
+    {
+      id: 'customers',
+      title: 'Customers',
+      icon: Users,
+      description: 'Research-backed personas and stakeholder ecosystems.',
+      color: 'from-emerald-600 to-teal-600',
+      iconColor: 'text-emerald-400',
+      defaultTab: 'personas',
+      metrics: `${personas.length} Persona Profiles`
     },
-    { 
-      id: 'intelligence', 
-      label: 'Intelligence Hub', 
-      icon: BrainCircuit, 
-      description: 'AI-powered synthesis of customer reviews, tickets, and strategic signals.',
-      details: 'Connect data sources like Zendesk and Trustpilot to automatically generate personas, identify friction, and build evidence-based roadmaps.',
-      color: 'bg-indigo-500'
-    },
-    { 
-      id: 'dashboard', 
-      label: 'Dashboard', 
-      icon: LayoutDashboard, 
-      description: 'Get a high-level view of your CX performance and project status.',
-      details: 'Track key metrics, recent activity, and overall health of your customer experience initiatives.',
-      color: 'bg-violet-500'
-    }
-  ];
-
-  const projectFeatures = [
-    { 
-      id: 'stakeholder_mapping', 
-      label: 'Stakeholder Mapping', 
-      icon: Users, 
-      description: 'Identify and analyze key stakeholders for your projects.',
-      details: 'Map influence and interest to develop effective engagement strategies.',
-      color: 'bg-cyan-500'
-    },
-    { 
-      id: 'team', 
-      label: 'Project Teams', 
-      icon: UsersRound, 
-      description: 'Collaborate with cross-functional teams on specific CX initiatives.',
-      details: 'Assign roles, track contributions, and ensure the right people are involved.',
-      color: 'bg-orange-500'
-    },
-    { 
-      id: 'journeys', 
-      label: 'Journey Maps', 
-      icon: Map, 
-      description: 'Design, analyze, and optimize customer pathways from awareness to advocacy.',
-      details: 'Visualize emotional peaks and valleys, identify friction points, and map cross-functional ownership.',
-      color: 'bg-amber-500'
-    },
-    { 
-      id: 'kanban', 
-      label: 'Kanban Boards', 
-      icon: KanbanSquare, 
-      description: 'Manage tasks and workflows visually to ensure timely delivery.',
-      details: 'Track progress from backlog to done, identifying bottlenecks and optimizing flow.',
-      color: 'bg-rose-500'
-    },
-    { 
-      id: 'raid', 
-      label: 'RAID Logs', 
-      icon: ShieldAlert, 
-      description: 'Track Risks, Assumptions, Issues, and Dependencies.',
-      details: 'Proactively manage project risks and ensure nothing falls through the cracks.',
-      color: 'bg-red-500'
-    },
-    { 
-      id: 'process_maps', 
-      label: 'Process Maps', 
-      icon: GitMerge, 
-      description: 'Align internal operations with the customer experience.',
-      details: 'Bridge the gap between what the customer sees and how your back-office systems function.',
-      color: 'bg-teal-500'
+    {
+      id: 'projects',
+      title: 'Projects',
+      icon: Briefcase,
+      description: 'Strategic roadmap execution, journey maps, and Kanban boards.',
+      color: 'from-amber-600 to-orange-600',
+      iconColor: 'text-amber-400',
+      defaultTab: 'project_dashboard',
+      metrics: `${projects.length} Management Hubs`
     }
   ];
 
   return (
-    <div className="p-4 sm:p-8 max-w-6xl mx-auto space-y-16 pb-24 transition-colors duration-300">
+    <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-16 pb-24 transition-colors duration-300">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center space-y-6 py-12"
+        className="text-center space-y-6 pt-12 pb-6"
       >
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-full text-sm font-bold mb-4 border border-indigo-100 dark:border-indigo-800">
           <Sparkles className="w-4 h-4" />
           Orchestra CI
         </div>
-        <h1 className="text-4xl md:text-6xl font-black text-zinc-900 dark:text-white tracking-tight leading-tight">
+        <h1 className="text-4xl md:text-6xl font-black text-zinc-900 dark:text-white tracking-tight leading-tight font-sans">
           Hello, <span className="text-indigo-600 dark:text-indigo-400">{name}</span>.<br />
-          Welcome to the future of customer centric transformation.
+          Where would you like to focus today?
         </h1>
-        <p className="text-xl text-zinc-500 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
-          The central hub for orchestrating world-class customer experiences through data-driven intelligence, personas, and journey maps.
-        </p>
       </motion.div>
 
-      <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.2 }}
-        className="bg-zinc-900 rounded-[2rem] md:rounded-[3rem] p-8 md:p-12 text-white relative overflow-hidden shadow-2xl"
-      >
-        <div className="absolute top-0 right-0 p-32 bg-indigo-500/20 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl" />
-        <div className="absolute bottom-0 left-0 p-24 bg-emerald-500/10 rounded-full -translate-x-1/2 translate-y-1/2 blur-3xl" />
+      {(!hasCompanyInfo || (hasCompanyInfo && !hasPersonas) || (hasCompanyInfo && hasPersonas && !hasProjects)) && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="mx-4 overflow-hidden relative group"
+        >
+          <div className="relative bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-8 shadow-xl">
+            <div className="flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+              <div className="w-16 h-16 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                {!hasCompanyInfo ? <Building2 className="w-8 h-8" /> : !hasPersonas ? <Users className="w-8 h-8" /> : <Briefcase className="w-8 h-8" />}
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-2xl font-black text-zinc-900 dark:text-white font-sans italic uppercase tracking-tight">
+                  {!hasCompanyInfo ? "Set-up your company information" : !hasPersonas ? "Create Customer Personas" : "Launch Your First Initiative"}
+                </h3>
+                <p className="text-zinc-500 dark:text-zinc-400 max-w-md">
+                  {!hasCompanyInfo 
+                    ? "Establish your company profile to enable AI-powered insights and standardized reporting."
+                    : !hasPersonas 
+                      ? "Create research-based personas to better understand your target audience and map their needs."
+                      : "Start your first project to begin mapping customer journeys and managing strategic initiatives."}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                if (!hasCompanyInfo) {
+                  onNavigate('intelligence', 'edit-company');
+                } else if (!hasPersonas) {
+                  onNavigate('personas', 'new');
+                } else {
+                  setActiveModule('projects');
+                  onNavigate('projects', 'new');
+                }
+              }}
+              className="px-8 py-4 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-2xl font-black uppercase italic tracking-tighter hover:bg-indigo-600 dark:hover:bg-indigo-400 transition-all flex items-center gap-2 group/btn shadow-lg"
+            >
+              {!hasCompanyInfo ? "Setup Profile" : !hasPersonas ? "Create Persona" : "Start Project"}
+              <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 px-4">
+        {launchpads.map((lp, idx) => (
+          <motion.div
+            key={lp.id}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ delay: idx * 0.1 }}
+            onClick={() => {
+              setActiveModule(lp.id);
+              onNavigate(lp.defaultTab);
+            }}
+            className="group relative cursor-pointer"
+          >
+            <div className={cn(
+              "absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500 rounded-3xl blur-2xl",
+              lp.color
+            )} />
+            <div className="relative bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 p-8 flex flex-col h-full shadow-xl transition-transform group-hover:-translate-y-2">
+              <div className={cn(
+                "w-16 h-16 rounded-2xl bg-zinc-50 dark:bg-zinc-800 flex items-center justify-center mb-8 border border-zinc-100 dark:border-zinc-700 transition-all group-hover:scale-110",
+                lp.iconColor
+              )}>
+                <lp.icon className="w-8 h-8" />
+              </div>
+              <h3 className="text-3xl font-black text-zinc-900 dark:text-white mb-4 italic uppercase tracking-tighter font-sans">
+                {lp.title}
+              </h3>
+              <p className="text-zinc-500 dark:text-zinc-400 leading-relaxed mb-12 flex-1">
+                {lp.description}
+              </p>
+              <div className="flex items-center justify-between mt-auto">
+                <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">
+                  {lp.metrics}
+                </span>
+                <div className="w-10 h-10 rounded-full bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 flex items-center justify-center transition-transform group-hover:rotate-45 group-hover:bg-indigo-600 dark:group-hover:bg-indigo-400 group-hover:text-white">
+                  <ArrowRight className="w-5 h-5" />
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        ))}
+      </div>
+
+      {/* Quick Access or Recently Active Projects section */}
+      <div className="pt-12 px-4">
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
+              <Briefcase className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h2 className="text-2xl font-black text-zinc-900 dark:text-white uppercase tracking-tight italic font-sans">Jump Back In</h2>
+          </div>
+          <button 
+            onClick={() => {
+              setActiveModule('projects');
+              onNavigate('projects');
+            }}
+            className="text-sm font-bold text-indigo-600 hover:text-indigo-500 transition-colors font-sans"
+          >
+            View all projects
+          </button>
+        </div>
         
-        <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
-          <div className="space-y-6 text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-bold uppercase tracking-widest text-indigo-300">
-              Get Started
-            </div>
-            <h3 className="text-4xl font-bold tracking-tight">Your Onboarding Checklist</h3>
-            <p className="text-zinc-400 text-lg max-w-md leading-relaxed mb-8">
-              Complete these key steps to unlock the full potential of Orchestra CI and start your customer-centric transformation.
-            </p>
-            
-            <div className="space-y-4 w-full max-w-lg">
-              {/* Step 1: Company Info */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={cn("p-3 rounded-xl", hasCompanyInfo ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-400")}>
-                    <Building2 className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white">Setup company information</h4>
-                    <p className="text-sm text-zinc-400">Establish your profile for AI insights</p>
-                  </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {projects.slice(0, 3).map((project, idx) => (
+            <motion.div
+              key={project.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 + (idx * 0.1) }}
+              onClick={() => {
+                onSelectProject(project.id);
+                setActiveModule('projects');
+                onNavigate('project_detail');
+              }}
+              className="p-6 rounded-3xl bg-zinc-50 dark:bg-zinc-900/50 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-300 dark:hover:border-indigo-500 transition-all cursor-pointer group"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="p-3 bg-white dark:bg-zinc-800 rounded-2xl shadow-sm border border-zinc-100 dark:border-zinc-700">
+                  <Building2 className="w-6 h-6 text-indigo-600" />
                 </div>
-                <button
-                  onClick={() => !hasCompanyInfo && onNavigate('intelligence', 'edit-company')}
-                  className={cn(
-                    "px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2",
-                    hasCompanyInfo 
-                      ? "bg-emerald-500/20 text-emerald-400 cursor-default" 
-                      : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg"
-                  )}
-                >
-                  {hasCompanyInfo ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Completed
-                    </>
-                  ) : (
-                    "Start"
-                  )}
-                </button>
-              </div>
-
-              {/* Step 2: First Persona */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={cn("p-3 rounded-xl", hasPersonas ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-400")}>
-                    <Users className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white">Create your First Persona</h4>
-                    <p className="text-sm text-zinc-400">Understand your target audience</p>
-                  </div>
+                <div className={cn(
+                  "px-2 py-1 rounded text-[8px] font-black uppercase tracking-widest",
+                  project.status === 'Deliver' ? "bg-emerald-100 text-emerald-700" : "bg-indigo-100 text-indigo-700"
+                )}>
+                  {project.status}
                 </div>
-                <button
-                  onClick={() => !hasPersonas && onNavigate('personas', 'new')}
-                  className={cn(
-                    "px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2",
-                    hasPersonas 
-                      ? "bg-emerald-500/20 text-emerald-400 cursor-default" 
-                      : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg"
-                  )}
-                >
-                  {hasPersonas ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Completed
-                    </>
-                  ) : (
-                    "Start"
-                  )}
-                </button>
               </div>
-
-              {/* Step 3: First Project */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={cn("p-3 rounded-xl", hasProjects ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-400")}>
-                    <Briefcase className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white">Create your first project</h4>
-                    <p className="text-sm text-zinc-400">Start building customer experiences</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => !hasProjects && onNavigate('projects', 'new')}
-                  className={cn(
-                    "px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2",
-                    hasProjects 
-                      ? "bg-emerald-500/20 text-emerald-400 cursor-default" 
-                      : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg"
-                  )}
-                >
-                  {hasProjects ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Completed
-                    </>
-                  ) : (
-                    "Start"
-                  )}
-                </button>
-              </div>
-
-              {/* Step 4: Intelligence Source */}
-              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className={cn("p-3 rounded-xl", hasSignals ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-400")}>
-                    <BrainCircuit className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-white">Connect Intelligence sources</h4>
-                    <p className="text-sm text-zinc-400">Sync real-world reviews and feedback</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => !hasSignals && onNavigate('intelligence', 'connectors')}
-                  className={cn(
-                    "px-6 py-2 rounded-xl font-bold text-sm transition-all flex items-center gap-2",
-                    hasSignals 
-                      ? "bg-emerald-500/20 text-emerald-400 cursor-default" 
-                      : "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg"
-                  )}
-                >
-                  {hasSignals ? (
-                    <>
-                      <Check className="w-4 h-4" />
-                      Completed
-                    </>
-                  ) : (
-                    "Start"
-                  )}
-                </button>
-              </div>
+              <h4 className="font-bold text-zinc-900 dark:text-white mb-2 group-hover:text-indigo-600 transition-colors">{project.name}</h4>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">{project.description}</p>
+            </motion.div>
+          ))}
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.7 }}
+            onClick={() => {
+              setActiveModule('projects');
+              onNavigate('projects', 'new');
+            }}
+            className="p-6 rounded-3xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center gap-3 text-zinc-400 hover:border-indigo-300 hover:text-indigo-500 transition-all group"
+          >
+            <div className="w-12 h-12 rounded-full border-2 border-dashed border-current flex items-center justify-center group-hover:scale-110 transition-transform">
+              <Plus className="w-6 h-6" />
             </div>
-          </div>
-          <div className="hidden lg:block relative">
-            <div className="w-64 h-64 bg-indigo-600/20 rounded-full animate-pulse blur-2xl absolute inset-0" />
-            <div className="relative w-64 h-64 bg-zinc-800 rounded-3xl border border-white/10 shadow-2xl rotate-3 hover:rotate-0 transition-transform duration-500 flex items-center justify-center overflow-hidden">
-              <Logo className="w-full h-full opacity-80 rounded-3xl" svgClassName="w-full h-auto px-4" />
-              <div className="absolute -top-4 -right-4 bg-indigo-500 p-4 rounded-2xl shadow-lg -rotate-12 z-10">
-                <Sparkles className="w-8 h-8 text-white" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </motion.div>
-
-      <div className="space-y-12">
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 px-4">
-            <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-              <Info className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-            </div>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Global Features</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 px-4">
-            {globalFeatures.map((feature, idx) => (
-              <motion.div
-                key={feature.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <FlipCard feature={feature} index={idx} onNavigate={onNavigate} />
-              </motion.div>
-            ))}
-          </div>
-        </div>
-
-        <div className="space-y-6">
-          <div className="flex items-center gap-3 px-4">
-            <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-              <LayoutDashboard className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
-            </div>
-            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white">Project Features</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 px-4">
-            {projectFeatures.map((feature, idx) => (
-              <motion.div
-                key={feature.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: (idx + 3) * 0.1 }}
-              >
-                <FlipCard feature={feature} index={idx + 3} onNavigate={onNavigate} />
-              </motion.div>
-            ))}
-          </div>
+            <span className="text-sm font-bold">Launch New Project</span>
+          </motion.button>
         </div>
       </div>
     </div>

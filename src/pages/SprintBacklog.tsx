@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Calendar, 
@@ -17,17 +17,20 @@ import {
   Download,
   MoreVertical,
   LayoutList,
+  LayoutGrid,
   Sparkles,
   ChevronDown,
   ChevronUp,
   GripVertical,
   Trash2,
   Edit3,
-  User as UserIcon
+  X,
+  User as UserIcon,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Project, Sprint, Task, User } from '../types';
 import { CompanyProfile } from '../components/YourCompany';
-import { cn, formatDate } from '../lib/utils';
+import { cn, formatDate, fixOklch } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { stripPIData } from '../lib/piStripper';
 import { v4 as uuidv4 } from 'uuid';
@@ -35,6 +38,8 @@ import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea
 import { TaskModal } from '../components/TaskModal';
 import { useToast } from '../context/ToastContext';
 import { ThinkingLevel } from "@google/genai";
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
 
 interface SprintBacklogProps {
   projects: Project[];
@@ -50,6 +55,14 @@ interface SprintBacklogProps {
   onNavigate: (tab: string, subTab?: string) => void;
   companyProfile?: CompanyProfile;
 }
+
+const moscowCategories = [
+  { id: 'Must', label: 'Must Have', description: 'Critical to the current delivery time box to be a success.' },
+  { id: 'Should', label: 'Should Have', description: 'Important but not vital. May be painful to leave out.' },
+  { id: 'Could', label: 'Could Have', description: 'Desirable but not necessary. "Nice to have".' },
+  { id: 'Wont', label: 'Won\'t Have', description: 'Agreed as out of scope for this particular time box.' },
+  { id: 'Unassigned', label: 'Unassigned', description: 'Items yet to be prioritized using MoSCoW.' }
+];
 
 export function SprintBacklog({ 
   projects, 
@@ -74,6 +87,9 @@ export function SprintBacklog({
   const [selectedTasks, setSelectedTasks] = useState<string[]>([]);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isPrioritizing, setIsPrioritizing] = useState(false);
+  const [isPrioritizeModalOpen, setIsPrioritizeModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
   const { addToast } = useToast();
 
   const [isAddingSprint, setIsAddingSprint] = useState(false);
@@ -172,6 +188,16 @@ export function SprintBacklog({
       const projectId = activeProject?.id || projects[0]?.id;
       handleAddSprint(undefined, [draggableId], { name: sprintName, projectId });
     }
+
+    // MoSCoW Prioritization
+    const moscowValues = ['Must', 'Should', 'Could', 'Wont', 'Unassigned'];
+    if (moscowValues.includes(destination.droppableId)) {
+      const newMoscow = destination.droppableId === 'Unassigned' ? undefined : destination.droppableId;
+      setTasks(prev => prev.map(t => 
+        t.id === draggableId ? { ...t, moscow: newMoscow as any } : t
+      ));
+      addToast(`Task prioritized as ${destination.droppableId}`, 'success');
+    }
   };
 
   const handleAddTaskToSprint = (sprintId: string, taskId: string) => {
@@ -187,7 +213,7 @@ export function SprintBacklog({
 
     setTasks(prev => prev.map(t => {
       if (t.id === taskId) {
-        return { ...t, sprint: sprintId, kanbanStatus: 'In Progress' };
+        return { ...t, sprint: sprintId, kanbanStatus: 'Not Started' };
       }
       return t;
     }));
@@ -298,6 +324,70 @@ export function SprintBacklog({
     return tasks.filter(t => sprint.tasks?.includes(t.id));
   };
 
+  const handleExportReportImage = async () => {
+    if (!reportRef.current || isExporting) return;
+    
+    setIsExporting(true);
+    try {
+      addToast('Generating image...', 'info');
+      const canvas = await html2canvas(reportRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+      
+      const link = document.createElement('a');
+      link.download = `Sprint_Report_${selectedSprint?.name.replace(/\s+/g, '_')}.png`;
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      addToast('Image exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating image:', error);
+      addToast('Failed to export image', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportReportPDF = async () => {
+    if (!reportRef.current || isExporting) return;
+
+    setIsExporting(true);
+    try {
+      addToast('Generating PDF...', 'info');
+      const canvas = await html2canvas(reportRef.current, {
+        useCORS: true,
+        scale: 2,
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#18181b' : '#ffffff',
+        onclone: (clonedDoc) => {
+          fixOklch(clonedDoc);
+        }
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const imgWidth = canvas.width / 2;
+      const imgHeight = canvas.height / 2;
+      
+      const pdf = new jsPDF({
+        orientation: imgWidth > imgHeight ? 'landscape' : 'portrait',
+        unit: 'px',
+        format: [imgWidth, imgHeight]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`Sprint_Report_${selectedSprint?.name.replace(/\s+/g, '_')}.pdf`);
+      addToast('PDF exported successfully', 'success');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      addToast('Failed to export PDF', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleGenerateReport = async (sprint: Sprint) => {
     setIsGeneratingReport(true);
     try {
@@ -329,9 +419,10 @@ export function SprintBacklog({
   };
 
   return (
-    <div className="flex-1 overflow-y-auto bg-zinc-50 dark:bg-[#09090b] p-8">
-      <div className="max-w-7xl mx-auto space-y-8">
-        {/* Header */}
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div className="flex-1 overflow-y-auto bg-zinc-50 dark:bg-[#09090b] p-8">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Header */}
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-3 text-indigo-600 dark:text-indigo-400">
@@ -376,8 +467,7 @@ export function SprintBacklog({
           </div>
         </div>
 
-        <DragDropContext onDragEnd={onDragEnd}>
-          {/* Backlog Section */}
+        {/* Backlog Section */}
           <div className="bg-white dark:bg-zinc-900 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 overflow-hidden shadow-sm">
             <div 
               className="p-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800/50 transition-colors"
@@ -424,6 +514,16 @@ export function SprintBacklog({
                     </select>
                   </div>
                 )}
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsPrioritizeModalOpen(true);
+                  }}
+                  className="p-2 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700 rounded-xl hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-all flex items-center gap-2 px-4 shadow-sm"
+                >
+                  <LayoutGrid className="w-4 h-4 text-indigo-500" />
+                  <span className="text-xs font-bold font-sans italic uppercase tracking-tight">Prioritize Backlog</span>
+                </button>
                 <button 
                   onClick={(e) => {
                     e.stopPropagation();
@@ -666,7 +766,6 @@ export function SprintBacklog({
               </Droppable>
             </div>
           </div>
-        </DragDropContext>
       </div>
 
       {/* Modals */}
@@ -889,7 +988,7 @@ export function SprintBacklog({
                         </button>
                       )}
                     </div>
-                    <div className="p-6 max-h-[400px] overflow-y-auto">
+                    <div ref={reportRef} className="p-6 max-h-[600px] overflow-y-auto">
                       {isGeneratingReport ? (
                         <div className="flex flex-col items-center justify-center py-12 gap-4">
                           <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
@@ -903,9 +1002,35 @@ export function SprintBacklog({
                         <div className="text-center py-12">
                           <FileText className="w-12 h-12 text-zinc-200 mx-auto mb-4" />
                           <p className="text-sm text-zinc-500">No report generated yet.</p>
+                          <button 
+                            onClick={() => handleGenerateReport(selectedSprint)}
+                            className="mt-4 text-xs font-bold text-indigo-600 hover:underline"
+                          >
+                            Generate AI Report
+                          </button>
                         </div>
                       )}
                     </div>
+                    {selectedSprint.report && (
+                      <div className="p-4 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-100 dark:border-zinc-800 flex gap-2">
+                        <button 
+                          onClick={handleExportReportImage}
+                          disabled={isExporting}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all disabled:opacity-50"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                          PNG
+                        </button>
+                        <button 
+                          onClick={handleExportReportPDF}
+                          disabled={isExporting}
+                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 transition-all disabled:opacity-50"
+                        >
+                          <Download className="w-4 h-4" />
+                          PDF
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -934,6 +1059,143 @@ export function SprintBacklog({
           onAddTeamMember={onAddTeamMember}
         />
       )}
-    </div>
+
+      {/* MoSCoW Prioritization Modal */}
+      <AnimatePresence>
+        {isPrioritizeModalOpen && (
+          <div className="fixed inset-0 bg-zinc-950/90 backdrop-blur-md z-[100] flex flex-col p-4 md:p-10 overflow-hidden">
+            <motion.div
+              initial={{ opacity: 0, y: 40, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 40, scale: 0.95 }}
+              className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl flex flex-col h-full border border-zinc-200 dark:border-zinc-800 overflow-hidden"
+            >
+              {/* Modal Header */}
+              <div className="p-10 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
+                <div className="flex items-center gap-6">
+                  <div className="w-16 h-16 rounded-[1.5rem] bg-indigo-600 text-white flex items-center justify-center shadow-2xl shadow-indigo-500/40 transform -rotate-2">
+                    <LayoutGrid className="w-8 h-8" />
+                  </div>
+                  <div>
+                    <h2 className="text-4xl font-black text-zinc-900 dark:text-white uppercase italic tracking-tighter leading-none">Prioritize Backlog</h2>
+                    <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg mt-1 tracking-tight">Define project scope using MoSCoW buckets.</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setIsPrioritizeModalOpen(false)}
+                  className="w-14 h-14 rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 flex items-center justify-center text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition-all shadow-lg hover:rotate-90"
+                >
+                  <X className="w-8 h-8" />
+                </button>
+              </div>
+
+              {/* Modal Content */}
+              <div className="flex-1 overflow-y-auto">
+                <div className="p-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                  {moscowCategories.map(category => {
+                    const categoryTasks = backlogTasks.filter(t => 
+                      category.id === 'Unassigned' 
+                        ? !t.moscow
+                        : t.moscow === category.id
+                    );
+                    
+                    return (
+                      <div key={category.id} className="flex flex-col h-full min-h-[500px] bg-zinc-50 dark:bg-zinc-900/30 rounded-[2rem] border border-zinc-200 dark:border-zinc-800 shadow-inner">
+                        <div className={cn(
+                          "p-6 border-b border-zinc-200 dark:border-zinc-800 flex flex-col gap-1 rounded-t-[2rem]",
+                          category.id === 'Must' ? "bg-rose-500/10" :
+                          category.id === 'Should' ? "bg-amber-500/10" :
+                          category.id === 'Could' ? "bg-emerald-500/10" :
+                          "bg-white dark:bg-zinc-900"
+                        )}>
+                          <div className="flex items-center justify-between">
+                            <h3 className="text-lg font-black uppercase italic tracking-wider text-zinc-900 dark:text-white">{category.label}</h3>
+                            <span className="px-3 py-1.5 bg-white dark:bg-zinc-800 rounded-xl text-xs font-black shadow-lg text-zinc-900 dark:text-white border border-zinc-200 dark:border-zinc-700">
+                              {categoryTasks.length}
+                            </span>
+                          </div>
+                          <p className="text-[11px] font-bold text-zinc-500 dark:text-zinc-400 uppercase tracking-widest leading-none mt-1">{category.description}</p>
+                        </div>
+                        
+                        <Droppable droppableId={category.id}>
+                          {(provided, snapshot) => (
+                            <div 
+                              ref={provided.innerRef}
+                              {...provided.droppableProps}
+                              className={cn(
+                                "flex-1 p-6 space-y-4 overflow-y-auto min-h-[400px] transition-colors custom-scrollbar",
+                                snapshot.isDraggingOver ? "bg-indigo-50/50 dark:bg-indigo-900/10" : ""
+                              )}
+                            >
+                              {categoryTasks.map((task, index) => (
+                                <Draggable key={task.id} draggableId={task.id} index={index}>
+                                  {(provided, snapshot) => (
+                                    <div 
+                                      ref={provided.innerRef}
+                                      {...provided.draggableProps}
+                                      {...provided.dragHandleProps}
+                                      className={cn(
+                                        "bg-white dark:bg-zinc-900 p-6 rounded-2xl border shadow-sm group transition-all",
+                                        snapshot.isDragging 
+                                          ? "border-indigo-500 shadow-2xl shadow-indigo-500/30 rotate-2 scale-105 z-[150]" 
+                                          : "border-zinc-200 dark:border-zinc-800 hover:border-indigo-400 dark:hover:border-indigo-600 hover:translate-y-[-4px] hover:shadow-xl"
+                                      )}
+                                    >
+                                      <div className="flex items-center gap-3 mb-3">
+                                        <div className={cn(
+                                          "w-2 h-8 rounded-full shadow-sm",
+                                          category.id === 'Must' ? "bg-rose-500" :
+                                          category.id === 'Should' ? "bg-amber-500" :
+                                          category.id === 'Could' ? "bg-emerald-500" :
+                                          "bg-zinc-300"
+                                        )} />
+                                        <h4 className="font-black text-lg text-zinc-900 dark:text-white tracking-tight uppercase italic truncate">{task.title}</h4>
+                                      </div>
+                                      <p className="text-sm text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed font-medium">{task.description || 'No description provided.'}</p>
+                                      
+                                      <div className="flex items-center justify-between mt-6 pt-4 border-t border-zinc-100 dark:border-zinc-800">
+                                        <div className="flex items-center gap-4">
+                                          <div className={cn(
+                                            "flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.1em]",
+                                            task.impact === 'High' ? "text-rose-600" : task.impact === 'Medium' ? "text-amber-600" : "text-emerald-600"
+                                          )}>
+                                            <Target className="w-3.5 h-3.5" />
+                                            {task.impact || 'Med'} IMPACT
+                                          </div>
+                                          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-400">
+                                            <Clock className="w-3.5 h-3.5" />
+                                            {task.effort || 'Med'} EFFORT
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </Draggable>
+                              ))}
+                              {provided.placeholder}
+                            </div>
+                          )}
+                        </Droppable>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-10 border-t border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex items-center justify-between">
+                <button 
+                  onClick={() => setIsPrioritizeModalOpen(false)}
+                  className="px-12 py-5 bg-zinc-900 hover:bg-zinc-800 text-white rounded-2xl font-black uppercase italic tracking-[0.1em] transition-all shadow-xl hover:translate-y-[-4px]"
+                >
+                  Finish Prioritization
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      </div>
+    </DragDropContext>
   );
 }

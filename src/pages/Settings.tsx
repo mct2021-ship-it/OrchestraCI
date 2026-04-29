@@ -24,12 +24,12 @@ interface SettingsProps {
   setUsers: (users: User[] | ((prev: User[]) => User[])) => void;
   currentUser?: User | null;
   onDeleteItem?: (item: any, type: any) => void;
-  initialSection?: 'general' | 'taxonomy' | 'company' | 'users' | 'billing';
+  initialSection?: 'general' | 'users' | 'billing';
 }
 
 export function Settings({ projects, setProjects, products, setProducts, services, setServices, isDarkMode, setIsDarkMode, companyProfile, onUpdateProfile, users, setUsers, currentUser, onDeleteItem, initialSection }: SettingsProps) {
   const { updateUser } = useAuth();
-  const [activeSection, setActiveSection] = useState<'general' | 'taxonomy' | 'company' | 'users' | 'billing'>(initialSection || 'general');
+  const [activeSection, setActiveSection] = useState<'general' | 'users' | 'billing'>(initialSection || 'general');
 
   React.useEffect(() => {
     if (initialSection) {
@@ -260,8 +260,6 @@ export function Settings({ projects, setProjects, products, setProducts, service
       <div className="flex border-b border-zinc-200 dark:border-zinc-800 overflow-x-auto no-scrollbar">
         {[
           { id: 'general', label: 'General', icon: Globe },
-          { id: 'taxonomy', label: 'Products and Services', icon: Package, adminOnly: true },
-          { id: 'company', label: 'Company Profile', icon: Building2, adminOnly: true },
           { id: 'users', label: 'User Management', icon: Users, adminOnly: true },
           { id: 'billing', label: 'Subscription & Billing', icon: CreditCard, adminOnly: true },
         ].filter(s => !s.adminOnly || currentUser?.role === 'Admin').map(section => (
@@ -409,97 +407,8 @@ export function Settings({ projects, setProjects, products, setProducts, service
         </div>
       )}
 
-      {activeSection === 'taxonomy' && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-bold text-zinc-900 dark:text-white">Products and Services</h3>
-                <p className="text-sm text-zinc-500 dark:text-zinc-400">Define the global products and services used to categorize your journey maps across all projects.</p>
-              </div>
-              <button 
-                onClick={addProduct}
-                className="bg-zinc-900 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors"
-              >
-                <Plus className="w-4 h-4" /> Add Product
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-              {products.map(product => (
-                <div key={product.id} className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm overflow-hidden">
-                  <div className="p-4 bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <Package className="w-5 h-5 text-indigo-600" />
-                      <input 
-                        type="text"
-                        value={product.name}
-                        onChange={(e) => {
-                          setProducts(prev => prev.map(p => p.id === product.id ? { ...p, name: e.target.value } : p));
-                        }}
-                        className="bg-transparent border-none outline-none font-bold text-zinc-900 dark:text-white focus:ring-0 p-0"
-                      />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button 
-                        onClick={() => addService(product.id)}
-                        className="text-xs font-bold text-indigo-600 hover:text-indigo-700 px-2 py-1"
-                      >
-                        Add Service
-                      </button>
-                      <button 
-                        onClick={() => deleteProduct(product.id)}
-                        className="p-1 text-zinc-400 hover:text-rose-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="space-y-2">
-                      {services.filter(s => s.productId === product.id).map(service => (
-                        <div key={service.id} className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-900 rounded-lg border border-zinc-100 group">
-                          <div className="flex items-center gap-3 flex-1">
-                            <Layers className="w-4 h-4 text-zinc-300" />
-                            <input 
-                              type="text"
-                              value={service.name}
-                              onChange={(e) => {
-                                setServices(prev => prev.map(s => s.id === service.id ? { ...s, name: e.target.value } : s));
-                              }}
-                              className="bg-transparent border-none outline-none text-sm font-medium text-zinc-700 dark:text-zinc-200 focus:ring-0 p-0 flex-1"
-                            />
-                          </div>
-                          <button 
-                            onClick={() => deleteService(service.id)}
-                            className="p-1 text-zinc-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      ))}
-                      {services.filter(s => s.productId === product.id).length === 0 && (
-                        <p className="text-xs text-zinc-400 italic p-2 text-center">No services defined for this product.</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeSection === 'company' && (
-          <div className="animate-in fade-in duration-300">
-             {companyProfile && onUpdateProfile ? (
-                <YourCompany profile={companyProfile} onUpdateProfile={onUpdateProfile} />
-             ) : (
-                <div className="text-center p-8 text-zinc-500">Company profile not available</div>
-             )}
-          </div>
-        )}
-
-        {activeSection === 'users' && (
-          <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden animate-in fade-in duration-300">
+      {activeSection === 'users' && currentUser?.role === 'Admin' && (
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl border border-zinc-200 dark:border-zinc-800 overflow-hidden animate-in fade-in duration-300">
             <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50">
               <h3 className="font-bold text-zinc-900 dark:text-white">Team Members</h3>
               <button 
@@ -579,7 +488,7 @@ export function Settings({ projects, setProjects, products, setProducts, service
           </div>
         )}
 
-        {activeSection === 'billing' && (
+        {activeSection === 'billing' && currentUser?.role === 'Admin' && (
           <div className="space-y-8 animate-in fade-in duration-300">
             {/* Current Plan Overview */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

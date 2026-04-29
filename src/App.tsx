@@ -22,6 +22,7 @@ import { BetaSignup } from './pages/BetaSignup';
 import { AccountSettings } from './pages/AccountSettings';
 import { TaskList } from './pages/TaskList';
 import { SingleViewOfChange } from './components/SingleViewOfChange';
+import { ProjectDashboard } from './pages/ProjectDashboard';
 import { OnboardingTour } from './components/OnboardingTour';
 import { CompanyProfile } from './components/YourCompany';
 import { TopNav } from './components/TopNav';
@@ -36,7 +37,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { mockPersonas, mockJourneyMaps, mockTasks, mockProcessMaps, mockProducts, mockServices, mockProjects, mockUsers, mockSprints, mockStakeholders, mockProjectStakeholders, mockSignals } from './data/mockData';
 import { Stakeholders } from './pages/Stakeholders';
 import { StakeholderMapping } from './components/StakeholderMapping';
-import { Persona, JourneyMap, Task, ProcessMap, Product, Service, Project, User, Sprint, RecycleBinItem, AuditEntry, Stakeholder, ProjectStakeholder, IntelligenceSignal } from './types';
+import { Customers } from './pages/Customers';
+import { Persona, JourneyMap, Task, ProcessMap, Product, Service, Project, User, Sprint, RecycleBinItem, AuditEntry, Stakeholder, ProjectStakeholder, IntelligenceSignal, AppModule } from './types';
 import { PlanContext, PLAN_DETAILS, PlanType } from './context/PlanContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
@@ -79,6 +81,52 @@ function AppContent() {
   const planDetails = PLAN_DETAILS[plan];
 
   const [currentTab, setCurrentTab] = useState('welcome');
+  const [activeModule, setActiveModule] = useState<AppModule>('intelligence');
+  
+  // Handle tab changes with module awareness
+  const handleSetTab = useCallback((tab: string, subTab: string | null = null) => {
+    // Determine module based on tab
+    if (['welcome'].includes(tab)) {
+      setActiveModule('home');
+    } else if (['dashboard', 'single_view_of_change', 'decarb'].includes(tab)) {
+      setActiveModule('overview');
+    } else if (['intelligence', 'profile', 'portfolio', 'reviews', 'connectors'].includes(tab)) {
+      setActiveModule('intelligence');
+    } else if (['personas', 'stakeholders', 'customers'].includes(tab)) {
+      setActiveModule('customers');
+    } else if (['projects', 'project_dashboard', 'project_detail', 'project_team', 'stakeholder_mapping', 'journeys', 'kanban', 'backlog_sprints', 'process_maps', 'raid', 'tasks'].includes(tab)) {
+      setActiveModule('projects');
+    }
+    
+    // Handle special subtabs
+    if (tab === 'projects' && subTab === 'new') {
+      setOpenNewProjectModal(true);
+      setCurrentTab('projects');
+      setActiveSubTab(null);
+      return;
+    }
+
+    if (tab === 'personas' && subTab === 'new') {
+      setStartPersonasInNewMode(true);
+    } else {
+      setStartPersonasInNewMode(false);
+    }
+
+    if (tab === 'intelligence' && subTab === 'edit-company') {
+      setStartInEditMode(true);
+    } else {
+      setStartInEditMode(false);
+    }
+
+    if (tab === 'journeys' && subTab === 'new') {
+      setOpenNewJourneyModal(true);
+    }
+
+    setCurrentTab(tab);
+    if (subTab) setActiveSubTab(subTab);
+    else setActiveSubTab(null);
+  }, []);
+
   const [activeSubTab, setActiveSubTab] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>(['welcome']);
   const [activeJourneyId, setActiveJourneyId] = useState<string | null>(null);
@@ -535,88 +583,9 @@ function AppContent() {
     : [], [projectStakeholders, activeProjectId]);
 
   const handleTabChange = useCallback((tab: string, subTab?: string) => {
-    if (tab === 'taxonomy') {
-      setCurrentTab('settings');
-      setActiveSubTab('taxonomy');
-      setHistory(prev => [...prev, 'settings']);
-      return;
-    }
-
-    if (tab === 'intelligence') {
-      setActiveSubTab(subTab || null);
-    }
-
-    if (tab === 'settings') {
-      setActiveSubTab(subTab || null);
-    }
-
-    if (tab === currentTab && !subTab) {
-      if (tab === 'journeys') setActiveJourneyId(null);
-      if (tab === 'tasks') {
-        setSelectedAssignee('all');
-        setActiveTaskId(null);
-      }
-      if (tab === 'process_maps') setActiveProcessMapId(null);
-      setResetTrigger(prev => prev + 1);
-      return;
-    }
-
-    // Reset active item IDs when changing tabs
-    if (tab !== 'journeys') setActiveJourneyId(null);
-    if (tab !== 'tasks') setActiveTaskId(null);
-    if (tab !== 'process_maps') setActiveProcessMapId(null);
-
-    if (tab === 'journeys') {
-      if (subTab === 'new') {
-        setOpenNewJourneyModal(true);
-        setActiveJourneyId(null);
-      } else if (subTab) {
-        setActiveJourneyId(subTab);
-      } else {
-        setActiveJourneyId(null);
-      }
-    }
-
-    if (tab === 'tasks') {
-      if (subTab && tasks.some(t => t.id === subTab)) {
-        setActiveTaskId(subTab);
-        setSelectedAssignee('all');
-      } else if (subTab) {
-        setSelectedAssignee(subTab);
-        setActiveTaskId(null);
-      } else {
-        setSelectedAssignee('all');
-        setActiveTaskId(null);
-      }
-    }
-
-    if (tab === 'process_maps') {
-      if (subTab) {
-        setActiveProcessMapId(subTab);
-      } else {
-        setActiveProcessMapId(null);
-      }
-    }
-
-    if (tab === 'projects' && subTab === 'new') {
-      setOpenNewProjectModal(true);
-    }
-
-    if (tab === 'intelligence' && subTab === 'edit-company') {
-      setStartInEditMode(true);
-    } else {
-      setStartInEditMode(false);
-    }
-
-    if (tab === 'personas' && subTab === 'new') {
-      setStartPersonasInNewMode(true);
-    } else {
-      setStartPersonasInNewMode(false);
-    }
-
+    handleSetTab(tab, subTab || null);
     setHistory(prev => [...prev, tab]);
-    setCurrentTab(tab);
-  }, [currentTab, tasks]);
+  }, [handleSetTab]);
 
   const handleBack = useCallback(() => {
     if (history.length <= 1) return;
@@ -624,8 +593,8 @@ function AppContent() {
     newHistory.pop(); // Remove current
     const previousTab = newHistory[newHistory.length - 1];
     setHistory(newHistory);
-    setCurrentTab(previousTab);
-  }, [history]);
+    handleSetTab(previousTab);
+  }, [history, handleSetTab]);
 
   const handleMentionClick = useCallback((type: 'task' | 'journey' | 'process', sourceId: string, projectId: string) => {
     setActiveProjectId(projectId);
@@ -676,14 +645,27 @@ function AppContent() {
       case 'account':
         return <AccountSettings isDarkMode={isDarkMode} onNavigate={handleTabChange} users={users} setUsers={setUsers} projects={projects} />;
       case 'welcome':
-        return <Welcome onNavigate={(tab, subTab) => {
-          if (tab === 'projects' && subTab === 'new') {
-            setOpenNewProjectModal(true);
-            handleTabChange('projects');
-          } else {
-            handleTabChange(tab, subTab);
-          }
-        }} onSelectProject={handleSelectProject} userName={currentUser?.name} companyProfile={companyProfile} personas={personas} projects={projects} signals={signals} />;
+        return (
+          <Welcome 
+            onNavigate={handleTabChange} 
+            onSelectProject={handleSelectProject} 
+            userName={currentUser?.name} 
+            companyProfile={companyProfile} 
+            personas={personas} 
+            projects={projects} 
+            signals={signals} 
+            activeModule={activeModule}
+            setActiveModule={setActiveModule}
+          />
+        );
+      case 'customers':
+        return (
+          <Customers 
+            personas={personas}
+            signals={signals}
+            onNavigate={handleTabChange}
+          />
+        );
       case 'dashboard':
         return (
           <Dashboard 
@@ -800,6 +782,15 @@ function AppContent() {
             onNavigate={handleTabChange}
           />
         );
+      case 'project_dashboard':
+        return (
+          <ProjectDashboard 
+            projects={projects}
+            currentUser={currentUser}
+            onNavigate={handleTabChange}
+            onSelectProject={handleSelectProject}
+          />
+        );
       case 'projects':
         return (
           <Projects 
@@ -826,11 +817,15 @@ function AppContent() {
           />
         );
       case 'intelligence':
+      case 'profile':
+      case 'portfolio':
+      case 'reviews':
+      case 'connectors':
         return <Intelligence 
           companyProfile={companyProfile} 
           onUpdateProfile={handleUpdateProfile} 
           startInEditMode={startInEditMode}
-          initialTab={activeSubTab as any}
+          initialTab={(activeSubTab || (currentTab !== 'intelligence' ? currentTab : 'overview')) as any}
           onSaveComplete={() => {
             // User requested to suppress this prompt after wizard completion
           }}
@@ -844,6 +839,7 @@ function AppContent() {
           currentUser={currentUser}
           onNavigate={handleTabChange}
           setActiveProjectId={setActiveProjectId}
+          onOpenJourney={handleOpenJourney}
           onAddToAuditLog={handleAddToAuditLog}
           signals={signals}
           setSignals={setSignals}
@@ -869,6 +865,7 @@ function AppContent() {
             personas={personas}
             projects={projects}
             tasks={tasks}
+            sprints={sprints}
             initialJourneyId={activeJourneyId} 
             onNavigateToProcessMap={(processMapId) => {
               if (processMapId) {
@@ -1040,6 +1037,7 @@ function AppContent() {
           activeProject={activeProject}
           isDarkMode={isDarkMode}
           companyProfile={companyProfile}
+          activeModule={activeModule}
         />
         <div className="flex-1 flex flex-col min-w-0">
           <TopNav 
@@ -1051,8 +1049,14 @@ function AppContent() {
             unreadNotificationsCount={unreadCount}
             isDarkMode={isDarkMode}
             currentUser={currentUser}
+            activeModule={activeModule}
+            setActiveModule={setActiveModule}
+            onNavigate={handleTabChange}
           />
-          <main className={`flex-1 overflow-y-auto relative ${history.length > 1 ? 'pt-16' : ''}`}>
+          <main className={cn(
+            "flex-1 overflow-y-auto relative py-10 px-8 md:px-16 lg:px-24",
+            history.length > 1 ? 'pt-16' : ''
+          )}>
             {history.length > 1 && (
               <div className="absolute top-4 left-4 z-50">
                 <button 

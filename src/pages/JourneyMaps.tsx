@@ -91,7 +91,7 @@ const getSwimlaneIconComponent = (iconName?: string) => {
   const icon = SWIMLANE_ICONS.find(i => i.name === iconName);
   return icon ? icon.icon : Layers;
 };
-import { JourneyStage, JourneyItem, Swimlane, JourneyMap, Product, Service, Persona, Task, Project, ProcessMap, Comment, User, RecycleBinItem } from '../types';
+import { JourneyStage, JourneyItem, Swimlane, JourneyMap, Product, Service, Persona, Task, Project, ProcessMap, Comment, User, RecycleBinItem, Sprint } from '../types';
 import { CompanyProfile } from '../components/YourCompany';
 import { EditableText } from '../components/EditableText';
 import { CreateJourneyModal } from '../components/CreateJourneyModal';
@@ -124,6 +124,7 @@ interface JourneyMapsProps {
   personas: Persona[];
   projects: Project[];
   tasks?: Task[];
+  sprints?: Sprint[];
   processMaps?: ProcessMap[];
   setProcessMaps?: React.Dispatch<React.SetStateAction<ProcessMap[]>>;
   initialJourneyId?: string | null;
@@ -149,6 +150,7 @@ export function JourneyMaps({
   personas, 
   projects, 
   tasks = [],
+  sprints = [],
   processMaps = [],
   setProcessMaps,
   initialJourneyId, 
@@ -191,6 +193,8 @@ export function JourneyMaps({
     laneId: string; 
     itemIndex: number 
   } | null>(null);
+  const [pendingTaskStatus, setPendingTaskStatus] = useState<string>('Backlog');
+  const [pendingTaskSprintId, setPendingTaskSprintId] = useState<string>('');
   const [editingStageIconId, setEditingStageIconId] = useState<string | null>(null);
   const [editingSwimlaneIconId, setEditingSwimlaneIconId] = useState<string | null>(null);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
@@ -2400,81 +2404,135 @@ export function JourneyMaps({
               </div>
 
               <div className="p-8 space-y-6">
-                <div className="p-4 bg-indigo-50 rounded-2xl border border-indigo-100">
-                  <p className="text-sm text-indigo-900 font-medium">
-                    Where should this task be added on the Kanban board?
-                  </p>
-                  <p className="text-xs text-indigo-600 mt-1 italic">
+                <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
+                  <p className="text-sm text-indigo-900 dark:text-indigo-300 font-medium italic">
                     "{pendingTaskData.item}"
                   </p>
                 </div>
 
-                <div className="grid grid-cols-1 gap-3">
-                  {['Backlog', 'In Progress', 'Done', 'Blocked'].map((col) => (
-                    <button
-                      key={col}
-                      onClick={() => {
-                        const taskId = uuidv4();
-                        
-                        // Update the journey item with the taskId and ensure it has an ID
-                        let createdItemId = "";
-                        const updatedJourneys = journeys.map(j => {
-                          if (j.id === activeJourney.id) {
-                            const updatedStages = j.stages.map(s => {
-                              if (s.id === pendingTaskData.stageId) {
-                                const laneItems = [...(s.laneData[pendingTaskData.laneId] || [])];
-                                const item = laneItems[pendingTaskData.itemIndex];
-                                if (typeof item === 'object') {
-                                   createdItemId = item.id;
-                                   laneItems[pendingTaskData.itemIndex] = { ...item, taskId };
-                                } else {
-                                   createdItemId = uuidv4();
-                                   laneItems[pendingTaskData.itemIndex] = { id: createdItemId, title: item, taskId };
-                                }
-                                return { ...s, laneData: { ...s.laneData, [pendingTaskData.laneId]: laneItems } };
-                              }
-                              return s;
-                            });
-                            return { ...j, stages: updatedStages };
-                          }
-                          return j;
-                        });
-
-                        onAddTask?.({
-                          id: taskId,
-                          projectId: activeJourney.projectId,
-                          title: pendingTaskData.item || 'New Opportunity Task',
-                          description: `Task created from opportunity in ${pendingTaskData.stageName} stage of ${activeJourney.title}`,
-                          status: activeProject?.status || 'Discover',
-                          kanbanStatus: col as any,
-                          impact: 'Medium',
-                          effort: 'Medium',
-                          owner: '',
-                          createdAt: new Date().toISOString(),
-                          stageHistory: [{ stage: col as any, enteredAt: new Date().toISOString() }],
-                          sourceJourneyId: activeJourney.id,
-                          sourceOpportunityId: createdItemId,
-                          metrics: {
-                            experience: 'TBD',
-                            efficiency: 'TBD'
-                          }
-                        });
-
-                        setJourneys(updatedJourneys);
-                        
-                        if (onAddToAuditLog) {
-                          onAddToAuditLog('Promoted Opportunity', `Created task from ${activeJourney.title}`, 'Create', 'Task', taskId, 'Manual');
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Status / Column</label>
+                    <select
+                      value={pendingTaskStatus}
+                      onChange={(e) => {
+                        const newStatus = e.target.value;
+                        setPendingTaskStatus(newStatus);
+                        if (newStatus !== 'Backlog' && !pendingTaskSprintId) {
+                          const activeSprint = sprints.find(s => s.projectId === activeProjectId && s.status === 'In Progress');
+                          if (activeSprint) setPendingTaskSprintId(activeSprint.id);
                         }
-
-                        setPendingTaskData(null);
-                        addToast(`Task added to ${col}!`, 'success');
                       }}
-                      className="flex items-center justify-between px-6 py-4 bg-zinc-50 dark:bg-zinc-900 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 border border-zinc-200 dark:border-zinc-800 hover:border-indigo-200 rounded-2xl transition-all group"
+                      className="w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white"
                     >
-                      <span className="font-bold text-zinc-900 dark:text-white group-hover:text-indigo-900">{col}</span>
-                      <ArrowRight className="w-4 h-4 text-zinc-400 group-hover:text-indigo-400 transition-transform group-hover:translate-x-1" />
-                    </button>
-                  ))}
+                      <option value="Backlog">Backlog (Project Level)</option>
+                      {(activeProject?.kanbanColumns || [
+                        { id: 'Not Started', title: 'Not Started' },
+                        { id: 'In Progress', title: 'In Progress' },
+                        { id: 'Review/Test', title: 'Review/Test' },
+                        { id: 'Done', title: 'Done' }
+                      ]).filter(c => c.id !== 'Backlog' && c.title !== 'Backlog').map((col) => (
+                        <option key={col.id} value={col.id}>{col.title}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {pendingTaskStatus !== 'Backlog' && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-zinc-400 uppercase tracking-widest flex items-center justify-between">
+                        Sprint
+                        {!pendingTaskSprintId && (
+                          <span className="text-[10px] text-rose-500 font-bold flex items-center gap-1">
+                            <AlertCircle className="w-2.5 h-2.5" />
+                            Required
+                          </span>
+                        )}
+                      </label>
+                      <select
+                        value={pendingTaskSprintId}
+                        onChange={(e) => setPendingTaskSprintId(e.target.value)}
+                        className={cn(
+                          "w-full px-4 py-3 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none font-bold text-zinc-900 dark:text-white",
+                          !pendingTaskSprintId && "border-rose-300 ring-1 ring-rose-500"
+                        )}
+                      >
+                        <option value="">Select a Sprint...</option>
+                        {sprints
+                          .filter(s => s.projectId === activeProjectId)
+                          .sort((a, b) => (b.number || 0) - (a.number || 0))
+                          .map(s => (
+                            <option key={s.id} value={s.id}>{s.name} ({s.status})</option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <button
+                    disabled={pendingTaskStatus !== 'Backlog' && !pendingTaskSprintId}
+                    onClick={() => {
+                      const taskId = uuidv4();
+                      const col = pendingTaskStatus;
+                      const sprintId = pendingTaskStatus === 'Backlog' ? undefined : pendingTaskSprintId;
+                      
+                      let createdItemId = "";
+                      const updatedJourneys = journeys.map(j => {
+                        if (j.id === activeJourney.id) {
+                          const updatedStages = j.stages.map(s => {
+                            if (s.id === pendingTaskData.stageId) {
+                              const laneItems = [...(s.laneData[pendingTaskData.laneId] || [])];
+                              const item = laneItems[pendingTaskData.itemIndex];
+                              if (typeof item === 'object') {
+                                 createdItemId = item.id;
+                                 laneItems[pendingTaskData.itemIndex] = { ...item, taskId };
+                              } else {
+                                 createdItemId = uuidv4();
+                                 laneItems[pendingTaskData.itemIndex] = { id: createdItemId, title: item, taskId };
+                              }
+                              return { ...s, laneData: { ...s.laneData, [pendingTaskData.laneId]: laneItems } };
+                            }
+                            return s;
+                          });
+                          return { ...j, stages: updatedStages };
+                        }
+                        return j;
+                      });
+
+                      onAddTask?.({
+                        id: taskId,
+                        projectId: activeJourney.projectId,
+                        title: pendingTaskData.item || 'New Opportunity Task',
+                        description: `Task created from opportunity in ${pendingTaskData.stageName} stage of ${activeJourney.title}`,
+                        status: activeProject?.status || 'Discover',
+                        kanbanStatus: col as any,
+                        impact: 'Medium',
+                        effort: 'Medium',
+                        owner: '',
+                        sprint: sprintId,
+                        createdAt: new Date().toISOString(),
+                        stageHistory: [{ stage: col as any, enteredAt: new Date().toISOString() }],
+                        sourceJourneyId: activeJourney.id,
+                        sourceOpportunityId: createdItemId,
+                        metrics: {
+                          experience: 'TBD',
+                          efficiency: 'TBD'
+                        }
+                      });
+
+                      setJourneys(updatedJourneys);
+                      if (onAddToAuditLog) {
+                        onAddToAuditLog('Promoted Opportunity', `Created task from ${activeJourney.title}`, 'Create', 'Task', taskId, 'Manual');
+                      }
+
+                      setPendingTaskData(null);
+                      setPendingTaskStatus('Backlog');
+                      setPendingTaskSprintId('');
+                      addToast(`Task added to ${col}!`, 'success');
+                    }}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white px-6 py-4 rounded-2xl font-bold transition-all shadow-lg shadow-indigo-100 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Create Kanban Task
+                  </button>
                 </div>
               </div>
 

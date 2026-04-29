@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Sliders, Star, Plus, Image as ImageIcon, Heart, BookOpen, Folder, ChevronLeft, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Filter, Check, Mic, MicOff } from 'lucide-react';
+import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Sliders, Star, Plus, Image as ImageIcon, Heart, BookOpen, Folder, ChevronLeft, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Filter, Check, Mic, MicOff, LayoutTemplate, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
 import { Type, ThinkingLevel } from "@google/genai";
@@ -30,12 +30,13 @@ interface CreatePersonaModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (persona: Persona) => void;
+  onUseAi?: () => void;
   companyProfile?: CompanyProfile;
 }
 
-export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: CreatePersonaModalProps) {
+export function CreatePersonaModal({ isOpen, onClose, onSave, onUseAi, companyProfile }: CreatePersonaModalProps) {
   const { addToast } = useToast();
-  const [mode, setMode] = useState<'manual' | 'ai' | 'template' | 'library'>('manual');
+  const [mode, setMode] = useState<'select' | 'manual' | 'ai' | 'template' | 'library'>('select');
   const [isGenerating, setIsGenerating] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -90,7 +91,9 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
       setPrompt('');
       setUploadData(null);
       setIsGenerating(false);
-      setMode('manual');
+      setMode('select');
+      setSelectedFolder(null);
+      setPreviewPersona(null);
     }
   }, [isOpen]);
 
@@ -139,13 +142,11 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
   };
 
   const handleManualSave = () => {
-    if (!formData.name || !formData.role) return;
-    
     const newPersona: Persona = {
       id: uuidv4(),
-      name: formData.name || '',
-      type: formData.type || '',
-      role: formData.role || '',
+      name: formData.name || 'New Persona',
+      type: formData.type || 'Standard',
+      role: formData.role || 'Customer',
       age: formData.age || 30,
       gender: formData.gender || 'Female',
       quote: formData.quote || '',
@@ -288,56 +289,103 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
       >
         <div className="p-6 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-zinc-50 dark:bg-zinc-900/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-zinc-900 rounded-xl flex items-center justify-center">
+            {mode !== 'select' && (
+              <button 
+                onClick={() => setMode('select')}
+                className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors mr-1"
+              >
+                <ChevronLeft className="w-5 h-5 text-zinc-500" />
+              </button>
+            )}
+            <div className="w-10 h-10 bg-zinc-900 dark:bg-zinc-800 rounded-xl flex items-center justify-center">
               <User className="w-6 h-6 text-white" />
             </div>
             <div>
               <h2 className="text-xl font-bold text-zinc-900 dark:text-white">Create New Persona</h2>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">Define a target customer profile</p>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {mode === 'select' ? 'Choose how you\'d like to build your customer profile' :
+                 mode === 'manual' ? 'Define details manually' :
+                 mode === 'ai' ? 'Generate using AI' :
+                 mode === 'template' ? 'Start from a template' : 'Browse industry library'}
+              </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-zinc-200 rounded-full transition-colors">
+          <button onClick={onClose} className="p-2 hover:bg-zinc-200 dark:hover:bg-zinc-800 rounded-full transition-colors">
             <X className="w-5 h-5 text-zinc-500 dark:text-zinc-400" />
           </button>
         </div>
 
-        <div className="flex border-b border-zinc-200 dark:border-zinc-800 shrink-0">
-          <button 
-            onClick={() => setMode('manual')}
-            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-all ${mode === 'manual' ? 'border-zinc-900 text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:text-zinc-200'}`}
-          >
-            Manual Entry
-          </button>
-          <button 
-            onClick={() => setMode('ai')}
-            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-all ${mode === 'ai' ? 'border-zinc-900 text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:text-zinc-200'}`}
-          >
-            AI Guided
-          </button>
-          <button 
-            onClick={() => setMode('template')}
-            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-all ${mode === 'template' ? 'border-zinc-900 text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:text-zinc-200'}`}
-          >
-            Templates
-          </button>
-          <button 
-            onClick={() => setMode('library')}
-            className={`flex-1 py-3 text-sm font-medium border-b-2 transition-all ${mode === 'library' ? 'border-zinc-900 text-zinc-900 dark:text-white' : 'border-transparent text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:text-zinc-200'} flex items-center justify-center gap-2`}
-          >
-            <BookOpen className="w-4 h-4" />
-            Persona Library
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto">
           <AnimatePresence mode="wait">
-            {mode === 'manual' ? (
+            {mode === 'select' ? (
+              <motion.div
+                key="select"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4"
+              >
+                {/* Browse Library */}
+                <button
+                  onClick={() => setMode('library')}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-indigo-600 hover:bg-indigo-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <BookOpen className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Browse Library</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Choose from pre-built industry templates</p>
+                </button>
+
+                {/* Use a Template */}
+                <button
+                  onClick={() => setMode('template')}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-blue-600 hover:bg-blue-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <LayoutTemplate className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Use a Template</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Start with a structured persona framework</p>
+                </button>
+
+                {/* Create New Persona (Manual) */}
+                <button
+                  onClick={() => setMode('manual')}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-emerald-600 hover:bg-emerald-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <User className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Create New</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Start with a blank profile and edit manually</p>
+                </button>
+
+                {/* Use AI */}
+                <button
+                  onClick={() => {
+                    if (onUseAi) {
+                      onUseAi();
+                    } else {
+                      setMode('ai');
+                    }
+                  }}
+                  className="flex flex-col items-center p-6 rounded-2xl border-2 border-zinc-100 dark:border-zinc-800 hover:border-purple-600 hover:bg-purple-50/30 transition-all group text-center"
+                >
+                  <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+                    <Sparkles className="w-8 h-8 text-purple-600 dark:text-purple-400" />
+                  </div>
+                  <h4 className="font-bold text-zinc-900 dark:text-white mb-2">Use AI</h4>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">Generate personas from research data</p>
+                </button>
+              </motion.div>
+            ) : mode === 'manual' ? (
               <motion.div 
                 key="manual"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 10 }}
-                className="space-y-6"
+                className="p-6 space-y-6"
               >
                 <div className="flex items-center gap-6 mb-6">
                   <div className="relative group cursor-pointer" onClick={() => setIsAvatarModalOpen(true)}>
@@ -584,7 +632,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
                 initial={{ opacity: 0, x: 10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                className="space-y-6"
+                className="p-6 space-y-6"
               >
                 <div className="bg-zinc-50 dark:bg-zinc-900 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 space-y-4">
                   <div className="flex items-center justify-between gap-4">
@@ -695,7 +743,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, companyProfile }: 
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="space-y-6"
+                className="p-6 space-y-6"
               >
                 {previewPersona ? (
                   <div className="bg-white dark:bg-zinc-800 rounded-2xl p-6 border border-zinc-200 dark:border-zinc-700">

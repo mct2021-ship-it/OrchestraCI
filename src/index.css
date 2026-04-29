@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=Outfit:wght@100..900&display=swap');
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
 
@@ -5,19 +6,20 @@
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Outfit", sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
-  --color-indigo-50: #e6fcff;
-  --color-indigo-100: #ccf9ff;
-  --color-indigo-200: #99f3ff;
-  --color-indigo-300: #66edff;
-  --color-indigo-400: #33e7ff;
-  --color-indigo-500: #00e5ff;
-  --color-indigo-600: #00b8ff;
-  --color-indigo-700: #008bff;
-  --color-indigo-800: #007bff;
-  --color-indigo-900: #005bbd;
-  --color-indigo-950: #003d80;
+  --color-indigo-50: #eef2ff;
+  --color-indigo-100: #e0e7ff;
+  --color-indigo-200: #c7d2fe;
+  --color-indigo-300: #a5b4fc;
+  --color-indigo-400: #818cf8;
+  --color-indigo-500: #6366f1;
+  --color-indigo-600: #4f46e5;
+  --color-indigo-700: #4338ca;
+  --color-indigo-800: #3730a3;
+  --color-indigo-900: #312e81;
+  --color-indigo-950: #1e1b4b;
 
   --color-zinc-50: #fafafa;
   --color-zinc-100: #f4f4f5;
@@ -93,6 +95,10 @@
 }
 
 @layer base {
+  :root {
+    font-family: var(--font-sans);
+  }
+  
   .dark {
     color-scheme: dark;
   }
@@ -107,5 +113,13 @@
   }
   .backface-hidden {
     backface-visibility: hidden;
+  }
+}
+
+@media print {
+  .no-export,
+  button,
+  .print\:hidden {
+    display: none !important;
   }
 }

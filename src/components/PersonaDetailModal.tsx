@@ -1,8 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { X, Users, Target, Frown, Heart, Smile, Meh, Angry, Download, FileText, ImageIcon, Loader2 } from 'lucide-react';
+import { X, Users, Target, Frown, Heart, Smile, Meh, Angry, Download, FileText, ImageIcon, Loader2, Globe, Calendar, Quote, Sliders, TrendingUp, BookOpen } from 'lucide-react';
 import { Persona } from '../types';
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { cn } from '../lib/utils';
+import { motion } from 'motion/react';
 
 interface PersonaDetailModalProps {
   persona: Persona;
@@ -18,7 +20,6 @@ export function PersonaDetailModal({ persona, onClose }: PersonaDetailModalProps
     
     setIsExporting(true);
     try {
-      // Temporarily set a fixed width to prevent cutoff
       const originalWidth = contentRef.current.style.width;
       contentRef.current.style.width = '1000px';
       
@@ -48,7 +49,6 @@ export function PersonaDetailModal({ persona, onClose }: PersonaDetailModalProps
 
     setIsExporting(true);
     try {
-      // Temporarily set a fixed width to prevent cutoff
       const originalWidth = contentRef.current.style.width;
       contentRef.current.style.width = '1000px';
 
@@ -83,7 +83,7 @@ export function PersonaDetailModal({ persona, onClose }: PersonaDetailModalProps
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col relative">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-xl w-full max-w-[1200px] max-h-[90vh] overflow-hidden flex flex-col relative">
         {isExporting && (
           <div className="absolute inset-0 bg-white/60 dark:bg-zinc-950/60 backdrop-blur-[2px] z-[60] flex flex-col items-center justify-center gap-4 transition-all animate-in fade-in duration-200">
             <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl border border-zinc-100 dark:border-zinc-800">
@@ -129,95 +129,165 @@ export function PersonaDetailModal({ persona, onClose }: PersonaDetailModalProps
         </div>
         
         <div className="p-6 overflow-y-auto custom-scrollbar">
-          <div ref={contentRef} className="bg-white dark:bg-zinc-900 p-2">
-            <div className="flex flex-col md:flex-row gap-8">
-              <div className="w-full md:w-1/3 flex flex-col items-center text-center">
-                <img src={persona.imageUrl} alt={persona.name} className="w-48 h-48 rounded-full object-cover border-4 border-white shadow-md mb-6" crossOrigin="anonymous" referrerPolicy="no-referrer" />
-                <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-1">{persona.name}</h2>
-                <p className="text-indigo-600 font-medium mb-4">{persona.role}</p>
-                
-                <div className="w-full bg-zinc-50 dark:bg-zinc-800/50 rounded-xl p-4 mb-6">
-                  <div className="flex justify-between text-sm mb-2">
-                    <span className="text-zinc-500 dark:text-zinc-400">Age</span>
-                    <span className="font-medium text-zinc-900 dark:text-white">{persona.age}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-zinc-500 dark:text-zinc-400">Gender</span>
-                    <span className="font-medium text-zinc-900 dark:text-white">{persona.gender || 'Not specified'}</span>
-                  </div>
+          <div ref={contentRef} className="bg-white dark:bg-zinc-950 p-6 rounded-3xl" style={{ containerType: 'inline-size' }}>
+            
+            <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] border border-zinc-200 dark:border-zinc-800 p-8 shadow-sm text-center md:text-left relative mb-8">
+              <div className="flex flex-col md:flex-row items-center gap-8">
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-zinc-50 dark:border-zinc-800 shadow-md shrink-0 focus-mode-11">
+                  <img 
+                    src={persona.imageUrl} 
+                    className="w-full h-full object-cover" 
+                    alt={persona.name} 
+                    crossOrigin="anonymous" 
+                    referrerPolicy="no-referrer"
+                  />
                 </div>
-                
-                <div className="w-full text-left">
-                  <h3 className="text-sm font-bold text-zinc-900 dark:text-white mb-3 uppercase tracking-wider">Demographics</h3>
-                  <div className="space-y-4">
-                    {persona.demographics?.map(demo => (
-                      <div key={demo.id}>
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="font-medium text-zinc-700 dark:text-zinc-300">{demo.label}</span>
-                          <span className="text-zinc-500">{demo.value}%</span>
-                        </div>
-                        <div className="h-2 bg-zinc-100 dark:bg-zinc-800 rounded-full overflow-hidden">
-                          <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${demo.value}%` }} />
+                <div className="flex-1 space-y-3">
+                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-4">
+                      <h2 className="text-3xl font-black text-zinc-900 dark:text-white">
+                        {persona.name}
+                      </h2>
+                      <span className="px-3 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-full text-xs font-bold border border-indigo-100 dark:border-indigo-800 shadow-sm inline-block">
+                        {persona.type || 'Core Persona'}
+                      </span>
+                   </div>
+                   <div className="flex flex-wrap items-center justify-center md:justify-start gap-6 text-zinc-500 dark:text-zinc-400 text-sm font-medium">
+                      <div className="flex items-center gap-2">
+                        <Users className="w-4 h-4 text-zinc-400" />
+                        <span>{persona.role || 'Customer'}</span>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Calendar className="w-4 h-4 text-zinc-400" />
+                        <div className="flex items-center">
+                          <span>{persona.age?.toString() || '30'}</span>
+                          <span className="ml-1">Years Old</span>
                         </div>
                       </div>
-                    ))}
+                      <div className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-zinc-400" />
+                        <span>{persona.gender || 'Universal'}</span>
+                      </div>
+                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              <div className="lg:col-span-4 space-y-8">
+                <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2rem] border-2 border-zinc-100 dark:border-zinc-800 shadow-sm space-y-8">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center gap-2">
+                       <Quote className="w-4 h-4 text-indigo-600" />
+                       Behavioral Mantra
+                    </h4>
+                    <div className="bg-zinc-50 dark:bg-zinc-800/30 p-6 rounded-3xl border border-zinc-100 dark:border-zinc-800">
+                      <p className="text-lg font-bold text-zinc-700 dark:text-zinc-200 italic leading-relaxed">
+                        {persona.quote}
+                      </p>
+                    </div>
+                  </div>
+
+                  {persona.demographics && persona.demographics.length > 0 && (
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center gap-2">
+                        <Sliders className="w-4 h-4 text-indigo-600" />
+                        Market Archetype
+                      </h4>
+                      <div className="space-y-6">
+                        {persona.demographics.map(demo => (
+                          <div key={demo.id} className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                                {demo.label}
+                              </span>
+                              <span className="text-xs font-black text-indigo-600">{demo.value}%</span>
+                            </div>
+                            <div className="relative h-3 w-full rounded-2xl bg-zinc-100 dark:bg-zinc-800 p-0.5 border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                              <div 
+                                className="h-full bg-indigo-600 rounded-3xl shadow-sm"
+                                style={{ width: `${demo.value}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="pt-8 border-t border-zinc-50 dark:border-zinc-800">
+                    <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center gap-2">
+                       <TrendingUp className="w-4 h-4 text-indigo-600" />
+                       Experience Sentiment
+                    </h4>
+                    <div className="grid grid-cols-5 gap-3">
+                      {[1, 2, 3, 4, 5].map((score) => (
+                        <div
+                          key={score}
+                          className={cn(
+                            "aspect-square rounded-2xl flex items-center justify-center text-sm font-black transition-all border-2",
+                            persona.sentiment === score
+                              ? score <= 2 ? 'bg-rose-50 border-rose-600 text-rose-600 shadow-xl'
+                              : score === 3 ? 'bg-amber-50 border-amber-600 text-amber-600 shadow-xl'
+                              : 'bg-emerald-50 border-emerald-600 text-emerald-600 shadow-xl'
+                              : 'bg-zinc-50 dark:bg-zinc-800/50 border-transparent text-zinc-400'
+                          )}
+                        >
+                          {score}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
-              
-              <div className="w-full md:w-2/3 space-y-8">
-                <div>
-                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4">"{persona.quote}"</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="bg-emerald-50 dark:bg-emerald-900/10 rounded-xl p-5 border border-emerald-100 dark:border-emerald-800/30">
-                      <div className="flex items-center gap-2 mb-4 text-emerald-700 dark:text-emerald-400">
-                        <Target className="w-5 h-5" />
-                        <h3 className="font-bold">Goals</h3>
-                      </div>
-                      <ul className="space-y-3">
-                        {persona.goals.map((goal, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                            <span>{goal}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    
-                    <div className="bg-rose-50 dark:bg-rose-900/10 rounded-xl p-5 border border-rose-100 dark:border-rose-800/30">
-                      <div className="flex items-center gap-2 mb-4 text-rose-700 dark:text-rose-400">
-                        <Frown className="w-5 h-5" />
-                        <h3 className="font-bold">Frustrations</h3>
-                      </div>
-                      <ul className="space-y-3">
-                        {persona.frustrations.map((frustration, i) => (
-                          <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                            <div className="w-1.5 h-1.5 rounded-full bg-rose-400 mt-1.5 shrink-0" />
-                            <span>{frustration}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+
+              <div className="lg:col-span-8 space-y-8">
+                <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Target className="w-6 h-6 text-emerald-500" />
+                    <h4 className="text-lg font-bold text-zinc-900 dark:text-white">Goals</h4>
                   </div>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {persona.goals.map((goal, i) => (
+                      <li key={i} className="flex items-start gap-3 text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm relative group/item">
+                        <span className="w-2 h-2 rounded-full bg-emerald-400 mt-2 shrink-0" />
+                        <span className="text-sm font-medium flex-1">{goal}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                
+
+                <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Frown className="w-6 h-6 text-rose-500" />
+                    <h4 className="text-lg font-bold text-zinc-900 dark:text-white">Frustrations</h4>
+                  </div>
+                  <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {persona.frustrations.map((frustration, i) => (
+                      <li key={i} className="flex items-start gap-3 text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm relative group/item">
+                        <span className="w-2 h-2 rounded-full bg-rose-400 mt-2 shrink-0" />
+                        <span className="text-sm font-medium flex-1">{frustration}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
                 {persona.motivations && persona.motivations.length > 0 && (
-                  <div className="bg-amber-50 dark:bg-amber-900/10 rounded-xl p-5 border border-amber-100 dark:border-amber-800/30">
-                    <div className="flex items-center gap-2 mb-4 text-amber-700 dark:text-amber-400">
-                      <Heart className="w-5 h-5" />
-                      <h3 className="font-bold">Motivations</h3>
+                  <div className="bg-zinc-50 dark:bg-zinc-900/50 p-6 rounded-2xl border border-zinc-100 dark:border-zinc-800">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Heart className="w-6 h-6 text-amber-500" />
+                      <h4 className="text-lg font-bold text-zinc-900 dark:text-white">Motivations</h4>
                     </div>
-                    <ul className="space-y-3">
+                    <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {persona.motivations.map((motivation, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                          <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1.5 shrink-0" />
-                          <span>{motivation}</span>
+                        <li key={i} className="flex items-start gap-3 text-zinc-700 dark:text-zinc-200 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm relative group/item">
+                          <span className="w-2 h-2 rounded-full bg-amber-400 mt-2 shrink-0" />
+                          <span className="text-sm font-medium flex-1">{motivation}</span>
                         </li>
                       ))}
                     </ul>
                   </div>
                 )}
-
+                
                 {/* Additional Sections */}
                 {persona.additionalSections && persona.additionalSections.length > 0 && (
                   <div className="space-y-6">
@@ -243,8 +313,8 @@ export function PersonaDetailModal({ persona, onClose }: PersonaDetailModalProps
                                   <span className="font-medium text-zinc-700 dark:text-zinc-300">{slider.label}</span>
                                   <span className="text-zinc-500">{slider.value}%</span>
                                 </div>
-                                <div className="h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
-                                  <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${slider.value}%` }} />
+                                <div className="relative h-2 bg-zinc-200 dark:bg-zinc-700 rounded-full overflow-hidden">
+                                  <div className="h-full bg-indigo-500 rounded-3xl" style={{ width: `${slider.value}%` }} />
                                 </div>
                               </div>
                             ))}
@@ -254,8 +324,8 @@ export function PersonaDetailModal({ persona, onClose }: PersonaDetailModalProps
                         {section.type === 'list' && section.list && section.list.length > 0 && (
                           <ul className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             {section.list.map((item, i) => (
-                              <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300">
-                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 mt-1.5 shrink-0" />
+                              <li key={i} className="flex items-start gap-2 text-sm text-zinc-700 dark:text-zinc-300 bg-white dark:bg-zinc-900 p-3 rounded-lg border border-zinc-200 dark:border-zinc-800 shadow-sm">
+                                <div className="w-2 h-2 rounded-full bg-indigo-400 mt-1 shrink-0" />
                                 <span>{item}</span>
                               </li>
                             ))}
@@ -267,6 +337,7 @@ export function PersonaDetailModal({ persona, onClose }: PersonaDetailModalProps
                 )}
               </div>
             </div>
+
           </div>
         </div>
       </div>
