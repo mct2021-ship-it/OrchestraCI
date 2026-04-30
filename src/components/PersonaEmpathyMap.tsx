@@ -4,6 +4,7 @@ import { MessageSquare, Brain, Footprints, Heart, Plus, Trash2, HelpCircle, Spar
 import { Persona, EmpathyMap } from '../types';
 import { cn } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type } from '@google/genai';
 
 interface PersonaEmpathyMapProps {
@@ -61,11 +62,6 @@ export function PersonaEmpathyMap({ persona, onChange, canEdit = true }: Persona
   const [isEvolving, setIsEvolving] = useState(false);
 
   const handleEvolve = async () => {
-    if (!persona.contextData) {
-      alert("Please add data to the 'Context' tab first to evolve this empathy map.");
-      return;
-    }
-
     setIsEvolving(true);
     try {
       const hasKey = await ensureApiKey();
@@ -74,15 +70,13 @@ export function PersonaEmpathyMap({ persona, onChange, canEdit = true }: Persona
       const ai = await getGeminiClient();
       if (!ai) throw new Error("AI Client failed");
 
-      const prompt = `Based on the following persona profile and the provided raw context data, generate a refined empathy map.
+      const prompt = `Based on the following persona profile ${persona.contextData ? 'and the provided raw context data,' : ''} generate a refined empathy map.
       
       Persona: ${persona.name} (${persona.role})
       Goals: ${persona.goals?.join(', ')}
       Frustrations: ${persona.frustrations?.join(', ')}
       
-      RAW CONTEXT DATA:
-      ${persona.contextData}
-      
+      ${persona.contextData ? `RAW CONTEXT DATA:\n${persona.contextData}\n` : ''}
       EXISTING EMPATHY MAP (to be evolved):
       - Says: ${empathyMap.says.join(', ')}
       - Thinks: ${empathyMap.thinks.join(', ')}
@@ -90,14 +84,14 @@ export function PersonaEmpathyMap({ persona, onChange, canEdit = true }: Persona
       - Feels: ${empathyMap.feels.join(', ')}
       
       Instructions:
-      1. Analyze the context data for new insights.
+      1. Analyze the persona details ${persona.contextData ? 'and context data ' : ''}for new insights.
       2. Refine existing items or add new ones to each quadrant.
-      3. Focus on specific, high-intent behaviors and emotional states found in the raw data.
+      3. Focus on specific, high-intent behaviors and emotional states.
       4. return ONLY a JSON object matching the EmpathyMap structure: { says: string[], thinks: string[], does: string[], feels: string[] }.
       5. Max 5 key items per quadrant.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           responseMimeType: "application/json"
@@ -160,7 +154,7 @@ export function PersonaEmpathyMap({ persona, onChange, canEdit = true }: Persona
             ) : (
               <Sparkles className="w-4 h-4" />
             )}
-            {isEvolving ? 'Evolving...' : 'AI Refresh'}
+            {isEvolving ? 'Updating...' : 'Update with AI'}
           </button>
         )}
       </div>

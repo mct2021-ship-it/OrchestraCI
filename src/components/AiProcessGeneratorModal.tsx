@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Upload, Wand2, FileText, Loader2, AlertCircle } from 'lucide-react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from "@google/genai";
 import { useToast } from '../context/ToastContext';
 import { ProcessMap } from '../types';
@@ -92,7 +93,7 @@ export function AiProcessGeneratorModal({ isOpen, onClose, onGenerate, projectId
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.personaGeneration,
         contents: `Generate a structured process map from the following SOP/Process document text. 
         Identify decision points, branching paths, and the type of each step.
         

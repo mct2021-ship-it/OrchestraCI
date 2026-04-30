@@ -22,6 +22,7 @@ import {
 import { Project, Sprint, Task, User } from '../types';
 import { cn, formatDate, fixOklch } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { stripPIData } from '../lib/piStripper';
 import { v4 as uuidv4 } from 'uuid';
 import html2canvas from 'html2canvas';
@@ -282,7 +283,7 @@ export function SprintManagement({ projects, tasks, users, sprints, setSprints, 
       - Format as professional Markdown.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
       });
       const report = result.text || 'Failed to generate report.';

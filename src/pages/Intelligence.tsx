@@ -6,10 +6,11 @@ import { VocSection } from '../components/VocSection';
 import { NpsCalculator } from '../components/NpsCalculator';
 import { IntelligenceHub } from '../components/ReviewIntelligence';
 import { YourCompany, CompanyProfile } from '../components/YourCompany';
-import { cn } from '../lib/utils';
+import { cn, scrollToTop } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { useToast } from '../context/ToastContext';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type } from '@google/genai';
 import { AnimatePresence } from 'motion/react';
 
@@ -67,7 +68,7 @@ export function Intelligence({
   const [isUploading, setIsUploading] = useState(false);
 
   React.useEffect(() => {
-    window.scrollTo(0, 0);
+    scrollToTop(false);
     if (startInEditMode) {
       setActiveTab('profile');
     } else if (initialTab) {
@@ -255,7 +256,7 @@ export function Intelligence({
       Ensure the insights are actionable and specific to the vertical and description provided.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           responseMimeType: "application/json",

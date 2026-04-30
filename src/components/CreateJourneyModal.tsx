@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from '@google/genai';
 import { X, Wand2, Loader2, Mic, FilePlus, Upload, FileText } from 'lucide-react';
 import { JourneyMap, Swimlane, JourneyStage, Product, Service, Persona } from '../types';
@@ -130,7 +131,7 @@ export function CreateJourneyModal({ onClose, onSave, projectId, personas }: Cre
         Also provide an emotion score from 1 to 5 for each stage (1 is very negative, 5 is very positive).`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.personaGeneration,
         contents: contentPrompt,
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },

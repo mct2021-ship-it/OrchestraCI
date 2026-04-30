@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Building2, Upload, X, CheckCircle2, AlertCircle, Globe, Sparkles, Plus, Trash2, FileText, Download, History, ChevronRight, Users } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { cn } from '../lib/utils';
+import { cn, scrollToTop } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { ThinkingLevel, Type } from "@google/genai";
 import { jsPDF } from "jspdf";
 import ReactMarkdown from 'react-markdown';
@@ -254,7 +255,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -351,7 +352,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           tools: [{ googleSearch: {} }]
@@ -1321,7 +1322,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
                        <button 
                          onClick={() => {
                            setCompetitorAnalysis(analysis.content);
-                           window.scrollTo({ top: 0, behavior: 'smooth' });
+                           scrollToTop();
                          }}
                          className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-bold hover:underline"
                        >

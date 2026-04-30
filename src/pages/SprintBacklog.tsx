@@ -32,6 +32,7 @@ import { Project, Sprint, Task, User } from '../types';
 import { CompanyProfile } from '../components/YourCompany';
 import { cn, formatDate, fixOklch } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { stripPIData } from '../lib/piStripper';
 import { v4 as uuidv4 } from 'uuid';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
@@ -262,7 +263,7 @@ export function SprintBacklog({
       if (!ai) throw new Error('AI client not initialized');
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.personaGeneration,
         contents: `Prioritize the following project tasks using the MoSCoW method (Must, Should, Could, Wont).
         Project: ${stripPIData(activeProject?.name || '')}
         Description: ${stripPIData(activeProject?.description || '')}
@@ -405,7 +406,7 @@ export function SprintBacklog({
       Tasks: ${sprintTasks.map(t => `- ${stripPIData(t.title)} (${t.kanbanStatus})`).join('\n')}`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.personaGeneration,
         contents: prompt,
       });
       const report = result.text || 'Failed to generate report.';

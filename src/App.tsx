@@ -125,6 +125,12 @@ function AppContent() {
     setCurrentTab(tab);
     if (subTab) setActiveSubTab(subTab);
     else setActiveSubTab(null);
+    
+    // Scroll container to top of the page when navigating to a new view
+    const mainContainer = document.getElementById('main-scroll-container');
+    if (mainContainer) {
+      mainContainer.scrollTop = 0;
+    }
   }, []);
 
   const [activeSubTab, setActiveSubTab] = useState<string | null>(null);
@@ -625,6 +631,13 @@ function AppContent() {
 
   const activeProject = useMemo(() => projects.find(p => p.id === activeProjectId), [projects, activeProjectId]);
 
+  useEffect(() => {
+    const mainContainer = document.getElementById('main-scroll-container');
+    if (mainContainer) {
+      mainContainer.scrollTop = 0;
+    }
+  }, [currentTab, activeProjectId, activeJourneyId, activeTaskId, activeProcessMapId]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center">
@@ -1053,7 +1066,9 @@ function AppContent() {
             setActiveModule={setActiveModule}
             onNavigate={handleTabChange}
           />
-          <main className={cn(
+          <main 
+            id="main-scroll-container"
+            className={cn(
             "flex-1 overflow-y-auto relative py-10 px-8 md:px-16 lg:px-24",
             history.length > 1 ? 'pt-16' : ''
           )}>

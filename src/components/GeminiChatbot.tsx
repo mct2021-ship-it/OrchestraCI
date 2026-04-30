@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MessageSquare, X, Send, Sparkles, Bot, User as UserIcon, HelpCircle } from 'lucide-react';
 import { GeminiChatbotProps, Message } from '../types';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import ReactMarkdown from 'react-markdown';
 import { cn } from '../lib/utils';
 import { stripPIData } from '../lib/piStripper';
@@ -78,7 +79,7 @@ export function GeminiChatbot({ onNavigate, contextData }: GeminiChatbotProps) {
       ];
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents,
         config: {
           systemInstruction: `You are the Orchestra CI Help Assistant. You have full knowledge of the Orchestra CI platform and the user's current workspace.

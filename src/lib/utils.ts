@@ -123,3 +123,12 @@ export function fixOklch(clonedDoc: Document) {
     }
   });
 }
+
+export function scrollToTop(smooth = true) {
+  const container = document.getElementById('main-scroll-container');
+  if (container) {
+    container.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+  } else {
+    window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+  }
+}

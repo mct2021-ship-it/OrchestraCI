@@ -6,6 +6,7 @@ import { Project, RAIDItem, User } from '../types';
 import { cn } from '../lib/utils';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
@@ -41,7 +42,7 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: `Suggest 3-5 potential ${activeTab}s for the following project:
         Project Name: ${stripPIData(project.name)}
         Description: ${stripPIData(project.description)}
@@ -149,7 +150,7 @@ export function RaidLog({ project, setProjects, users = [] }: RaidLogProps) {
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: `Suggest a concise mitigation strategy for the following project ${editingRisk.type}:
         Project: ${stripPIData(project.name)}
         Description: ${stripPIData(editingRisk.description)}

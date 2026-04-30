@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { X, Wand2, Upload, User, Target, Frown, Quote, Loader2, FileText, Sliders, Star, Plus, Image as ImageIcon, Heart, BookOpen, Folder, ChevronLeft, Home, Building2, Briefcase, HeartPulse, ShoppingCart, Scale, Calculator, Zap, Filter, Check, Mic, MicOff, LayoutTemplate, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from "@google/genai";
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
@@ -174,7 +175,7 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, onUseAi, companyPr
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.personaGeneration,
         contents: `Create a detailed customer persona based on this description: "${stripPIData(prompt)}". 
         
         ${companyProfile ? `Context about the company:

@@ -5,6 +5,7 @@ import { cn } from '../lib/utils';
 import { motion, AnimatePresence } from 'motion/react';
 import { PersonaInterview } from './PersonaInterview';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
@@ -173,7 +174,7 @@ export function StakeholderMapping({ project, globalStakeholders, projectStakeho
         return;
       }
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.chat,
         contents: `Generate a concise engagement strategy for a stakeholder in a project.
         
         Project: ${stripPIData(project.name)}

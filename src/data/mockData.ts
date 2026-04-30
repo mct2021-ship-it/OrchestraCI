@@ -241,7 +241,33 @@ export const mockPersonas: Persona[] = [
       { id: 'd1', label: 'Technical Savvy', value: 75 },
       { id: 'd2', label: 'Brand Loyalty', value: 40 },
       { id: 'd3', label: 'Price Sensitivity', value: 60 }
-    ]
+    ],
+    sentiment: 4,
+    opportunities: [
+      {
+        id: 'opp-1',
+        title: 'AI-driven automated reporting dashboard',
+        description: 'Leverage generative AI to summarize complex marketing data into weekly executive reports.',
+        status: 'accepted',
+        votes: ['u1', 'u2'],
+        suggestedBy: 'AI',
+        createdAt: new Date().toISOString(),
+        impact: 'High',
+        effort: 'Medium'
+      },
+      {
+        id: 'opp-2',
+        title: 'Zapier integration for 1-click marketing tool connections',
+        description: 'Reduce technical friction by providing pre-built Zapier templates for common tools.',
+        status: 'accepted',
+        votes: ['u1'],
+        suggestedBy: 'User',
+        createdAt: new Date().toISOString(),
+        impact: 'Medium',
+        effort: 'Low'
+      }
+    ],
+    highlightedOpportunities: ['opp-1']
   },
   {
     id: 'p2',
@@ -257,7 +283,8 @@ export const mockPersonas: Persona[] = [
       { id: 'd1', label: 'Technical Savvy', value: 95 },
       { id: 'd2', label: 'Risk Aversion', value: 80 },
       { id: 'd3', label: 'Decision Power', value: 90 }
-    ]
+    ],
+    sentiment: 2
   },
   {
     id: 'p3',
@@ -273,7 +300,8 @@ export const mockPersonas: Persona[] = [
       { id: 'd1', label: 'Empathy', value: 95 },
       { id: 'd2', label: 'Patience', value: 90 },
       { id: 'd3', label: 'Tech Proficiency', value: 70 }
-    ]
+    ],
+    sentiment: 5
   },
   {
     id: 'p4',
@@ -289,7 +317,8 @@ export const mockPersonas: Persona[] = [
       { id: 'd1', label: 'Attention to Detail', value: 98 },
       { id: 'd2', label: 'Risk Tolerance', value: 20 },
       { id: 'd3', label: 'Analytical Thinking', value: 95 }
-    ]
+    ],
+    sentiment: 3
   },
   {
     id: 'p5',
@@ -305,7 +334,8 @@ export const mockPersonas: Persona[] = [
       { id: 'd1', label: 'Creativity', value: 90 },
       { id: 'd2', label: 'User Focus', value: 95 },
       { id: 'd3', label: 'Collaboration', value: 85 }
-    ]
+    ],
+    sentiment: 4
   }
 ];
 

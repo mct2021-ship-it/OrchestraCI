@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { defaultSwimlanes } from '../data/mockData';
 import { ContextualHelp } from '../components/ContextualHelp';
-import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, ChevronRight, GitMerge, Package, Layers, Printer, Map, Eye, EyeOff, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal, Maximize2, Minimize2, ChevronLeft } from 'lucide-react';
+import { Plus, Smile, Meh, Frown, ArrowRight, Settings2, Download, Share2, Trash2, Wand2, X, ChevronUp, ChevronDown, ChevronRight, GitMerge, Package, Layers, Printer, Map, Eye, EyeOff, Sparkles, MessageSquare, Target, FileText, CheckCircle2, Archive, Copy, Search, ShoppingCart, CreditCard, Truck, Home, User as UserIcon, Phone, Mail, Calendar, Clock, Star, Heart, ThumbsUp, Zap, Shield, Briefcase, Coffee, Music, Video, Camera, Image as ImageIcon, Book, Compass, Navigation, AlertCircle, Lightbulb, Settings, Users, Monitor, BarChart, CheckSquare, Flag, AlertTriangle, ShoppingBag, RefreshCw, Leaf, Activity, TrendingDown, MoreHorizontal, Maximize2, Minimize2, ChevronLeft, Info } from 'lucide-react';
 
 const STAGE_ICONS = [
   { name: 'Target', icon: Target },
@@ -101,6 +101,7 @@ import { CarbonLibraryModal } from '../components/CarbonLibraryModal';
 import { carbonLibrary } from '../data/carbonLibrary';
 import { BookOpen } from 'lucide-react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 import { CommentsPanel } from '../components/CommentsPanel';
@@ -552,7 +553,7 @@ export function JourneyMaps({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.personaGeneration,
         contents: [{ parts: [{ text: prompt }] }],
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
@@ -713,7 +714,7 @@ export function JourneyMaps({
                       id: uuidv4(),
                       projectId: activeProjectId || 'proj1',
                       title: 'New Journey Map',
-                      personaIds: ['p1'],
+                      personaIds: [],
                       state: 'Proposed',
                       satisfaction: {
                         metric: 'NPS',
@@ -1179,7 +1180,7 @@ export function JourneyMaps({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.personaGeneration,
         contents: [{ parts: [{ text: prompt }] }],
         config: {
           responseMimeType: "application/json",
@@ -1337,10 +1338,7 @@ export function JourneyMaps({
   if (!activeJourney) return null;
 
   return (
-    <div className={cn(
-      "p-8 mx-auto space-y-8 print:p-0 print:max-w-none",
-      isFullScreen ? "fixed inset-0 z-[100] bg-zinc-50 dark:bg-zinc-950 overflow-auto p-8" : "max-w-[1600px]"
-    )}>
+    <div className="p-8 mx-auto space-y-8 print:p-0 print:max-w-none max-w-[1600px]">
       <div className="flex items-center justify-between print:hidden no-export">
         <div className="flex items-center gap-4">
           <button 
@@ -1355,13 +1353,6 @@ export function JourneyMaps({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <button 
-            onClick={() => setIsFullScreen(!isFullScreen)}
-            className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-lg transition-colors"
-            title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
-          >
-            {isFullScreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-          </button>
           {activeJourneyId && (
             <div className="flex items-center gap-2 bg-white dark:bg-zinc-900 p-1 rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-sm">
               <button 
@@ -1489,7 +1480,7 @@ export function JourneyMaps({
                     id: uuidv4(),
                     projectId: 'proj1',
                     title: 'New Journey Map',
-                    personaIds: ['p1'],
+                    personaIds: [],
                     state: 'Proposed',
                     satisfaction: {
                       metric: 'NPS',
@@ -1561,15 +1552,15 @@ export function JourneyMaps({
         />
       )}
 
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+      <div className="flex flex-wrap gap-2 mb-6">
         {journeys.map(j => (
           <button
             key={j.id}
             onClick={() => setActiveJourneyId(j.id)}
-            className={`px-4 py-2 rounded-md text-sm font-medium whitespace-nowrap transition-all ${
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all border ${
               activeJourneyId === j.id
-                ? 'bg-zinc-900 text-white shadow-sm'
-                : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 dark:bg-zinc-900 hover:text-zinc-900 dark:text-white'
+                ? 'bg-zinc-900 border-zinc-900 text-white shadow-md'
+                : 'bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white shadow-sm'
             }`}
           >
             {j.title}
@@ -1578,7 +1569,7 @@ export function JourneyMaps({
       </div>
 
       {/* Persona Details Section */}
-      {(!activeJourney.personaIds || activeJourney.personaIds.length === 0) ? (
+      {(!activeJourney.personaIds || activeJourney.personaIds.filter(id => personas.some(p => p.id === id)).length === 0) ? (
         <div className="mb-8 p-6 bg-white dark:bg-zinc-900 rounded-3xl border border-dashed border-zinc-200 dark:border-zinc-800 flex flex-col items-center justify-center text-center gap-4">
           <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-full">
             <Users className="w-8 h-8 text-indigo-600 dark:text-indigo-400" />
@@ -1603,7 +1594,7 @@ export function JourneyMaps({
           >
             <div className="flex items-center gap-2">
               <Users className="w-4 h-4" />
-              <span>Personas ({activeJourney.personaIds.length})</span>
+              <span>Personas ({activeJourney.personaIds.filter(id => personas.some(p => p.id === id)).length})</span>
               <div className="flex -space-x-2 ml-2">
                 {activeJourney.personaIds.map(id => {
                   const p = personas.find(p => p.id === id);
@@ -1668,7 +1659,13 @@ export function JourneyMaps({
         </div>
       )}
 
-      <div id="journey-map-content" className="bg-white dark:bg-zinc-900 rounded-xl shadow-sm border border-zinc-200 dark:border-zinc-800 overflow-hidden">
+      <div 
+        id="journey-map-content" 
+        className={cn(
+          "bg-white dark:bg-zinc-900 shadow-sm border border-zinc-200 dark:border-zinc-800 flex flex-col",
+          isFullScreen ? "fixed inset-0 z-[100] rounded-none m-0" : "rounded-xl overflow-hidden"
+        )}
+      >
         <div className="p-4 border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50 flex flex-col lg:flex-row gap-4 lg:items-center justify-between">
           <div className="flex flex-wrap items-center gap-3 lg:gap-4">
             <EditableText 
@@ -1889,15 +1886,25 @@ export function JourneyMaps({
                   )}
                 </AnimatePresence>
               </div>
+              <button 
+                onClick={() => setIsFullScreen(!isFullScreen)}
+                className="p-2 text-zinc-400 hover:text-zinc-900 dark:text-white hover:bg-zinc-100 dark:hover:bg-zinc-700 dark:bg-zinc-800 rounded-lg transition-colors"
+                title={isFullScreen ? "Exit Full Screen" : "Full Screen"}
+              >
+                {isFullScreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
             </div>
           </div>
         </div>
 
-        <div className="overflow-x-auto relative">
-          <div className="min-w-[1000px]">
+        <div className={cn(
+          "overflow-x-auto overflow-y-auto relative scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700 pb-4 bg-zinc-50 dark:bg-zinc-950",
+          isFullScreen ? "flex-1" : "max-h-[calc(100vh-16rem)]"
+        )}>
+          <div className="w-max min-w-full bg-white dark:bg-zinc-900 rounded-2xl shadow-sm border border-zinc-200 dark:border-zinc-800">
             {/* Stages Header */}
-            <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300">
-              <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider border-r border-zinc-200 dark:border-zinc-800 flex items-center print:bg-white dark:bg-zinc-900">
+            <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300 rounded-t-2xl overflow-hidden sticky top-0 z-40 bg-zinc-50 dark:bg-zinc-900/95 backdrop-blur-sm shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)]">
+              <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900 font-semibold text-zinc-500 dark:text-zinc-400 text-xs uppercase tracking-wider border-r border-zinc-200 dark:border-zinc-800 flex items-center print:bg-white dark:bg-zinc-900 sticky left-0 z-50 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.05)]">
                 Stages
               </div>
               {activeJourney.stages.map((stage, i) => {
@@ -1988,7 +1995,7 @@ export function JourneyMaps({
                 {/* Render Emotion Row if it's the right index */}
                 {index === emotionScoreIndex && (
                   <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300">
-                    <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex items-center gap-2 print:bg-white dark:bg-zinc-900">
+                    <div className="p-4 w-48 shrink-0 bg-white dark:bg-zinc-900 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex items-center gap-2 print:bg-white dark:bg-zinc-900 sticky left-0 z-20 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.05)]">
                       <Smile className="w-4 h-4 text-zinc-400" />
                       Emotion Score
                     </div>
@@ -2018,7 +2025,9 @@ export function JourneyMaps({
                         </button>
                       </div>
                     ))}
-                    <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
+                    {canEdit && (
+                      <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
+                    )}
                   </div>
                 )}
 
@@ -2046,7 +2055,7 @@ export function JourneyMaps({
                     }}
                     onDragEnd={() => setDraggedLaneIndex(null)}
                   >
-                    <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-center group relative print:bg-white dark:bg-zinc-900 cursor-grab active:cursor-grabbing">
+                    <div className="p-4 w-48 shrink-0 bg-white dark:bg-zinc-900 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex flex-col justify-center group relative print:bg-white dark:bg-zinc-900 cursor-grab active:cursor-grabbing sticky left-0 z-20 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.05)]">
                       <div className="flex flex-col gap-2 w-full">
                         <div className="flex items-center gap-2">
                           <div className="relative">
@@ -2094,6 +2103,22 @@ export function JourneyMaps({
                         </div>
                       </div>
                       <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-200 print:hidden no-export bg-white/90 dark:bg-zinc-800/90 backdrop-blur-sm p-1 rounded-lg shadow-sm border border-zinc-200/50 dark:border-zinc-700/50 z-10">
+                        <div className="relative group/help flex items-center justify-center p-1 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-all cursor-help">
+                          <Info className="w-4 h-4" />
+                          <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 w-48 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 text-xs p-2 rounded shadow-xl opacity-0 invisible group-hover/help:opacity-100 group-hover/help:visible transition-all duration-200 z-50 font-normal pointer-events-none before:content-[''] before:absolute before:right-full before:top-1/2 before:-translate-y-1/2 before:border-4 before:border-transparent before:border-r-zinc-900 dark:before:border-r-white">
+                            {(() => {
+                              const title = lane.name.toLowerCase();
+                              if (title.includes('doing')) return "Specific actions the persona takes at this stage.";
+                              if (title.includes('thinking')) return "Questions, quotes, or thoughts the persona has during this step.";
+                              if (title.includes('feeling')) return "The emotional state driving their decisions.";
+                              if (title.includes('touchpoint')) return "Channels or interfaces the persona interacts with.";
+                              if (title.includes('pain') || title.includes('friction')) return "Difficulties or negative experiences encountered.";
+                              if (title.includes('opportunity')) return "Ideas, tasks, or features to improve the experience.";
+                              if (title.includes('back office') || title.includes('process')) return "Internal processes supporting the user's journey.";
+                              return `Details regarding ${lane.name}. Add relevant items for each stage.`;
+                            })()}
+                          </div>
+                        </div>
                         <button 
                           onClick={() => toggleSwimlaneVisibility(lane.id)} 
                           className="p-1 text-zinc-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded transition-all"
@@ -2148,10 +2173,10 @@ export function JourneyMaps({
                           {items.map((item, i) => {
                             return (
                             <div key={i} className={`group/item relative flex flex-col gap-1 bg-white dark:bg-zinc-900 p-2.5 rounded-lg border border-${lane.colorTheme}-100 dark:border-zinc-700 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 print:shadow-none print:border-zinc-200`}>
-                              <div className="flex items-start gap-2">
+                              <div className="flex items-start gap-2 min-w-0">
                                 <div className={`w-1.5 h-1.5 rounded-full bg-${lane.colorTheme}-400 mt-1.5 shrink-0`} />
-                                <div className="flex-1 flex flex-col gap-1">
-                                  <div className="flex flex-col gap-1">
+                                <div className="flex-1 min-w-0 flex flex-col gap-1">
+                                  <div className="flex flex-col gap-1 min-w-0">
                                       <div 
                                         className="text-sm font-medium text-zinc-900 dark:text-zinc-100 cursor-pointer hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                         onClick={() => setSelectedItemDetail({ stageId: stage.id, laneId: lane.id, itemIndex: i, item: (typeof item === 'string' ? { id: uuidv4(), title: item, description: '' } : item) })}
@@ -2306,7 +2331,9 @@ export function JourneyMaps({
                       </div>
                     );
                   })}
-                  <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
+                  {canEdit && (
+                    <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
+                  )}
                 </div>
               </React.Fragment>
             ))}
@@ -2314,7 +2341,7 @@ export function JourneyMaps({
             {/* Render Emotion Row at the very end if it wasn't rendered yet (e.g., no opportunities lane and we are at the end) */}
             {emotionScoreIndex >= activeJourney.swimlanes.length && (
               <div className="flex border-b border-zinc-200 dark:border-zinc-800 print:border-zinc-300">
-                <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex items-center gap-2 print:bg-white dark:bg-zinc-900">
+                <div className="p-4 w-48 shrink-0 bg-white dark:bg-zinc-900 font-semibold text-zinc-700 dark:text-zinc-200 border-r border-zinc-200 dark:border-zinc-800 flex items-center gap-2 print:bg-white dark:bg-zinc-900 sticky left-0 z-20 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.05)]">
                   <Smile className="w-4 h-4 text-zinc-400" />
                   Emotion Score
                 </div>
@@ -2344,14 +2371,16 @@ export function JourneyMaps({
                     </button>
                   </div>
                 ))}
-                <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
+                {canEdit && (
+                  <div className="p-4 border-r border-zinc-200 dark:border-zinc-800 last:border-r-0 bg-zinc-50 dark:bg-zinc-900/30 w-[150px] shrink-0 print:hidden no-export"></div>
+                )}
               </div>
             )}
 
             {/* Add Swimlane Row */}
             {canEdit && (
               <div className="flex print:hidden no-export">
-                <div className="p-4 w-48 shrink-0 bg-zinc-50 dark:bg-zinc-900/80 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center relative">
+                <div className="p-4 w-48 shrink-0 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex items-center justify-center relative sticky left-0 z-20 shadow-[2px_0_8px_-2px_rgba(0,0,0,0.05)] rounded-bl-2xl">
                   <button 
                     onClick={() => handleAddSwimlane('text-list')} 
                     className="text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:text-white flex items-center gap-1 text-sm font-medium transition-colors"

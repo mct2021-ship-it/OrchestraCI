@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Persona } from '../types';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { ThinkingLevel } from "@google/genai";
 import { cn } from '../lib/utils';
 import { stripPIData } from '../lib/piStripper';
@@ -146,7 +147,7 @@ export function PersonaInterview({ persona, isOpen, onClose, isDarkMode }: Perso
       6. Current user message: ${stripPIData(userMessage)}`;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.chat,
         contents: [
           ...history.map(h => ({ role: h.role as any, parts: h.parts })),
           { role: 'user', parts: [{ text: personaPrompt }] }
@@ -187,7 +188,7 @@ export function PersonaInterview({ persona, isOpen, onClose, isDarkMode }: Perso
       Return ONLY a JSON list of strings.`;
 
       const result = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.chat,
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         config: {
           responseMimeType: 'application/json'

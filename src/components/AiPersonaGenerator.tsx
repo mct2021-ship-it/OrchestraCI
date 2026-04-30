@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from "@google/genai";
 import { X, Sparkles, Loader2, Check, UserPlus, Upload, FileText as FileIcon, Mic, MicOff } from 'lucide-react';
 import { Persona } from '../types';
@@ -157,7 +158,7 @@ export function AiPersonaGenerator({ isOpen, onClose, onSave, companyProfile }: 
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.personaGeneration,
         contents: [{ parts: [{ text: prompt }] }],
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },

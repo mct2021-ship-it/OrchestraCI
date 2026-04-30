@@ -22,6 +22,8 @@
     "@xyflow/react": "^12.10.1",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.4.1",
+    "bpmn-js": "^18.15.0",
+    "bpmn-js-properties-panel": "^5.54.0",
     "clsx": "^2.1.1",
     "dotenv": "^17.2.3",
     "express": "^4.21.2",

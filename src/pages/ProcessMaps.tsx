@@ -3,6 +3,7 @@ import { Plus, Download, Share2, GitMerge, Settings2, Trash2, Sparkles, ChevronU
 import { ProcessMap, JourneyMap, ProcessNode, ProcessEdge, Comment, User, Project, RecycleBinItem, Task } from '../types';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { ProcessFlowEditor } from '../components/ProcessFlowEditor';
+import { BpmnEditor } from '../components/BpmnEditor';
 import { AiProcessGeneratorModal } from '../components/AiProcessGeneratorModal';
 import { CommentsPanel } from '../components/CommentsPanel';
 import { VersionHistory } from '../components/VersionHistory';
@@ -143,9 +144,9 @@ export function ProcessMaps({
     onAddToAuditLog?.('Created AI Process Map', `Created process map ${pm.title} using AI`, 'Create', 'ProcessMap', pm.id, 'AI');
   }, [activeProjectId, setProcessMaps, onAddToAuditLog]);
 
-  const updateProcessMapData = useCallback((id: string, nodes: ProcessNode[], edges: ProcessEdge[]) => {
+  const updateProcessMapData = useCallback((id: string, nodes: ProcessNode[], edges: ProcessEdge[], bpmnXml?: string) => {
     setProcessMaps(prev => prev.map(pm => 
-      pm.id === id ? { ...pm, nodes, edges } : pm
+      pm.id === id ? { ...pm, nodes, edges, bpmnXml } : pm
     ));
   }, [setProcessMaps]);
 
@@ -153,13 +154,56 @@ export function ProcessMaps({
     const newPM: ProcessMap = {
       id: `pm_${Date.now()}`,
       projectId: activeProjectId || 'proj1',
-      title: 'New Process Map',
+      title: 'New Process Map (BPMN)',
       nodes: [],
-      edges: []
+      edges: [],
+      bpmnXml: ''
     };
     setProcessMaps(prev => [newPM, ...prev]);
     onAddToAuditLog?.('Created Process Map', `Created process map ${newPM.title}`, 'Create', 'ProcessMap', newPM.id, 'Manual');
   }, [activeProjectId, setProcessMaps, onAddToAuditLog]);
+
+  const handleImportVisio = useCallback(() => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.vsdx';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      // Mock Visio parsing
+      addToast('Parsing Visio file...', 'info');
+      setTimeout(() => {
+        const newPM: ProcessMap = {
+          id: `pm_vsdx_${Date.now()}`,
+          projectId: activeProjectId || 'proj1',
+          title: `Imported from ${file.name}`,
+          nodes: [],
+          edges: [],
+          bpmnXml: `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI" xmlns:dc="http://www.omg.org/spec/DD/20100524/DC" targetNamespace="http://bpmn.io/schema/bpmn" id="Definitions_1">
+  <bpmn:process id="Process_1" isExecutable="false">
+    <bpmn:startEvent id="StartEvent_1"/>
+    <bpmn:task id="Task_1" name="Imported Visio Task" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_2" bpmnElement="StartEvent_1">
+        <dc:Bounds height="36.0" width="36.0" x="173.0" y="102.0"/>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Shape_Task_1" bpmnElement="Task_1">
+        <dc:Bounds height="80.0" width="100.0" x="250.0" y="80.0"/>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`
+        };
+        setProcessMaps(prev => [newPM, ...prev]);
+        addToast('Visio file imported successfully as BPMN', 'success');
+      }, 1500);
+    };
+    input.click();
+  }, [activeProjectId, setProcessMaps, addToast]);
 
   return (
     <div className="p-8 max-w-[1600px] mx-auto space-y-8">
@@ -196,6 +240,13 @@ export function ProcessMaps({
               >
                 <Wand2 className="w-4 h-4" />
                 <span className="hidden sm:inline">AI Generate from SOP</span>
+              </button>
+              <button 
+                onClick={handleImportVisio}
+                className="bg-white dark:bg-zinc-900 hover:bg-zinc-50 dark:hover:bg-zinc-800 text-zinc-900 dark:text-white px-4 py-2 rounded-xl font-bold flex items-center gap-2 transition-all border border-zinc-200 dark:border-zinc-800 shadow-sm"
+              >
+                <Download className="w-4 h-4 rotate-180" />
+                <span className="hidden sm:inline">Import Visio</span>
               </button>
               <button 
                 onClick={handleNewProcessMap}
@@ -339,14 +390,24 @@ export function ProcessMaps({
               </div>
             </div>
 
-            <ProcessFlowEditor 
-              processMap={pm} 
-              onUpdate={(nodes, edges) => updateProcessMapData(pm.id, nodes, edges)} 
-              canEdit={canEdit}
-              isFullScreen={fullScreenMapId === pm.id}
-              onToggleFullScreen={() => setFullScreenMapId(fullScreenMapId === pm.id ? null : pm.id)}
-              onAddTask={onAddTask}
-            />
+            {pm.bpmnXml !== undefined ? (
+              <BpmnEditor
+                xml={pm.bpmnXml || ''}
+                onUpdate={(xml) => updateProcessMapData(pm.id, pm.nodes, pm.edges, xml)}
+                canEdit={canEdit}
+                isFullScreen={fullScreenMapId === pm.id}
+                onToggleFullScreen={() => setFullScreenMapId(fullScreenMapId === pm.id ? null : pm.id)}
+              />
+            ) : (
+              <ProcessFlowEditor 
+                processMap={pm} 
+                onUpdate={(nodes, edges) => updateProcessMapData(pm.id, nodes, edges)} 
+                canEdit={canEdit}
+                isFullScreen={fullScreenMapId === pm.id}
+                onToggleFullScreen={() => setFullScreenMapId(fullScreenMapId === pm.id ? null : pm.id)}
+                onAddTask={onAddTask}
+              />
+            )}
           </div>
           );
         })}

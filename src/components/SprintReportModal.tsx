@@ -4,6 +4,7 @@ import { motion } from 'motion/react';
 import { Sprint, Project, Task } from '../types';
 import { ThinkingLevel } from '@google/genai';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
 import { fixOklch } from '../lib/utils';
@@ -133,7 +134,7 @@ CRITICAL INSTRUCTIONS:
 `;
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           systemInstruction: 'You are an expert agile project manager. Generate clear, concise, and professional sprint reports.',

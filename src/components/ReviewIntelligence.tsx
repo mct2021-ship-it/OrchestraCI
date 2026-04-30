@@ -34,6 +34,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type } from '@google/genai';
 import { CompanyProfile } from './YourCompany';
 import { Persona, Project, JourneyMap, Task, Sprint, IntelligenceSignal, Product, Service } from '../types';
@@ -264,7 +265,7 @@ export function IntelligenceHub({
       Ensure the insights are directly tied to the signals and align with the company's strategic goals and relevant products.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -589,7 +590,7 @@ export function IntelligenceHub({
       Generate between 2 and 5 specific signals based on the content.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           responseMimeType: "application/json",

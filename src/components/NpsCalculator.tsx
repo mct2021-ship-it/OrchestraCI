@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, Calculator, Loader2, AlertCircle, Sparkles, HelpCircle } from 'lucide-react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
 
@@ -50,7 +51,7 @@ export function NpsCalculator() {
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.chat,
         contents: `Analyze the following NPS survey data. Count the number of promoters (scores 9-10), passives (scores 7-8), and detractors (scores 0-6).
         
         NPS Data:

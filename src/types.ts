@@ -42,6 +42,18 @@ export interface EmpathyMap {
   feels: string[];
 }
 
+export interface PersonaOpportunity {
+  id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'accepted' | 'rejected';
+  votes: string[]; // User IDs
+  suggestedBy: 'AI' | 'User';
+  createdAt: string;
+  impact: 'High' | 'Medium' | 'Low';
+  effort: 'High' | 'Medium' | 'Low';
+}
+
 export interface Persona {
   id: string;
   name: string;
@@ -57,6 +69,10 @@ export interface Persona {
   avatarAttributes?: string;
   demographics: DemographicSlider[];
   sentiment?: number;
+  successScore?: number;
+  effortScore?: number;
+  opportunities?: PersonaOpportunity[];
+  highlightedOpportunities?: string[];
   isTemplate?: boolean;
   isDefaultTemplate?: boolean;
   userStories?: UserStory[];
@@ -358,6 +374,7 @@ export interface ProcessMap {
   journeyId?: string;
   nodes: ProcessNode[];
   edges: ProcessEdge[];
+  bpmnXml?: string;
   archived?: boolean;
   comments?: Comment[];
 }

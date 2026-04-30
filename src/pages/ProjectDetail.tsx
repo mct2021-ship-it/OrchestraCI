@@ -47,6 +47,7 @@ import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { usePermissions } from '../hooks/usePermissions';
 import { PRESET_AVATARS } from '../constants';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 import ReactMarkdown from 'react-markdown';
@@ -287,7 +288,7 @@ export function ProjectDetail({
       Respond with a JSON object containing a "suggestions" array.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
@@ -468,7 +469,7 @@ export function ProjectDetail({
       `;
 
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: [{ parts: [{ text: prompt }] }],
         config: {
           thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }

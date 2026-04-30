@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { X, Wand2, Upload, Loader2, AlertCircle, Sparkles, FileText, MessageSquare } from 'lucide-react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from '@google/genai';
 import { JourneyMap } from '../types';
 import Markdown from 'react-markdown';
@@ -51,7 +52,7 @@ export function JourneyAiAssistant({ isOpen, onClose, journey }: JourneyAiAssist
       const journeyData = JSON.stringify(journey, null, 2);
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.personaGeneration,
         contents: `You are an expert Customer Experience (CX) and Sustainability designer. Analyze the following Journey Map and suggest experience improvements, highlight potential friction points, and identify missing opportunities.
         
         Additionally, if carbon footprint data is present in the journey stages, provide specific suggestions for reducing the carbon impact of the journey without compromising the customer experience.
@@ -95,7 +96,7 @@ export function JourneyAiAssistant({ isOpen, onClose, journey }: JourneyAiAssist
       const journeyData = JSON.stringify(journey, null, 2);
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.personaGeneration,
         contents: `You are an expert Customer Experience (CX) designer. Analyze the following Voice of Customer (VOC) data in the context of the provided Journey Map.
         
         Identify which stages of the journey the feedback relates to, highlight key pain points mentioned by customers, and suggest specific improvements to the journey map.

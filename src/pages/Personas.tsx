@@ -1,17 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { mockPersonas, personaTemplates, mockProjects } from '../data/mockData';
-import { Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen, Briefcase, ArrowRight, MessageSquare, Calendar, Globe, TrendingUp } from 'lucide-react';
+import { Loader2, Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen, Briefcase, ArrowRight, MessageSquare, Calendar, Globe, TrendingUp, Lightbulb, ArrowUpRight, Check, History, Zap } from 'lucide-react';
 import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { AiPersonaGenerator } from '../components/AiPersonaGenerator';
 import { PersonaLibraryModal } from '../components/PersonaLibraryModal';
 import { EditableText } from '../components/EditableText';
 import { VersionHistory } from '../components/VersionHistory';
-import { Persona, DemographicSlider, Project } from '../types';
+import { Persona, DemographicSlider, Project, PersonaOpportunity } from '../types';
 import { CompanyProfile } from '../components/YourCompany';
 import { v4 as uuidv4 } from 'uuid';
-import { cn, fixOklch } from '../lib/utils';
+import { cn, fixOklch, scrollToTop } from '../lib/utils';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
 import { usePlan } from '../context/PlanContext';
@@ -19,6 +19,7 @@ import { useToast } from '../context/ToastContext';
 import { ContextualHelp } from '../components/ContextualHelp';
 import { usePermissions } from '../hooks/usePermissions';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from "@google/genai";
 import { stripPIData } from '../lib/piStripper';
 
@@ -59,13 +60,20 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isVersionHistoryOpen, setIsVersionHistoryOpen] = useState(false);
   const [isGeneratingStories, setIsGeneratingStories] = useState(false);
+  const [isGeneratingEmpathyMap, setIsGeneratingEmpathyMap] = useState(false);
+  const [isGeneratingOpportunities, setIsGeneratingOpportunities] = useState(false);
+  const [isAddingOpportunity, setIsAddingOpportunity] = useState(false);
+  const [manualOpportunity, setManualOpportunity] = useState({ title: '', description: '', impact: 'Medium' as any, effort: 'Medium' as any });
+  const [promotingOpportunity, setPromotingOpportunity] = useState<string | null>(null);
+  const [promotionType, setPromotionType] = useState<'project' | 'task' | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>('new');
   const [showLimitModal, setShowLimitModal] = useState(false);
   const [isAddSectionMenuOpen, setIsAddSectionMenuOpen] = useState(false);
   const [isAddingImageToSection, setIsAddingImageToSection] = useState<string | null>(null);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isInterviewOpen, setIsInterviewOpen] = useState(false);
-  const [activeView, setActiveView] = useState<'profile' | 'empathy' | 'context'>('profile');
+  const [activeView, setActiveView] = useState<'profile' | 'empathy' | 'context' | 'opportunities'>('profile');
   const addSectionMenuRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -99,6 +107,40 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     };
   }, []);
 
+  useEffect(() => {
+    // Migration: Map old string-based opportunities to new object structure
+    const updated = personas.map(p => {
+      if (p.opportunities && p.opportunities.length > 0 && typeof p.opportunities[0] === 'string') {
+        return {
+          ...p,
+          opportunities: (p.opportunities as any).map((title: string) => ({
+            id: uuidv4(),
+            title,
+            description: 'Migrated from previous version.',
+            status: 'accepted',
+            votes: [],
+            suggestedBy: 'User',
+            createdAt: new Date().toISOString(),
+            impact: 'Medium',
+            effort: 'Medium'
+          }))
+        };
+      }
+      return p;
+    });
+
+    const hasChanges = JSON.stringify(updated) !== JSON.stringify(personas);
+    if (hasChanges) {
+      setPersonas(updated);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (selectedPersonaId) {
+      scrollToTop();
+    }
+  }, [selectedPersonaId]);
+
   const isAtGlobalLimit = personas.length >= details.maxGlobalPersonas;
   const canAddPersona = !isAtGlobalLimit && canEdit;
 
@@ -123,6 +165,10 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       frustrations: [],
       motivations: [],
       sentiment: 3,
+      successScore: 50,
+      effortScore: 50,
+      opportunities: [],
+      highlightedOpportunities: [],
       imageUrl: `https://images.unsplash.com/photo-${Math.floor(Math.random() * 1000000)}?w=400&h=400&fit=crop`,
       demographics: [
         { id: uuidv4(), label: 'Tech Savvy', value: 50 },
@@ -321,8 +367,9 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   };
 
   const handleGenerateEmpathyMap = async () => {
-    if (!selectedPersona) return;
+    if (!selectedPersona || isGeneratingEmpathyMap) return;
     
+    setIsGeneratingEmpathyMap(true);
     addToast('Generating Empathy Map...', 'info');
 
     try {
@@ -330,15 +377,17 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
       if (!ai) {
         addToast('Gemini API key is missing. Please select one to enable AI features.', 'error');
         await ensureApiKey();
+        setIsGeneratingEmpathyMap(false);
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: `Generate a comprehensive Empathy Map for the following customer persona:
         Name: ${stripPIData(selectedPersona.name)}
         Role: ${stripPIData(selectedPersona.role)}
         Goals: ${selectedPersona.goals.map(stripPIData).join(', ')}
         Frustrations: ${selectedPersona.frustrations.map(stripPIData).join(', ')}
+        ${selectedPersona.contextData ? `Additional Context / Evidence: ${stripPIData(selectedPersona.contextData)}\nIncorporate this real-world evidence into your insights.` : ''}
         
         Format the output as a JSON object with the following structure:
         { "says": ["...", "..."], "thinks": ["...", "..."], "does": ["...", "..."], "feels": ["...", "..."] }
@@ -362,6 +411,8 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     } catch (error) {
       console.error('Error generating empathy map:', error);
       addToast('Failed to generate empathy map', 'error');
+    } finally {
+      setIsGeneratingEmpathyMap(false);
     }
   };
 
@@ -380,7 +431,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         return;
       }
       const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: `Generate 5-7 high-quality user stories for the following customer persona:
         Name: ${stripPIData(selectedPersona.name)}
         Role: ${stripPIData(selectedPersona.role)}
@@ -472,6 +523,150 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
     }));
   };
 
+  const generateOpportunities = async () => {
+    if (!selectedPersona) return;
+    setIsGeneratingOpportunities(true);
+    try {
+      const ai = await getGeminiClient();
+      if (!ai) throw new Error("AI client not initialized");
+
+      const prompt = `Analyze this persona for transformation opportunities:
+      Name: ${selectedPersona.name}
+      Role: ${selectedPersona.role}
+      Goals: ${selectedPersona.goals.join(', ')}
+      Frustrations: ${selectedPersona.frustrations.join(', ')}
+      User Stories: ${selectedPersona.userStories?.map(s => `${s.asA} I want to ${s.iWant}`).join(', ')}
+      Context: ${selectedPersona.contextData || ''}
+      Empathy Map: ${JSON.stringify(selectedPersona.empathyMap || {})}
+
+      Generate 5 strategic transformation opportunities. 
+      Return JSON with this schema:
+      {
+        opportunities: Array<{
+          title: string,
+          description: string,
+          impact: "High" | "Medium" | "Low",
+          effort: "High" | "Medium" | "Low"
+        }>
+      }`;
+
+      // Use the client to generate content
+      const result = await ai.models.generateContent({
+        model: AI_MODELS.chat,
+        contents: prompt,
+        config: {
+          responseMimeType: "application/json"
+        }
+      });
+
+      const responseText = result.text || '';
+      // Cleaner JSON extraction to handle potential markdown formatting
+      const jsonContent = responseText.replace(/```json\n?|```/g, '').trim();
+      const data = JSON.parse(jsonContent);
+      
+      const newOpps = (data.opportunities || []).map((opp: any) => ({
+        id: uuidv4(),
+        title: opp.title || "Untitled Opportunity",
+        description: opp.description || "No description provided.",
+        impact: opp.impact || "Medium",
+        effort: opp.effort || "Medium",
+        status: 'pending',
+        votes: [],
+        suggestedBy: 'AI',
+        createdAt: new Date().toISOString()
+      }));
+
+      setPersonas(personas.map(p => {
+        if (p.id === selectedPersona.id) {
+          return {
+            ...p,
+            opportunities: [...(p.opportunities || []), ...newOpps]
+          };
+        }
+        return p;
+      }));
+
+      addToast('AI suggested new transformation opportunities', 'success');
+      onAddToAuditLog?.('Opportunities Generated', `AI proposed ${newOpps.length} new opportunities for ${selectedPersona.name}`, 'Update', 'Persona', selectedPersona.id, 'AI');
+    } catch (error) {
+      console.error(error);
+      addToast('Failed to generate opportunities', 'error');
+    } finally {
+      setIsGeneratingOpportunities(false);
+    }
+  };
+
+  const handleAddManualOpportunity = () => {
+    if (!selectedPersona || !manualOpportunity.title) return;
+    
+    const newOpp: PersonaOpportunity = {
+      id: uuidv4(),
+      title: manualOpportunity.title,
+      description: manualOpportunity.description || 'Manually added contribution.',
+      impact: manualOpportunity.impact,
+      effort: manualOpportunity.effort,
+      status: 'pending',
+      votes: [],
+      suggestedBy: 'User',
+      createdAt: new Date().toISOString()
+    };
+
+    setPersonas(personas.map(p => {
+      if (p.id === selectedPersona.id) {
+        return {
+          ...p,
+          opportunities: [...(p.opportunities || []), newOpp]
+        };
+      }
+      return p;
+    }));
+
+    setManualOpportunity({ title: '', description: '', impact: 'Medium', effort: 'Medium' });
+    setIsAddingOpportunity(false);
+    addToast('Opportunity added to review queue', 'success');
+  };
+
+  const handleVoteOpportunity = (personaId: string, opportunityId: string) => {
+    const userId = 'current-user-id'; // In a real app, this would come from auth
+    setPersonas(personas.map(p => {
+      if (p.id === personaId) {
+        return {
+          ...p,
+          opportunities: (p.opportunities || []).map(opp => {
+            if (opp.id === opportunityId) {
+              const hasVoted = opp.votes.includes(userId);
+              return {
+                ...opp,
+                votes: hasVoted ? opp.votes.filter(id => id !== userId) : [...opp.votes, userId]
+              };
+            }
+            return opp;
+          })
+        };
+      }
+      return p;
+    }));
+  };
+
+  const updateOpportunityStatus = (personaId: string, opportunityId: string, status: 'accepted' | 'rejected' | 'pending') => {
+    setPersonas(personas.map(p => {
+      if (p.id === personaId) {
+        return {
+          ...p,
+          opportunities: (p.opportunities || []).map(opp => {
+            if (opp.id === opportunityId) return { ...opp, status };
+            return opp;
+          })
+        };
+      }
+      return p;
+    }));
+    
+    if (status === 'accepted') {
+       addToast('Opportunity accepted into transformation pipeline', 'success');
+    }
+  };
+
   const handleAddSection = (type: 'images' | 'sliders' | 'list') => {
     if (!selectedPersona) return;
     const currentSections = selectedPersona.additionalSections || [];
@@ -541,7 +736,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const handleSelectPersona = (id: string) => {
     setSelectedPersonaId(id);
     setActiveView('profile');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    scrollToTop();
   };
 
   const deletePersona = (id: string, e: React.MouseEvent) => {
@@ -990,7 +1185,11 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                       {persona.goals.length} Goals
                    </div>
                    <div className="flex items-center gap-2 text-xs font-black text-zinc-400 uppercase tracking-widest">
-                      <Heart className="w-4 h-4" />
+                      {persona.sentiment === 1 && <Angry className="w-4 h-4 text-rose-500" />}
+                      {persona.sentiment === 2 && <Frown className="w-4 h-4 text-rose-400" />}
+                      {persona.sentiment === 3 && <Meh className="w-4 h-4 text-amber-500" />}
+                      {persona.sentiment === 4 && <Smile className="w-4 h-4 text-emerald-400" />}
+                      {persona.sentiment === 5 && <Laugh className="w-4 h-4 text-emerald-500" />}
                       {persona.sentiment}/5
                    </div>
                 </div>
@@ -1077,15 +1276,32 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                 <BookOpen className="w-4 h-4" />
                 Context
               </button>
+              <button
+                onClick={() => setActiveView('opportunities')}
+                className={cn(
+                  "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2",
+                  activeView === 'opportunities'
+                    ? "bg-white dark:bg-zinc-900 text-amber-600 shadow-sm"
+                    : "text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200"
+                )}
+              >
+                <Lightbulb className="w-4 h-4" />
+                Opportunities
+              </button>
             </div>
 
             {activeView === 'empathy' && canEdit && (
               <button
                 onClick={handleGenerateEmpathyMap}
-                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 rounded-xl text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all border border-indigo-200 dark:border-indigo-800 shadow-sm"
+                disabled={isGeneratingEmpathyMap}
+                className="flex items-center gap-2 px-4 py-2 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-400 rounded-xl text-sm font-bold hover:bg-indigo-100 dark:hover:bg-indigo-900/40 transition-all border border-indigo-200 dark:border-indigo-800 shadow-sm disabled:opacity-50"
               >
-                <Sparkles className="w-4 h-4" />
-                AI Refresh
+                {isGeneratingEmpathyMap ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Sparkles className="w-4 h-4" />
+                )}
+                {isGeneratingEmpathyMap ? 'Updating...' : 'Update with AI'}
               </button>
             )}
           </div>
@@ -1290,29 +1506,104 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                     </div>
                   </div>
 
-                  <div className="pt-8 border-t border-zinc-50 dark:border-zinc-800">
-                    <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center gap-2">
-                       <TrendingUp className="w-4 h-4 text-indigo-600" />
-                       Experience Sentiment
-                    </h4>
-                    <div className="grid grid-cols-5 gap-3">
-                      {[1, 2, 3, 4, 5].map((score) => (
-                        <button
-                          key={score}
-                          onClick={() => updatePersonaField(selectedPersona!.id, 'sentiment', score)}
-                          disabled={!canEdit}
-                          className={cn(
-                            "aspect-square rounded-2xl flex items-center justify-center text-sm font-black transition-all border-2",
-                            selectedPersona!.sentiment === score
-                              ? score <= 2 ? 'bg-rose-50 border-rose-600 text-rose-600 shadow-xl'
-                              : score === 3 ? 'bg-amber-50 border-amber-600 text-amber-600 shadow-xl'
-                              : 'bg-emerald-50 border-emerald-600 text-emerald-600 shadow-xl'
-                              : 'bg-zinc-50 dark:bg-zinc-800/50 border-transparent text-zinc-400 hover:border-zinc-200'
-                          )}
-                        >
-                          {score}
-                        </button>
-                      ))}
+                  <div className="pt-8 border-t border-zinc-50 dark:border-zinc-800 space-y-8">
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest mb-6 flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                           <Heart className="w-4 h-4 text-rose-500" />
+                           Emotion Index
+                         </div>
+                         <span className="text-[10px] font-black">{selectedPersona!.sentiment}/5</span>
+                      </h4>
+                      <div className="grid grid-cols-5 gap-3">
+                        {[1, 2, 3, 4, 5].map((score) => (
+                          <button
+                            key={score}
+                            onClick={() => updatePersonaField(selectedPersona!.id, 'sentiment', score)}
+                            disabled={!canEdit}
+                            className={cn(
+                              "aspect-square rounded-2xl flex flex-col items-center justify-center gap-1 text-xs font-black transition-all border-2",
+                              selectedPersona!.sentiment === score
+                                ? score <= 2 ? 'bg-rose-50 border-rose-600 text-rose-600 shadow-xl scale-105'
+                                : score === 3 ? 'bg-amber-50 border-amber-600 text-amber-600 shadow-xl scale-105'
+                                : 'bg-emerald-50 border-emerald-600 text-emerald-600 shadow-xl scale-105'
+                                : 'bg-zinc-50 dark:bg-zinc-800/50 border-transparent text-zinc-400 hover:border-zinc-200'
+                            )}
+                          >
+                            {score === 1 && <Angry className="w-5 h-5 mb-0.5" />}
+                            {score === 2 && <Frown className="w-5 h-5 mb-0.5" />}
+                            {score === 3 && <Meh className="w-5 h-5 mb-0.5" />}
+                            {score === 4 && <Smile className="w-5 h-5 mb-0.5" />}
+                            {score === 5 && <Laugh className="w-5 h-5 mb-0.5" />}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-6">
+                      <div className="space-y-4">
+                         <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
+                               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                               Success Index
+                            </h4>
+                            <span className={cn("text-xs font-black", selectedPersona!.successScore! > 70 ? "text-emerald-500" : selectedPersona!.successScore! > 40 ? "text-amber-500" : "text-rose-500")}>
+                              {selectedPersona!.successScore}%
+                            </span>
+                         </div>
+                         <div className="relative h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 p-0 overflow-hidden">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${selectedPersona!.successScore || 50}%` }}
+                             className={cn(
+                               "h-full rounded-full shadow-sm",
+                               selectedPersona!.successScore! > 70 ? "bg-emerald-500" : selectedPersona!.successScore! > 40 ? "bg-amber-500" : "bg-rose-500"
+                             )}
+                           />
+                           <input 
+                             type="range" 
+                             min="0" 
+                             max="100" 
+                             value={selectedPersona!.successScore || 50} 
+                             onChange={(e) => updatePersonaField(selectedPersona!.id, 'successScore', parseInt(e.target.value))}
+                             className="absolute inset-0 w-full h-full bg-transparent appearance-none cursor-pointer accent-white opacity-0"
+                             disabled={!canEdit}
+                           />
+                         </div>
+                         <p className="text-[10px] text-zinc-400 font-medium">Effectiveness of current solution outcomes.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                         <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
+                               <Zap className="w-4 h-4 text-amber-500" />
+                               Effort Score
+                            </h4>
+                            <span className={cn("text-xs font-black", selectedPersona!.effortScore! < 30 ? "text-emerald-500" : selectedPersona!.effortScore! < 70 ? "text-amber-500" : "text-rose-500")}>
+                              {selectedPersona!.effortScore}%
+                            </span>
+                         </div>
+                         <div className="relative h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 p-0 overflow-hidden">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${selectedPersona!.effortScore || 50}%` }}
+                             className={cn(
+                               "h-full rounded-full shadow-sm",
+                               selectedPersona!.effortScore! < 30 ? "bg-emerald-500" : selectedPersona!.effortScore! < 70 ? "bg-amber-500" : "bg-rose-500"
+                             )}
+                           />
+                           <input 
+                             type="range" 
+                             min="0" 
+                             max="100" 
+                             value={selectedPersona!.effortScore || 50} 
+                             onChange={(e) => updatePersonaField(selectedPersona!.id, 'effortScore', parseInt(e.target.value))}
+                             className="absolute inset-0 w-full h-full bg-transparent appearance-none cursor-pointer accent-white opacity-0"
+                             disabled={!canEdit}
+                           />
+                         </div>
+                         <p className="text-[10px] text-zinc-400 font-medium">Perceived work required to achieve goals.</p>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1794,6 +2085,390 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                 onChange={(empathyMap) => updatePersonaField(selectedPersona!.id, 'empathyMap', empathyMap)} 
               />
             </div>
+          ) : activeView === 'opportunities' ? (
+            <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl border-2 border-zinc-100 dark:border-zinc-800 p-12 space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-500">
+               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 border-b-2 border-zinc-50 dark:border-zinc-800 pb-10">
+                  <div className="max-w-2xl">
+                    <div className="flex items-center gap-3 mb-2">
+                       <div className="px-3 py-1 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                          <Sparkles className="w-3 h-3" /> Strategic Discovery
+                       </div>
+                    </div>
+                    <h3 className="text-4xl font-black text-zinc-900 dark:text-white tracking-tight leading-none mb-4">Transformation Pipeline</h3>
+                    <p className="text-zinc-500 dark:text-zinc-400 font-medium text-lg leading-relaxed">
+                      Strategically identify high-impact opportunities for <span className="text-indigo-600 dark:text-indigo-400 font-bold">{selectedPersona!.name}</span>. Promote accepted items to your active project backlogs.
+                    </p>
+                  </div>
+                  
+                  {canEdit && (
+                    <div className="flex items-center gap-3">
+                      <button 
+                        onClick={() => setIsAddingOpportunity(!isAddingOpportunity)}
+                        className="group flex items-center gap-3 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white border-2 border-zinc-100 dark:border-zinc-700 px-8 py-4 rounded-2xl font-black transition-all hover:scale-[1.02] shadow-xl"
+                      >
+                        <Plus className={cn("w-5 h-5 transition-transform", isAddingOpportunity && "rotate-45")} />
+                        Manual Opportunity
+                      </button>
+                      <button 
+                        onClick={generateOpportunities}
+                        disabled={isGeneratingOpportunities}
+                        className="group flex items-center gap-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 px-8 py-4 rounded-2xl font-black transition-all hover:scale-[1.02] shadow-xl disabled:opacity-50"
+                      >
+                        {isGeneratingOpportunities ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                        )}
+                        {isGeneratingOpportunities ? "Analyzing Persona..." : "Generate AI Opportunities"}
+                      </button>
+                    </div>
+                  )}
+               </div>
+
+               <AnimatePresence>
+                 {isAddingOpportunity && (
+                   <motion.div 
+                     initial={{ opacity: 0, height: 0 }}
+                     animate={{ opacity: 1, height: 'auto' }}
+                     exit={{ opacity: 0, height: 0 }}
+                     className="overflow-hidden"
+                   >
+                     <div className="bg-zinc-50 dark:bg-zinc-900/50 border-2 border-dashed border-zinc-200 dark:border-zinc-800 p-8 rounded-[2rem] space-y-6 mb-12">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                           <div className="space-y-4">
+                              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Opportunity Title</label>
+                              <input 
+                                type="text"
+                                value={manualOpportunity.title}
+                                onChange={(e) => setManualOpportunity({...manualOpportunity, title: e.target.value})}
+                                placeholder="E.g., Personalized Onboarding Flow"
+                                className="w-full bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 p-4 rounded-xl font-bold focus:border-indigo-500 transition-colors"
+                              />
+                           </div>
+                           <div className="grid grid-cols-2 gap-4">
+                              <div className="space-y-4">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Impact</label>
+                                <select 
+                                  value={manualOpportunity.impact}
+                                  onChange={(e) => setManualOpportunity({...manualOpportunity, impact: e.target.value as any})}
+                                  className="w-full bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 p-4 rounded-xl font-bold focus:border-indigo-500"
+                                >
+                                  <option>High</option>
+                                  <option>Medium</option>
+                                  <option>Low</option>
+                                </select>
+                              </div>
+                              <div className="space-y-4">
+                                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Effort</label>
+                                <select 
+                                  value={manualOpportunity.effort}
+                                  onChange={(e) => setManualOpportunity({...manualOpportunity, effort: e.target.value as any})}
+                                  className="w-full bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 p-4 rounded-xl font-bold focus:border-indigo-500"
+                                >
+                                  <option>Low</option>
+                                  <option>Medium</option>
+                                  <option>High</option>
+                                </select>
+                              </div>
+                           </div>
+                        </div>
+                        <div className="space-y-4">
+                           <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">Description</label>
+                           <textarea 
+                             value={manualOpportunity.description}
+                             onChange={(e) => setManualOpportunity({...manualOpportunity, description: e.target.value})}
+                             placeholder="Describe how this opportunity improves the persona's experience..."
+                             className="w-full bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 p-4 rounded-xl font-medium focus:border-indigo-500 h-24"
+                           />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-4 border-t border-zinc-200/50 dark:border-zinc-800/50">
+                           <button 
+                             onClick={() => setIsAddingOpportunity(false)}
+                             className="px-6 py-3 text-zinc-500 font-bold hover:text-zinc-700"
+                           >
+                             Cancel
+                           </button>
+                           <button 
+                             onClick={handleAddManualOpportunity}
+                             disabled={!manualOpportunity.title}
+                             className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black shadow-lg shadow-indigo-500/20 disabled:opacity-50"
+                           >
+                             Submit for Review
+                           </button>
+                        </div>
+                     </div>
+                   </motion.div>
+                 )}
+               </AnimatePresence>
+
+               <div className="grid grid-cols-1 xl:grid-cols-4 gap-12">
+                  <div className="xl:col-span-3 space-y-12">
+                    {/* Review Queue */}
+                    <div className="space-y-6">
+                      <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-3">
+                            <div className="p-2 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
+                               <Clock className="w-5 h-5 text-zinc-400" />
+                            </div>
+                            <h4 className="text-xl font-black text-zinc-900 dark:text-white">Review Queue</h4>
+                            <span className="bg-zinc-100 dark:bg-zinc-800 text-zinc-500 px-2 py-0.5 rounded text-[10px] font-black">
+                              {(selectedPersona!.opportunities || []).filter(o => o.status === 'pending').length}
+                            </span>
+                         </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {(selectedPersona!.opportunities || []).filter(o => typeof o === 'object' && o.status === 'pending').map((opp) => (
+                           <motion.div 
+                             key={opp.id}
+                             layout
+                             initial={{ opacity: 0, y: 20 }}
+                             animate={{ opacity: 1, y: 0 }}
+                             className="bg-zinc-50 dark:bg-zinc-900/50 border-2 border-zinc-100 dark:border-zinc-800 p-8 rounded-[2rem] relative group"
+                           >
+                             <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center gap-2">
+                                  <div className={cn(
+                                    "px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest",
+                                    opp.impact === 'High' ? 'bg-emerald-100 text-emerald-700' : 
+                                    opp.impact === 'Medium' ? 'bg-amber-100 text-amber-700' : 'bg-zinc-200 text-zinc-600'
+                                  )}>
+                                    {opp.impact} Impact
+                                  </div>
+                                  <div className={cn(
+                                    "px-2 py-1 rounded text-[10px] font-black uppercase tracking-widest border",
+                                    opp.suggestedBy === 'AI' ? 'border-indigo-200 text-indigo-600 bg-indigo-50' : 'border-zinc-200 text-zinc-600 bg-zinc-100'
+                                  )}>
+                                    {opp.suggestedBy} 
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                   <button 
+                                     onClick={() => handleVoteOpportunity(selectedPersona!.id, opp.id)}
+                                     className={cn(
+                                       "flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all text-xs font-bold border-2",
+                                       opp.votes.includes('current-user-id') 
+                                         ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' 
+                                         : 'bg-white dark:bg-zinc-800 border-transparent text-zinc-500 hover:border-zinc-200'
+                                     )}
+                                   >
+                                     <ArrowUpRight className={cn("w-3.5 h-3.5", opp.votes.includes('current-user-id') && 'rotate-45')} />
+                                     {opp.votes.length}
+                                   </button>
+                                </div>
+                             </div>
+
+                             <h5 className="text-xl font-black text-zinc-900 dark:text-white mb-3 group-hover:text-indigo-600 transition-colors">
+                                {opp.title}
+                             </h5>
+                             <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium leading-relaxed mb-8">
+                                {opp.description}
+                             </p>
+
+                             <div className="flex items-center gap-3 pt-6 border-t border-zinc-100 dark:border-zinc-800">
+                                <button 
+                                  onClick={() => updateOpportunityStatus(selectedPersona!.id, opp.id, 'accepted')}
+                                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition-all"
+                                >
+                                  <CheckCircle2 className="w-4 h-4" /> Accept
+                                </button>
+                                <button 
+                                  onClick={() => updateOpportunityStatus(selectedPersona!.id, opp.id, 'rejected')}
+                                  className="px-4 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-500 hover:text-rose-600 rounded-xl font-bold transition-all"
+                                >
+                                  <X className="w-4 h-4" />
+                                </button>
+                             </div>
+                           </motion.div>
+                        ))}
+                        {canEdit && (selectedPersona!.opportunities || []).filter(o => o.status === 'pending').length === 0 && (
+                          <div className="md:col-span-2 py-12 border-2 border-dashed border-zinc-100 dark:border-zinc-800 rounded-[2rem] flex flex-col items-center justify-center text-center">
+                             <div className="w-12 h-12 bg-zinc-50 dark:bg-zinc-800 rounded-full flex items-center justify-center text-zinc-300 mb-4">
+                                <Sparkles className="w-6 h-6" />
+                             </div>
+                             <p className="text-sm font-bold text-zinc-400">No pending opportunities. Use AI to discover new ones.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Pipeline */}
+                    <div className="space-y-6">
+                      <div className="flex items-center gap-3">
+                         <div className="p-2 bg-emerald-50 dark:bg-emerald-900/30 rounded-lg">
+                            <TrendingUp className="w-5 h-5 text-emerald-500" />
+                         </div>
+                         <h4 className="text-xl font-black text-zinc-900 dark:text-white">Active Roadmap</h4>
+                         <span className="bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-black">
+                           {(selectedPersona!.opportunities || []).filter(o => o.status === 'accepted').length}
+                         </span>
+                      </div>
+
+                      <div className="space-y-4">
+                        {(selectedPersona!.opportunities || []).filter(o => typeof o === 'object' && o.status === 'accepted').map((opp) => (
+                           <motion.div 
+                             key={opp.id}
+                             layout
+                             initial={{ opacity: 0, x: -20 }}
+                             animate={{ opacity: 1, x: 0 }}
+                             className="bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 p-8 rounded-[2rem] flex items-center justify-between group shadow-sm hover:shadow-xl hover:border-indigo-500/30 transition-all"
+                           >
+                              <div className="flex items-center gap-8">
+                                 <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600 shrink-0">
+                                    <Target className="w-6 h-6" />
+                                 </div>
+                                 <div>
+                                   <div className="flex items-center gap-3 mb-1">
+                                      <h5 className="text-xl font-black text-zinc-900 dark:text-white">{opp.title}</h5>
+                                      <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Effort: {opp.effort}</span>
+                                   </div>
+                                   <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium">{opp.description}</p>
+                                 </div>
+                              </div>
+
+                              <div className="flex items-center gap-4">
+                                 <div className="flex -space-x-2 mr-4">
+                                    {opp.votes.slice(0, 3).map((_, idx) => (
+                                      <div key={idx} className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-900 bg-zinc-200 dark:bg-zinc-800 flex items-center justify-center text-[10px] font-bold">
+                                        {String.fromCharCode(65 + idx)}
+                                      </div>
+                                    ))}
+                                    {opp.votes.length > 3 && (
+                                      <div className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-900 bg-indigo-600 text-white flex items-center justify-center text-[10px] font-bold">
+                                        +{opp.votes.length - 3}
+                                      </div>
+                                    )}
+                                 </div>
+                                 <div className="flex flex-col items-end gap-2 pr-4">
+                                   <div className="flex items-center gap-2">
+                                     <button 
+                                       onClick={() => {
+                                         setPromotingOpportunity(opp.id);
+                                         setPromotionType('project');
+                                       }}
+                                       className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-lg shadow-indigo-500/20"
+                                     >
+                                       <Sparkles className="w-3.5 h-3.5" /> Promote to Project
+                                     </button>
+                                     <button 
+                                       onClick={() => {
+                                         setPromotingOpportunity(opp.id);
+                                         setPromotionType('task');
+                                       }}
+                                       className="bg-white dark:bg-zinc-800 border-2 border-zinc-100 dark:border-zinc-700 hover:border-indigo-500 text-zinc-900 dark:text-white px-5 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all"
+                                     >
+                                       <List className="w-3.5 h-3.5" /> Push as Task
+                                     </button>
+                                   </div>
+                                 </div>
+                                 <div className="flex flex-col gap-2">
+                                    <button 
+                                      onClick={() => updateOpportunityStatus(selectedPersona!.id, opp.id, 'pending')}
+                                      title="Return to Review Queue"
+                                      className="p-3 text-zinc-300 hover:text-amber-500 transition-colors"
+                                    >
+                                      <History className="w-5 h-5" />
+                                    </button>
+                                    <button 
+                                      onClick={() => {
+                                        const newOpps = (selectedPersona!.opportunities || []).filter(o => typeof o === 'object' && o.id !== opp.id);
+                                        updatePersonaField(selectedPersona!.id, 'opportunities', newOpps);
+                                      }}
+                                      className="p-3 text-zinc-300 hover:text-rose-500 transition-colors"
+                                    >
+                                      <Trash2 className="w-5 h-5" />
+                                    </button>
+                                 </div>
+                              </div>
+                           </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                     {/* Promotion Selection Card (Floating context when promoting) */}
+                     {promotingOpportunity && (
+                       <motion.div 
+                         initial={{ opacity: 0, scale: 0.9 }}
+                         animate={{ opacity: 1, scale: 1 }}
+                         className="p-8 bg-indigo-900 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden ring-4 ring-indigo-500/30"
+                       >
+                          <div className="flex items-center justify-between mb-6">
+                             <h5 className="text-xl font-black">Promote Opportunity</h5>
+                             <button onClick={() => setPromotingOpportunity(null)}>
+                                <X className="w-5 h-5 text-indigo-300" />
+                             </button>
+                          </div>
+                          
+                          <div className="space-y-4">
+                             <div className="p-4 bg-white/10 rounded-xl">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-indigo-300 mb-1">Active Item</p>
+                                <p className="text-sm font-bold truncate">
+                                   {selectedPersona!.opportunities?.find(o => typeof o === 'object' && o.id === promotingOpportunity)?.title}
+                                </p>
+                             </div>
+
+                             {promotionType === 'task' && (
+                               <div className="space-y-3">
+                                  <label className="text-[10px] font-black uppercase tracking-widest text-indigo-300">Destination Backlog</label>
+                                  <select 
+                                    value={selectedProjectId}
+                                    onChange={(e) => setSelectedProjectId(e.target.value)}
+                                    className="w-full bg-indigo-800 border-2 border-indigo-700 p-3 rounded-xl font-bold text-sm"
+                                  >
+                                    <option value="new">+ Seed into Brand New Project</option>
+                                    {mockProjects.map(p => (
+                                      <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                  </select>
+                               </div>
+                             )}
+
+                             <button 
+                               onClick={() => {
+                                  const opp = selectedPersona!.opportunities?.find(o => typeof o === 'object' && o.id === promotingOpportunity);
+                                  addToast(`${promotionType === 'project' ? 'Project' : 'Task'} promoted successfully`, 'success');
+                                  onAddToAuditLog?.('Discovery Promotion', `"${opp?.title}" promoted to ${promotionType} ${selectedProjectId === 'new' ? 'in new pipeline' : `in ${selectedProjectId}`}`, 'Create', promotionType === 'project' ? 'Project' : 'Task', 'new', 'Manual');
+                                  setPromotingOpportunity(null);
+                               }}
+                               className="w-full bg-white text-indigo-900 py-4 rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-xl"
+                             >
+                                Confirm Promotion <Check className="w-4 h-4" />
+                             </button>
+                          </div>
+                       </motion.div>
+                     )}
+                     <div className="p-8 bg-zinc-900 dark:bg-zinc-950 rounded-[2.5rem] text-white shadow-2xl relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-32 bg-indigo-500/10 rounded-full translate-x-1/2 -translate-y-1/2 blur-3xl group-hover:scale-110 transition-transform duration-1000" />
+                        <MessageSquare className="w-8 h-8 text-indigo-400 mb-6 relative z-10" />
+                        <h5 className="text-2xl font-black mb-4 relative z-10">Collaboration Insights</h5>
+                        <p className="text-zinc-400 font-medium text-sm leading-relaxed mb-8 relative z-10">
+                           Your team has cast <span className="text-white font-bold">{(selectedPersona!.opportunities || []).reduce((acc, curr) => acc + (typeof curr === 'object' ? curr.votes.length : 0), 0)}</span> votes on opportunities for this persona. High consensus items should be prioritized for project seeding.
+                        </p>
+                        
+                        <div className="space-y-4 relative z-10">
+                           <div className="p-4 bg-white/5 rounded-xl border border-white/10">
+                              <p className="text-xs text-zinc-500 uppercase font-black tracking-widest mb-1">Top Voted Concept</p>
+                              <p className="text-sm font-bold text-indigo-300">
+                                 {([...(selectedPersona!.opportunities || [])].filter(o => typeof o === 'object').sort((a, b) => b.votes.length - a.votes.length)[0] as any)?.title || 'No votes yet'}
+                              </p>
+                           </div>
+                        </div>
+                     </div>
+
+                     <div className="p-1 bg-gradient-to-br from-amber-400 to-rose-500 rounded-[2.5rem] shadow-xl overflow-hidden shadow-amber-500/10">
+                        <div className="bg-white dark:bg-zinc-900 p-8 rounded-[2.4rem] h-full">
+                           <Lightbulb className="w-8 h-8 text-amber-500 mb-4" />
+                           <h5 className="text-xl font-black text-zinc-900 dark:text-white mb-2">Strategy Tip</h5>
+                           <p className="text-zinc-500 dark:text-zinc-400 text-sm font-medium leading-relaxed">
+                              Focus on opportunities that solve high-friction frustrations. These typically yield the highest ROI during digital transformation cycles.
+                           </p>
+                        </div>
+                     </div>
+                  </div>
+               </div>
+            </div>
           ) : (
             <div className="bg-white dark:bg-zinc-900 rounded-[2.5rem] shadow-2xl border-2 border-zinc-100 dark:border-zinc-800 p-12 space-y-8 animate-in fade-in zoom-in-95 duration-500">
                <div className="flex items-center justify-between border-b-2 border-zinc-50 dark:border-zinc-800 pb-8">
@@ -1836,7 +2511,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                       <div className="absolute top-0 right-0 p-16 bg-white/5 rounded-full translate-x-1/3 -translate-y-1/3 blur-2xl group-hover:scale-110 transition-transform" />
                       <h5 className="text-xl font-bold mb-2 relative z-10">Evolve & Refine</h5>
                       <p className="text-zinc-400 text-sm leading-relaxed relative z-10">
-                        Use the "AI Refresh" button on the Empathy Map tab after adding context data to see how the profile evolves based on your new evidence.
+                        Use the "Update with AI" button on the Empathy Map tab after adding context data to see how the profile evolves based on your new evidence.
                       </p>
                     </div>
                   </div>

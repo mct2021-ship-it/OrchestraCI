@@ -43,7 +43,53 @@ export async function getGeminiClient(): Promise<GoogleGenAI | null> {
     return null;
   }
 
-  return new GoogleGenAI({ apiKey });
+  const client = new GoogleGenAI({ apiKey });
+
+  if (typeof window !== 'undefined') {
+    // Intercept generateContent
+    const originalGenerateContent = client.models.generateContent.bind(client.models);
+    client.models.generateContent = async (...args: any[]) => {
+      const response = await originalGenerateContent(...args);
+      
+      let tokensUsed = response.usageMetadata?.totalTokenCount;
+      if (!tokensUsed) {
+        // Fallback estimation
+        tokensUsed = 500;
+        const configStr = JSON.stringify(args[0]);
+        const responseStr = JSON.stringify(response);
+        tokensUsed = Math.ceil((configStr.length + responseStr.length) / 4);
+      }
+      
+      if (args[0]?.model?.includes('pro')) {
+        tokensUsed *= 10;
+      }
+      
+      window.dispatchEvent(new CustomEvent('ai-usage-updated', { detail: { tokens: tokensUsed } }));
+      return response;
+    };
+
+    // Intercept generateContentStream
+    const originalGenerateContentStream = client.models.generateContentStream.bind(client.models);
+    client.models.generateContentStream = async function* (...args: any[]) {
+      const stream = await originalGenerateContentStream(...args);
+      let tokensUsed = 0;
+      for await (const chunk of stream) {
+        if (chunk.usageMetadata?.totalTokenCount) {
+          tokensUsed = chunk.usageMetadata.totalTokenCount;
+        }
+        yield chunk;
+      }
+      if (tokensUsed === 0) tokensUsed = 500; // Fallback
+      
+      if (args[0]?.model?.includes('pro')) {
+        tokensUsed *= 10;
+      }
+      
+      window.dispatchEvent(new CustomEvent('ai-usage-updated', { detail: { tokens: tokensUsed } }));
+    } as any;
+  }
+
+  return client;
 }
 
 /**

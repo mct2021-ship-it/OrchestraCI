@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Upload, MessageSquare, Loader2, AlertCircle, Sparkles, TrendingUp, RefreshCw } from 'lucide-react';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type, ThinkingLevel } from '@google/genai';
 import { stripPIData } from '../lib/piStripper';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -149,7 +150,7 @@ export function VocSection() {
       if (!ai) throw new Error("Failed to initialize Gemini AI client");
 
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: AI_MODELS.chat,
         contents: `Analyze the following Voice of Customer data for the month of ${selectedMonth}. 
         1. Determine an overall satisfaction score from 0 to 100 based on the sentiment.
         2. Provide 2-3 concise bullet points of suggestions or key insights.

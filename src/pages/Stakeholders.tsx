@@ -34,6 +34,7 @@ import { Stakeholder, DemographicSlider } from '../types';
 import { cn } from '../lib/utils';
 import { CompanyProfile } from '../components/YourCompany';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
+import { AI_MODELS } from '../lib/aiConfig';
 import { Type } from '@google/genai';
 import { useToast } from '../context/ToastContext';
 import { motion, AnimatePresence } from 'motion/react';
@@ -190,7 +191,7 @@ export function Stakeholders({ stakeholders, setStakeholders, onDeleteItem, isDa
       Respond with a JSON object containing a "suggestions" array.`;
 
       const result = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+        model: AI_MODELS.chat,
         contents: prompt,
         config: {
           responseMimeType: "application/json",
