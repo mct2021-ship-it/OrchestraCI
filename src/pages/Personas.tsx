@@ -1,14 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { mockPersonas, personaTemplates, mockProjects } from '../data/mockData';
-import { Loader2, Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen, Briefcase, ArrowRight, MessageSquare, Calendar, Globe, TrendingUp, Lightbulb, ArrowUpRight, Check, History, Zap } from 'lucide-react';
+import { Loader2, Plus, Target, Frown, Quote, Download, Printer, Share2, Trash2, Sliders, Settings, Star, Image as ImageIcon, X, ChevronLeft, Eye, Edit3, Sparkles, ChevronUp, ChevronDown, FileText, CheckCircle2, User, Users, LayoutTemplate, Smile, Meh, Angry, Laugh, Heart, Clock, List, BookOpen, Briefcase, ArrowRight, MessageSquare, Calendar, Globe, TrendingUp, Lightbulb, ArrowUpRight, Check, History, Zap, Search, Filter, Layers, RefreshCw } from 'lucide-react';
 import { CreatePersonaModal } from '../components/CreatePersonaModal';
 import { AvatarGalleryModal } from '../components/AvatarGalleryModal';
 import { AiPersonaGenerator } from '../components/AiPersonaGenerator';
 import { PersonaLibraryModal } from '../components/PersonaLibraryModal';
 import { EditableText } from '../components/EditableText';
 import { VersionHistory } from '../components/VersionHistory';
-import { Persona, DemographicSlider, Project, PersonaOpportunity } from '../types';
+import { Persona, DemographicSlider, Project, PersonaOpportunity, Task, Segment, Product, Service } from '../types';
 import { CompanyProfile } from '../components/YourCompany';
 import { v4 as uuidv4 } from 'uuid';
 import { cn, fixOklch, scrollToTop } from '../lib/utils';
@@ -26,12 +26,19 @@ import { stripPIData } from '../lib/piStripper';
 interface PersonasProps {
   personas: Persona[];
   setPersonas: React.Dispatch<React.SetStateAction<Persona[]>>;
+  selectedPersonaId: string | null;
+  setSelectedPersonaId: React.Dispatch<React.SetStateAction<string | null>>;
   startInNewMode?: boolean;
   isDarkMode?: boolean;
   onNavigate?: (tab: string, subTab?: string) => void;
   onAddToAuditLog?: (action: string, details: string, type: 'Create' | 'Update' | 'Delete' | 'Restore' | 'Login', entityType?: string, entityId?: string, source?: 'Manual' | 'AI' | 'Data Source') => void;
   companyProfile?: CompanyProfile;
   projects?: Project[];
+  setProjects?: React.Dispatch<React.SetStateAction<Project[]>>;
+  setTasks?: React.Dispatch<React.SetStateAction<Task[]>>;
+  segments?: Segment[];
+  products?: Product[];
+  services?: Service[];
 }
 
 import { LimitReachedModal } from '../components/LimitReachedModal';
@@ -40,7 +47,23 @@ import { PersonaInterview } from '../components/PersonaInterview';
 import { PersonaEmpathyMap } from '../components/PersonaEmpathyMap';
 import { EmpathyMap } from '../types';
 
-export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, onNavigate, onAddToAuditLog, companyProfile, projects = [] }: PersonasProps) {
+export function Personas({ 
+  personas, 
+  setPersonas, 
+  selectedPersonaId,
+  setSelectedPersonaId,
+  startInNewMode, 
+  isDarkMode, 
+  onNavigate, 
+  onAddToAuditLog, 
+  companyProfile, 
+  projects = [],
+  setProjects,
+  setTasks,
+  segments = [],
+  products = [],
+  services = []
+}: PersonasProps) {
   const { plan, details } = usePlan();
   const { addToast } = useToast();
   const { canEditPersonas } = usePermissions();
@@ -50,7 +73,6 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState(false);
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
-  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [personaToUpdateAvatar, setPersonaToUpdateAvatar] = useState<string | null>(null);
   const [showIntro, setShowIntro] = useState(false);
@@ -74,6 +96,8 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isInterviewOpen, setIsInterviewOpen] = useState(false);
   const [activeView, setActiveView] = useState<'profile' | 'empathy' | 'context' | 'opportunities'>('profile');
+  const [filterSegment, setFilterSegment] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState<string>('');
   const addSectionMenuRef = useRef<HTMLDivElement>(null);
   const exportMenuRef = useRef<HTMLDivElement>(null);
 
@@ -770,7 +794,34 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-6">
+          {!selectedPersonaId && (
+            <div className="flex items-center gap-4 bg-white dark:bg-zinc-900 p-2 rounded-2xl border border-zinc-200 dark:border-zinc-800 shadow-sm transition-all hover:border-indigo-500/50">
+              <div className="flex items-center gap-2 px-3 border-r border-zinc-100 dark:border-zinc-800">
+                <Search className="w-4 h-4 text-zinc-400" />
+                <input 
+                  type="text"
+                  placeholder="Search personas..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm text-zinc-900 dark:text-white w-32 md:w-48 placeholder:text-zinc-400"
+                />
+              </div>
+              <div className="flex items-center gap-2 px-3">
+                <Filter className="w-4 h-4 text-zinc-400" />
+                <select 
+                  value={filterSegment}
+                  onChange={(e) => setFilterSegment(e.target.value)}
+                  className="bg-transparent border-none outline-none text-sm text-zinc-900 dark:text-white font-bold cursor-pointer"
+                >
+                  <option value="all">All Segments</option>
+                  {segments.map(seg => (
+                    <option key={seg.id} value={seg.id}>{seg.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
           {!selectedPersonaId && (
             <button 
               onClick={() => setShowTemplates(!showTemplates)}
@@ -1113,7 +1164,10 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
         </div>
       ) : !selectedPersonaId ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {personas.map((persona, idx) => (
+          {personas
+            .filter(p => filterSegment === 'all' || p.segmentId === filterSegment)
+            .filter(p => !searchTerm || p.name.toLowerCase().includes(searchTerm.toLowerCase()) || p.role.toLowerCase().includes(searchTerm.toLowerCase()))
+            .map((persona, idx) => (
             <motion.div
               key={persona.id}
               initial={{ opacity: 0, y: 20 }}
@@ -1382,6 +1436,101 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                           </span>
                         )}
                       </div>
+                      <div className="flex items-center gap-2 pl-4 border-l border-zinc-200 dark:border-zinc-700">
+                        <Layers className="w-4 h-4 text-indigo-500" />
+                        {canEdit ? (
+                          <select 
+                            value={selectedPersona!.segmentId || ''} 
+                            onChange={(e) => updatePersonaField(selectedPersona!.id, 'segmentId', e.target.value)}
+                            className="bg-transparent border-none outline-none p-0 inline-block text-indigo-600 dark:text-indigo-400 font-bold w-auto m-0 leading-none cursor-pointer text-sm"
+                          >
+                            <option value="">Unassigned Segment</option>
+                            {segments.map(seg => (
+                              <option key={seg.id} value={seg.id}>{seg.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span className="text-indigo-600 dark:text-indigo-400 font-bold text-sm">
+                            {segments.find(s => s.id === selectedPersona!.segmentId)?.name || 'Generic Segment'}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 pl-4 border-l border-zinc-200 dark:border-zinc-700">
+                        <Plus className="w-4 h-4 text-zinc-400" />
+                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Portfolio Context:</span>
+                        <div className="flex gap-1 flex-wrap">
+                          {canEdit ? (
+                            <div className="flex items-center gap-1">
+                                {(selectedPersona!.productIds || []).map(pid => (
+                                  <span key={pid} className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1">
+                                    {products.find(p => p.id === pid)?.name}
+                                    <button onClick={() => updatePersonaField(selectedPersona!.id, 'productIds', selectedPersona!.productIds?.filter(id => id !== pid))} className="hover:text-rose-500">
+                                      <X className="w-2.5 h-2.5" />
+                                    </button>
+                                  </span>
+                                ))}
+                                <select 
+                                  value="" 
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      const pids = selectedPersona!.productIds || [];
+                                      if (!pids.includes(e.target.value)) {
+                                        updatePersonaField(selectedPersona!.id, 'productIds', [...pids, e.target.value]);
+                                      }
+                                    }
+                                  }}
+                                  className="text-[10px] font-bold text-indigo-600 bg-transparent outline-none cursor-pointer border-indigo-200"
+                                >
+                                  <option value="">+ Product</option>
+                                  {products.filter(p => !(selectedPersona!.productIds || []).includes(p.id)).map(p => (
+                                    <option key={p.id} value={p.id}>{p.name}</option>
+                                  ))}
+                                </select>
+
+                                <div className="ml-2 pl-2 border-l border-zinc-200 dark:border-zinc-700 flex items-center gap-1">
+                                    {(selectedPersona!.serviceIds || []).map(sid => (
+                                      <span key={sid} className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px] font-bold rounded-lg flex items-center gap-1">
+                                        {services.find(s => s.id === sid)?.name}
+                                        <button onClick={() => updatePersonaField(selectedPersona!.id, 'serviceIds', selectedPersona!.serviceIds?.filter(id => id !== sid))} className="hover:text-rose-500">
+                                          <X className="w-2.5 h-2.5" />
+                                        </button>
+                                      </span>
+                                    ))}
+                                    <select 
+                                      value="" 
+                                      onChange={(e) => {
+                                        if (e.target.value) {
+                                          const sids = selectedPersona!.serviceIds || [];
+                                          if (!sids.includes(e.target.value)) {
+                                            updatePersonaField(selectedPersona!.id, 'serviceIds', [...sids, e.target.value]);
+                                          }
+                                        }
+                                      }}
+                                      className="text-[10px] font-bold text-indigo-600 bg-transparent outline-none cursor-pointer border-indigo-200"
+                                    >
+                                      <option value="">+ Service</option>
+                                      {services.filter(s => !(selectedPersona!.serviceIds || []).includes(s.id)).map(s => (
+                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                      ))}
+                                    </select>
+                                </div>
+                            </div>
+                          ) : (
+                            <div className="flex gap-2">
+                               {selectedPersona!.productIds?.map(pid => (
+                                 <span key={pid} className="px-2 py-0.5 bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 text-[10px] font-bold rounded-lg">
+                                   {products.find(p => p.id === pid)?.name}
+                                 </span>
+                               ))}
+                               {selectedPersona!.serviceIds?.map(sid => (
+                                 <span key={sid} className="px-2 py-0.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-300 text-[10px] font-bold rounded-lg border border-indigo-100 dark:border-indigo-800">
+                                   {services.find(s => s.id === sid)?.name}
+                                 </span>
+                               ))}
+                            </div>
+                          )}
+                        </div>
+                      </div>
                    </div>
                 </div>
                 <div className="flex flex-col gap-3 shrink-0 no-export w-full md:w-auto mt-6 md:mt-0">
@@ -1545,7 +1694,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                          <div className="flex items-center justify-between">
                             <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                               Success Index
+                               Success Score
                             </h4>
                             <span className={cn("text-xs font-black", selectedPersona!.successScore! > 70 ? "text-emerald-500" : selectedPersona!.successScore! > 40 ? "text-amber-500" : "text-rose-500")}>
                               {selectedPersona!.successScore}%
@@ -1603,6 +1752,38 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                            />
                          </div>
                          <p className="text-[10px] text-zinc-400 font-medium">Perceived work required to achieve goals.</p>
+                      </div>
+
+                      <div className="space-y-4">
+                         <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-black uppercase text-zinc-400 tracking-widest flex items-center gap-2">
+                               <Smile className="w-4 h-4 text-indigo-500" />
+                               Emotion Score
+                            </h4>
+                            <span className={cn("text-xs font-black", (selectedPersona!.emotionScore || 0) > 70 ? "text-emerald-500" : (selectedPersona!.emotionScore || 0) > 40 ? "text-amber-500" : "text-rose-500")}>
+                              {selectedPersona!.emotionScore || 0}%
+                            </span>
+                         </div>
+                         <div className="relative h-2 w-full rounded-full bg-zinc-100 dark:bg-zinc-800 p-0 overflow-hidden">
+                           <motion.div 
+                             initial={{ width: 0 }}
+                             animate={{ width: `${selectedPersona!.emotionScore || 50}%` }}
+                             className={cn(
+                               "h-full rounded-full shadow-sm",
+                               (selectedPersona!.emotionScore || 0) > 70 ? "bg-emerald-500" : (selectedPersona!.emotionScore || 0) > 40 ? "bg-amber-500" : "bg-rose-500"
+                             )}
+                           />
+                           <input 
+                             type="range" 
+                             min="0" 
+                             max="100" 
+                             value={selectedPersona!.emotionScore || 50} 
+                             onChange={(e) => updatePersonaField(selectedPersona!.id, 'emotionScore', parseInt(e.target.value))}
+                             className="absolute inset-0 w-full h-full bg-transparent appearance-none cursor-pointer accent-white opacity-0"
+                             disabled={!canEdit}
+                           />
+                         </div>
+                         <p className="text-[10px] text-zinc-400 font-medium">Aggregate sentiment and emotional response.</p>
                       </div>
                     </div>
                   </div>
@@ -2367,17 +2548,23 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                                       title="Return to Review Queue"
                                       className="p-3 text-zinc-300 hover:text-amber-500 transition-colors"
                                     >
-                                      <History className="w-5 h-5" />
+                                      <RefreshCw className="w-5 h-5" />
                                     </button>
                                     <button 
                                       onClick={() => {
-                                        const newOpps = (selectedPersona!.opportunities || []).filter(o => typeof o === 'object' && o.id !== opp.id);
-                                        updatePersonaField(selectedPersona!.id, 'opportunities', newOpps);
+                                        if (confirm("Delete this opportunity?")) {
+                                          setPersonas(prev => prev.map(p => p.id === selectedPersona!.id ? {
+                                            ...p,
+                                            opportunities: p.opportunities?.filter(o => o.id !== opp.id)
+                                          } : p));
+                                        }
                                       }}
+                                      title="Delete Opportunity"
                                       className="p-3 text-zinc-300 hover:text-rose-500 transition-colors"
                                     >
                                       <Trash2 className="w-5 h-5" />
                                     </button>
+
                                  </div>
                               </div>
                            </motion.div>
@@ -2418,7 +2605,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                                     className="w-full bg-indigo-800 border-2 border-indigo-700 p-3 rounded-xl font-bold text-sm"
                                   >
                                     <option value="new">+ Seed into Brand New Project</option>
-                                    {mockProjects.map(p => (
+                                    {projects.map(p => (
                                       <option key={p.id} value={p.id}>{p.name}</option>
                                     ))}
                                   </select>
@@ -2428,6 +2615,80 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
                              <button 
                                onClick={() => {
                                   const opp = selectedPersona!.opportunities?.find(o => typeof o === 'object' && o.id === promotingOpportunity);
+                                  if (!opp) return;
+
+                                  if (promotionType === 'project') {
+                                    const newProject: Project = {
+                                      id: `proj_${uuidv4()}`,
+                                      name: opp.title,
+                                      description: opp.description,
+                                      purpose: `Strategic transformation based on ${selectedPersona!.name} feedback.`,
+                                      goals: [opp.title],
+                                      expectedOutcomes: ["Improved customer experience"],
+                                      taxonomy: ["Transformation"],
+                                      status: 'Discover',
+                                      updatedAt: new Date().toISOString()
+                                    };
+                                    setProjects?.(prev => [newProject, ...prev]);
+                                    
+                                    // Link persona to project and accept
+                                    setPersonas(prev => prev.map(p => {
+                                      if (p.id === selectedPersona!.id) {
+                                        return {
+                                          ...p,
+                                          opportunities: (p.opportunities || []).map(o => 
+                                            o.id === opp.id ? { ...o, status: 'accepted', promotedTo: 'project', destinationId: newProject.id } : o
+                                          )
+                                        };
+                                      }
+                                      return p;
+                                    }));
+                                  } else if (promotionType === 'task') {
+                                    const targetProjectId = selectedProjectId === 'new' ? `proj_${uuidv4()}` : selectedProjectId;
+                                    
+                                    if (selectedProjectId === 'new') {
+                                      const newProject: Project = {
+                                        id: targetProjectId,
+                                        name: `Discovery: ${opp.title}`,
+                                        description: `New project pipeline seeded from persona discovery.`,
+                                        purpose: `Transformation based on ${selectedPersona!.name} roadmap.`,
+                                        goals: [opp.title],
+                                        expectedOutcomes: [],
+                                        taxonomy: ["Discovery"],
+                                        status: 'Discover',
+                                        updatedAt: new Date().toISOString()
+                                      };
+                                      setProjects?.(prev => [newProject, ...prev]);
+                                    }
+
+                                    const newTask: Task = {
+                                      id: `task_${uuidv4()}`,
+                                      projectId: targetProjectId,
+                                      title: opp.title,
+                                      description: opp.description,
+                                      status: 'Discover',
+                                      kanbanStatus: 'Backlog',
+                                      impact: opp.impact,
+                                      effort: opp.effort,
+                                      createdAt: new Date().toISOString(),
+                                      updatedAt: new Date().toISOString()
+                                    };
+                                    setTasks?.(prev => [newTask, ...prev]);
+
+                                    // Update Opportunity
+                                    setPersonas(prev => prev.map(p => {
+                                      if (p.id === selectedPersona!.id) {
+                                        return {
+                                          ...p,
+                                          opportunities: (p.opportunities || []).map(o => 
+                                            o.id === opp.id ? { ...o, status: 'accepted', promotedTo: 'task', destinationId: targetProjectId } : o
+                                          )
+                                        };
+                                      }
+                                      return p;
+                                    }));
+                                  }
+
                                   addToast(`${promotionType === 'project' ? 'Project' : 'Task'} promoted successfully`, 'success');
                                   onAddToAuditLog?.('Discovery Promotion', `"${opp?.title}" promoted to ${promotionType} ${selectedProjectId === 'new' ? 'in new pipeline' : `in ${selectedProjectId}`}`, 'Create', promotionType === 'project' ? 'Project' : 'Task', 'new', 'Manual');
                                   setPromotingOpportunity(null);
@@ -2542,6 +2803,7 @@ export function Personas({ personas, setPersonas, startInNewMode, isDarkMode, on
           setIsAiGeneratorOpen(true);
         }}
         companyProfile={companyProfile}
+        segments={segments}
       />
 
       <AiPersonaGenerator

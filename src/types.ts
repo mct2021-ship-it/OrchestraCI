@@ -52,6 +52,8 @@ export interface PersonaOpportunity {
   createdAt: string;
   impact: 'High' | 'Medium' | 'Low';
   effort: 'High' | 'Medium' | 'Low';
+  promotedTo?: 'project' | 'task';
+  destinationId?: string;
 }
 
 export interface Persona {
@@ -71,6 +73,7 @@ export interface Persona {
   sentiment?: number;
   successScore?: number;
   effortScore?: number;
+  emotionScore?: number;
   opportunities?: PersonaOpportunity[];
   highlightedOpportunities?: string[];
   isTemplate?: boolean;
@@ -80,6 +83,9 @@ export interface Persona {
   additionalSections?: PersonaSection[];
   empathyMap?: EmpathyMap;
   contextData?: string;
+  segmentId?: string;
+  productIds?: string[];
+  serviceIds?: string[];
 }
 
 export interface Swimlane {
@@ -124,6 +130,7 @@ export interface Product {
   id: string;
   name: string;
   description: string;
+  type?: 'Product' | 'Service'; // Added for more flexible taxonomy
 }
 
 export interface Service {
@@ -131,6 +138,13 @@ export interface Service {
   productId: string;
   name: string;
   description: string;
+}
+
+export interface Segment {
+  id: string;
+  name: string;
+  description?: string;
+  color?: string;
 }
 
 export interface Comment {

@@ -6,7 +6,7 @@ import { Projects } from './pages/Projects';
 import { Personas } from './pages/Personas';
 import { Intelligence } from './pages/Intelligence';
 import { JourneyMaps } from './pages/JourneyMaps';
-
+import { Opportunities } from './pages/Opportunities';
 import { ProcessMaps } from './pages/ProcessMaps';
 import { KanbanBoard } from './pages/KanbanBoard';
 import { RaidLog } from './pages/RaidLog';
@@ -34,11 +34,11 @@ import { Menu, ChevronLeft, Users, Bell, CheckCircle2, Leaf } from 'lucide-react
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
 import { v4 as uuidv4 } from 'uuid';
-import { mockPersonas, mockJourneyMaps, mockTasks, mockProcessMaps, mockProducts, mockServices, mockProjects, mockUsers, mockSprints, mockStakeholders, mockProjectStakeholders, mockSignals } from './data/mockData';
+import { mockPersonas, mockJourneyMaps, mockTasks, mockProcessMaps, mockProducts, mockServices, mockProjects, mockUsers, mockSprints, mockStakeholders, mockProjectStakeholders, mockSignals, mockSegments } from './data/mockData';
 import { Stakeholders } from './pages/Stakeholders';
 import { StakeholderMapping } from './components/StakeholderMapping';
 import { Customers } from './pages/Customers';
-import { Persona, JourneyMap, Task, ProcessMap, Product, Service, Project, User, Sprint, RecycleBinItem, AuditEntry, Stakeholder, ProjectStakeholder, IntelligenceSignal, AppModule } from './types';
+import { Persona, JourneyMap, Task, ProcessMap, Product, Service, Project, User, Sprint, RecycleBinItem, AuditEntry, Stakeholder, ProjectStakeholder, IntelligenceSignal, AppModule, Segment } from './types';
 import { PlanContext, PLAN_DETAILS, PlanType } from './context/PlanContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider, useNotifications } from './context/NotificationContext';
@@ -92,7 +92,7 @@ function AppContent() {
       setActiveModule('overview');
     } else if (['intelligence', 'profile', 'portfolio', 'reviews', 'connectors'].includes(tab)) {
       setActiveModule('intelligence');
-    } else if (['personas', 'stakeholders', 'customers'].includes(tab)) {
+    } else if (['personas', 'stakeholders', 'customers', 'opportunities'].includes(tab)) {
       setActiveModule('customers');
     } else if (['projects', 'project_dashboard', 'project_detail', 'project_team', 'stakeholder_mapping', 'journeys', 'kanban', 'backlog_sprints', 'process_maps', 'raid', 'tasks'].includes(tab)) {
       setActiveModule('projects');
@@ -163,12 +163,15 @@ function AppContent() {
   const [services, setServices] = useState<Service[]>(mockServices);
   const [users, setUsers] = useState<User[]>(mockUsers);
   const [sprints, setSprints] = useState<Sprint[]>(mockSprints);
+  const [segments, setSegments] = useState<Segment[]>(mockSegments);
   const [stakeholders, setStakeholders] = useState<Stakeholder[]>(mockStakeholders);
   const [projectStakeholders, setProjectStakeholders] = useState<ProjectStakeholder[]>(mockProjectStakeholders);
   const [signals, setSignals] = useState<IntelligenceSignal[]>(mockSignals);
   const [recycleBin, setRecycleBin] = useState<RecycleBinItem[]>([]);
   const [auditLog, setAuditLog] = useState<AuditEntry[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>('proj1');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
   const [newlyCreatedProjectId, setNewlyCreatedProjectId] = useState<string | null>(null);
   const [openNewProjectModal, setOpenNewProjectModal] = useState(false);
   const [openNewJourneyModal, setOpenNewJourneyModal] = useState(false);
@@ -223,6 +226,7 @@ function AppContent() {
             if (state.stakeholders?.length) setStakeholders(state.stakeholders);
             if (state.projectStakeholders?.length) setProjectStakeholders(state.projectStakeholders);
             if (state.sprints?.length) setSprints(state.sprints);
+            if (state.segments?.length) setSegments(state.segments);
             if (state.companyProfile) setCompanyProfile(state.companyProfile);
             // Users are handled separately via /api/users but can be synced for UI updates
             if (state.users?.length) setUsers(state.users);
@@ -239,6 +243,7 @@ function AppContent() {
               case 'stakeholders': setStakeholders(items); break;
               case 'projectStakeholders': setProjectStakeholders(items); break;
               case 'sprints': setSprints(items); break;
+              case 'segments': setSegments(items); break;
               case 'companyProfile': setCompanyProfile(items); break;
               case 'users': setUsers(items); break;
             }
@@ -433,6 +438,14 @@ function AppContent() {
     setUsers(prev => {
       const newItems = typeof items === 'function' ? items(prev) : items;
       syncCollection('users', newItems);
+      return newItems;
+    });
+  }, [syncCollection]);
+
+  const handleSetSegments = useCallback((items: Segment[] | ((prev: Segment[]) => Segment[])) => {
+    setSegments(prev => {
+      const newItems = typeof items === 'function' ? items(prev) : items;
+      syncCollection('segments', newItems);
       return newItems;
     });
   }, [syncCollection]);
@@ -675,8 +688,29 @@ function AppContent() {
         return (
           <Customers 
             personas={personas}
+            setPersonas={handleSetPersonas}
             signals={signals}
             onNavigate={handleTabChange}
+            onSelectPersona={setSelectedPersonaId}
+            selectedPersonaId={selectedPersonaId}
+            projects={projects}
+            setProjects={handleSetProjects}
+            setTasks={handleSetTasks}
+            segments={segments}
+            products={products}
+            services={services}
+          />
+        );
+      case 'opportunities':
+        return (
+          <Opportunities 
+            personas={personas}
+            projects={projects}
+            setPersonas={handleSetPersonas}
+            setProjects={handleSetProjects}
+            setTasks={handleSetTasks}
+            onNavigate={handleTabChange}
+            onAddToAuditLog={handleAddToAuditLog}
           />
         );
       case 'dashboard':
@@ -858,9 +892,27 @@ function AppContent() {
           setSignals={setSignals}
           products={products}
           services={services}
+          segments={segments}
+          setSegments={handleSetSegments}
         />;
       case 'personas':
-        return <Personas personas={personas} setPersonas={handleSetPersonas} startInNewMode={startPersonasInNewMode} isDarkMode={isDarkMode} onNavigate={handleTabChange} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} projects={projects} />;
+        return <Personas 
+                 personas={personas} 
+                 setPersonas={handleSetPersonas} 
+                 selectedPersonaId={selectedPersonaId}
+                 setSelectedPersonaId={setSelectedPersonaId}
+                 startInNewMode={startPersonasInNewMode} 
+                 isDarkMode={isDarkMode} 
+                 onNavigate={handleTabChange} 
+                 onAddToAuditLog={handleAddToAuditLog} 
+                 companyProfile={companyProfile} 
+                 projects={projects} 
+                 setProjects={handleSetProjects} 
+                 setTasks={handleSetTasks} 
+                 segments={segments}
+                 products={products}
+                 services={services}
+               />;
       case 'stakeholders':
         return <Stakeholders stakeholders={stakeholders} setStakeholders={handleSetStakeholders} onDeleteItem={handleDeleteItem} onAddToAuditLog={handleAddToAuditLog} companyProfile={companyProfile} />;
       case 'journeys':

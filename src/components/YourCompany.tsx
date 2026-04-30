@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Building2, Upload, X, CheckCircle2, AlertCircle, Globe, Sparkles, Plus, Trash2, FileText, Download, History, ChevronRight, Users } from 'lucide-react';
+import { Building2, Upload, X, CheckCircle2, AlertCircle, Globe, Sparkles, Plus, Trash2, FileText, Download, History, ChevronRight, Users, Layers, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn, scrollToTop } from '../lib/utils';
 import { getGeminiClient, ensureApiKey } from '../lib/gemini';
@@ -35,6 +35,8 @@ export interface CompanyProfile {
   wizardCompleted?: boolean;
 }
 
+import { IntelligenceSignal, Product, Service, Segment, Persona } from '../types';
+
 interface YourCompanyProps {
   profile: CompanyProfile;
   onUpdateProfile: (updates: Partial<CompanyProfile>) => void;
@@ -42,6 +44,14 @@ interface YourCompanyProps {
   onSaveComplete?: () => void;
   onNavigate?: (tab: string, subTab?: string) => void;
   personasCount?: number;
+  products: Product[];
+  setProducts: (items: Product[] | ((prev: Product[]) => Product[])) => void;
+  services: Service[];
+  setServices: (items: Service[] | ((prev: Service[]) => Service[])) => void;
+  segments: Segment[];
+  setSegments: (items: Segment[] | ((prev: Segment[]) => Segment[])) => void;
+  signals: IntelligenceSignal[];
+  personas: Persona[];
 }
 
 const VERTICALS = [
@@ -73,8 +83,9 @@ const MEASUREMENTS = [
   'Support Ticket Analysis'
 ];
 
-export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveComplete, onNavigate, personasCount = 0 }: YourCompanyProps) {
+export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveComplete, onNavigate, personasCount = 0, products, setProducts, services, setServices, segments, setSegments, signals, personas }: YourCompanyProps) {
   const { isAdmin } = usePermissions();
+  const [activeTab, setActiveTab] = useState<'profile' | 'portfolio' | 'segments'>('profile');
   const [isEditing, setIsEditing] = useState(startInEditMode || false);
   const [wizardStep, setWizardStep] = useState<number | null>(null);
   const [showPersonaPrompt, setShowPersonaPrompt] = useState(false);
@@ -1147,7 +1158,34 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        {/* Sub-tabs */}
+        <div className="flex items-center gap-2 mb-8 border-b border-zinc-200 dark:border-zinc-800">
+          {(['profile', 'portfolio', 'segments'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={cn(
+                "px-4 py-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2",
+                activeTab === tab
+                  ? "border-indigo-600 text-indigo-600 dark:text-indigo-400"
+                  : "border-transparent text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
+              )}
+            >
+              {tab === 'profile' && 'Profile'}
+              {tab === 'portfolio' && 'Products & Services'}
+              {tab === 'segments' && 'Segments'}
+              {(tab === 'portfolio' && products.length === 0) && (
+                 <span className="w-2 h-2 rounded-full bg-rose-500" />
+              )}
+              {(tab === 'segments' && segments.length === 0) && (
+                 <span className="w-2 h-2 rounded-full bg-rose-500" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'profile' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           <div className="space-y-8">
             <div>
               <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">About The Company</h4>
@@ -1267,11 +1305,275 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
               </div>
             </div>
           </div>
-        </div>
-      </div>
+          </div>
+        )}
+
+        {activeTab === 'portfolio' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-indigo-600" />
+                    Product Portfolio Taxonomy
+                  </h3>
+                  <p className="text-zinc-500 text-sm mt-1">Manage the products and services that your business offers to categorize your assets within the site.</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    const name = prompt("Product Name?");
+                    if (name) {
+                      const newProduct: Product = {
+                        id: `prod_${Date.now()}`,
+                        name,
+                        description: 'New product description',
+                        type: 'Product'
+                      };
+                      setProducts(prev => [...prev, newProduct]);
+                    }
+                  }}
+                  className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-500 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                >
+                  <Plus className="w-4 h-4" />
+                  Add Product
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 gap-6">
+                {products.map(product => (
+                  <div key={product.id} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 p-6 space-y-6">
+                    <div className="flex items-start justify-between">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <input 
+                            type="text" 
+                            value={product.name} 
+                            onChange={(e) => {
+                              setProducts(prev => prev.map(p => p.id === product.id ? { ...p, name: e.target.value } : p));
+                            }}
+                            className="text-lg font-bold text-zinc-900 dark:text-white bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-indigo-500 outline-none transition-all"
+                          />
+                          {signals.filter(s => s.productId === product.id).length > 0 && (
+                            <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">
+                              {signals.filter(s => s.productId === product.id).length} Signals
+                            </span>
+                          )}
+                        </div>
+                        <textarea 
+                          value={product.description}
+                          onChange={(e) => {
+                            setProducts(prev => prev.map(p => p.id === product.id ? { ...p, description: e.target.value } : p));
+                          }}
+                          className="text-sm text-zinc-500 bg-transparent w-full resize-none border-b border-transparent hover:border-zinc-300 focus:border-indigo-500 outline-none transition-all"
+                          rows={1}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button 
+                          onClick={() => {
+                            if (confirm(`Delete ${product.name}?`)) {
+                              setProducts(prev => prev.filter(p => p.id !== product.id));
+                            }
+                          }}
+                          className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-white transition-all rounded-lg"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+                          <Tag className="w-3 h-3" />
+                          Component Services
+                        </h5>
+                        <button 
+                          onClick={() => {
+                            const name = prompt("Service Name?");
+                            if (name) {
+                              const newService: Service = {
+                                id: `serv_${Date.now()}`,
+                                productId: product.id,
+                                name,
+                                description: 'New service description'
+                              };
+                              setServices(prev => [...prev, newService]);
+                            }
+                          }}
+                          className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest"
+                        >
+                          Add Service
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {services.filter(s => s.productId === product.id).map(service => (
+                          <div key={service.id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:border-indigo-500/30 transition-all group">
+                            <input 
+                              type="text"
+                              value={service.name}
+                              onChange={(e) => {
+                                setServices(prev => prev.map(s => s.id === service.id ? { ...s, name: e.target.value } : s));
+                              }}
+                              className="font-bold text-zinc-900 dark:text-white text-sm bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-indigo-500 outline-none w-full"
+                            />
+                            <input 
+                              type="text"
+                              value={service.description}
+                              onChange={(e) => {
+                                setServices(prev => prev.map(s => s.id === service.id ? { ...s, description: e.target.value } : s));
+                              }}
+                              className="text-[10px] text-zinc-500 mt-1 bg-transparent border-b border-transparent hover:border-zinc-300 focus:border-indigo-500 outline-none w-full"
+                            />
+                            <div className="flex items-center justify-between mt-4">
+                                <div className="flex -space-x-1">
+                                    {signals.filter(sig => sig.serviceId === service.id).slice(0, 3).map(sig => (
+                                      <div key={sig.id} className="w-5 h-5 rounded-full bg-zinc-100 border border-white flex items-center justify-center p-1" title={sig.title}>
+                                        <img src={`https://cdn.simpleicons.org/${sig.source.toLowerCase()}`} className="w-full h-full object-contain" />
+                                      </div>
+                                    ))}
+                                </div>
+                                <button 
+                                    onClick={() => {
+                                      if (confirm(`Delete ${service.name}?`)) {
+                                        setServices(prev => prev.filter(s => s.id !== service.id));
+                                      }
+                                    }}
+                                    className="text-[10px] font-bold text-rose-400 hover:text-rose-600 opacity-0 group-hover:opacity-100"
+                                  >
+                                    Delete
+                                  </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'segments' && (
+          <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                    <Users className="w-5 h-5 text-indigo-600" />
+                    Target Market Segments
+                  </h3>
+                  <p className="text-zinc-500 text-sm mt-1">Define broad customer segments to group your personas and analyze cross-segment trends.</p>
+                </div>
+                {isAdmin && (
+                  <button 
+                    onClick={() => {
+                      const name = prompt("Segment Name?");
+                      if (name) {
+                        const newSegment: Segment = {
+                          id: `seg_${Date.now()}`,
+                          name,
+                          description: 'Define this segment...',
+                          color: 'indigo'
+                        };
+                        setSegments(prev => [...prev, newSegment]);
+                      }
+                    }}
+                    className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-500 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
+                  >
+                    <Plus className="w-4 h-4" />
+                    New Segment
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {segments.map(segment => (
+                  <div key={segment.id} className={cn(
+                    "p-6 rounded-3xl border-2 transition-all group relative overflow-hidden",
+                    "bg-white dark:bg-zinc-900 border-zinc-100 dark:border-zinc-800 hover:border-indigo-500/50"
+                  )}>
+                    <div className={cn(
+                      "absolute top-0 right-0 w-24 h-24 blur-3xl opacity-10 -translate-x-1/2 -translate-y-1/2 rounded-full",
+                      `bg-${segment.color || 'indigo'}-500`
+                    )} />
+                    
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="space-y-1 flex-1">
+                        <input 
+                          type="text"
+                          value={segment.name}
+                          readOnly={!isAdmin}
+                          onChange={(e) => {
+                            setSegments(prev => prev.map(s => s.id === segment.id ? { ...s, name: e.target.value } : s));
+                          }}
+                          className={cn("text-lg font-black text-zinc-900 dark:text-white bg-transparent border-b border-transparent focus:border-indigo-500 outline-none w-full", !isAdmin && "cursor-default")}
+                        />
+                        <textarea 
+                          value={segment.description}
+                          readOnly={!isAdmin}
+                          onChange={(e) => {
+                            setSegments(prev => prev.map(s => s.id === segment.id ? { ...s, description: e.target.value } : s));
+                          }}
+                          className={cn("text-xs text-zinc-500 dark:text-zinc-400 bg-transparent w-full resize-none border-b border-transparent focus:border-indigo-500 outline-none", !isAdmin && "cursor-default")}
+                          rows={2}
+                        />
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                         {isAdmin && (
+                            <button 
+                              onClick={() => {
+                                if (confirm(`Delete segment ${segment.name}?`)) {
+                                  setSegments(prev => prev.filter(s => s.id !== segment.id));
+                                }
+                              }}
+                              className="p-2 text-zinc-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                         )}
+                         {isAdmin && (
+                            <div className="flex items-center gap-1">
+                                {['indigo', 'blue', 'emerald', 'rose', 'amber', 'zinc', 'purple'].map(c => (
+                                  <button 
+                                    key={c}
+                                    onClick={() => {
+                                      setSegments(prev => prev.map(s => s.id === segment.id ? { ...s, color: c } : s));
+                                    }}
+                                    className={cn(
+                                      "w-3 h-3 rounded-full border border-white dark:border-zinc-800 transition-transform hover:scale-125",
+                                      `bg-${c}-500`,
+                                      segment.color === c && "ring-2 ring-offset-2 ring-indigo-500"
+                                    )}
+                                  />
+                                ))}
+                            </div>
+                         )}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-zinc-50 dark:border-zinc-800 flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex -space-x-2">
+                          {personas.filter(p => p.segmentId === segment.id).slice(0, 3).map(p => (
+                            <img key={p.id} src={p.imageUrl} className="w-8 h-8 rounded-full border-2 border-white dark:border-zinc-900 object-cover" title={p.name} />
+                          ))}
+                        </div>
+                        <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                          {personas.filter(p => p.segmentId === segment.id).length} Personas
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
       {competitorAnalysis && (
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8 animate-in fade-in slide-in-from-bottom-4">
+        <div className="bg-white dark:bg-zinc-900 mt-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8 animate-in fade-in slide-in-from-bottom-4">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-3">
               <FileText className="w-6 h-6 text-indigo-600" />
@@ -1295,7 +1597,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
 
       {/* Past Analyses Table */}
       {(profile.pastAnalyses || []).length > 0 && (
-        <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
+        <div className="bg-white dark:bg-zinc-900 mt-8 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
            <div className="flex items-center gap-3 mb-6">
              <History className="w-6 h-6 text-indigo-600" />
              <h3 className="text-xl font-bold text-zinc-900 dark:text-white">Analysis History</h3>
@@ -1337,6 +1639,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
         </div>
       )}
 
+
       <div className="bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl p-6 border border-indigo-100 dark:border-indigo-800/50 flex items-start gap-4">
         <div className="p-2 bg-indigo-100 dark:bg-indigo-800 text-indigo-600 dark:text-indigo-300 rounded-lg shrink-0">
           <AlertCircle className="w-5 h-5" />
@@ -1348,6 +1651,7 @@ export function YourCompany({ profile, onUpdateProfile, startInEditMode, onSaveC
             This helps generate more relevant persona insights, journey map suggestions, and strategic recommendations across the platform.
           </p>
         </div>
+      </div>
       </div>
     </div>
   );

@@ -1,4 +1,11 @@
-import { Persona, JourneyMap, Task, Project, Swimlane, Product, Service, ProcessMap, User, Sprint, Stakeholder, ProjectStakeholder, IntelligenceSignal } from '../types';
+import { Persona, JourneyMap, Task, Project, Swimlane, Product, Service, ProcessMap, User, Sprint, Stakeholder, ProjectStakeholder, IntelligenceSignal, Segment } from '../types';
+
+export const mockSegments: Segment[] = [
+  { id: 'seg1', name: 'Enterprise B2B', description: 'Large scale corporate accounts', color: 'indigo' },
+  { id: 'seg2', name: 'Mid-Market SME', description: 'Medium sized business partners', color: 'blue' },
+  { id: 'seg3', name: 'Direct Consumer', description: 'Individual platform users', color: 'emerald' },
+  { id: 'seg4', name: 'Internal Staff', description: 'Employees and contractors', color: 'zinc' }
+];
 
 export const mockSignals: IntelligenceSignal[] = [
   {
@@ -104,8 +111,9 @@ export const mockUsers: User[] = [
 ];
 
 export const mockProducts: Product[] = [
-  { id: 'prod1', name: 'Enterprise Suite', description: 'Our core B2B offering' },
-  { id: 'prod2', name: 'Consumer App', description: 'Mobile-first consumer experience' }
+  { id: 'prod1', name: 'Platform Core', description: 'Core workflow engine', type: 'Product' },
+  { id: 'prod2', name: 'Analytics Pro', description: 'Advanced reporting suite', type: 'Product' },
+  { id: 'prod3', name: 'Premium Support', description: '24/7 dedicated support', type: 'Service' }
 ];
 
 export const mockServices: Service[] = [
@@ -243,6 +251,8 @@ export const mockPersonas: Persona[] = [
       { id: 'd3', label: 'Price Sensitivity', value: 60 }
     ],
     sentiment: 4,
+    segmentId: 'seg1',
+    productIds: ['prod1', 'prod2'],
     opportunities: [
       {
         id: 'opp-1',

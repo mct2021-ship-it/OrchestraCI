@@ -36,14 +36,15 @@ export function Sidebar({ currentTab, setCurrentTab, isOpen, onClose, activeProj
   const intelligenceNav = [
     { id: 'intelligence', label: 'Overview', icon: BrainCircuit, color: 'text-zinc-500' },
     { id: 'profile', label: 'Company Profile', icon: Building2, color: 'text-zinc-500', notify: !hasCompanyInfo },
-    { id: 'portfolio', label: 'Product Portfolio', icon: Layers, color: 'text-zinc-500' },
+    { id: 'portfolio', label: 'Products & Services', icon: Layers, color: 'text-zinc-500' },
     { id: 'reviews', label: 'Intelligence Hub', icon: Sparkles, color: 'text-purple-500', badge: 'Pro' },
     { id: 'connectors', label: 'Connectors', icon: RefreshCw, color: 'text-purple-500', badge: 'Pro' }
   ];
 
   const customersNav = [
     { id: 'customers', label: 'Customer Hub', icon: Activity, color: 'text-indigo-600' },
-    { id: 'personas', label: 'Persona Library', icon: Users, color: 'text-rose-500' },
+    { id: 'personas', label: 'Personas', icon: Users, color: 'text-rose-500' },
+    { id: 'opportunities', label: 'Opportunities', icon: Sparkles, color: 'text-purple-500', badge: 'New' },
     { id: 'stakeholders', label: 'Global Stakeholders', icon: UsersRound, color: 'text-indigo-500' },
   ];
 

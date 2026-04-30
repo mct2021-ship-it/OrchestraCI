@@ -953,7 +953,7 @@ export function Projects({
                         <div className="flex justify-center gap-4 mb-6">
                           <button className="px-4 py-2 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-colors">
                             <Briefcase className="w-4 h-4" />
-                            Persona Library
+                            Personas
                           </button>
                           <button className="px-4 py-2 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-xl text-sm font-bold flex items-center gap-2 transition-colors">
                             <PlusCircle className="w-4 h-4" />

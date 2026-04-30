@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrainCircuit, Upload, FileText, MessageSquare, BarChart3, Sparkles, Database, ArrowRight, CheckCircle2, Building2, Target, Gauge, Heart, Trash2, Star, RefreshCw, Loader2, Plus, AlertCircle, Layers, Tag, Filter, Search, Users } from 'lucide-react';
-import { IntelligenceSignal, Product, Service, Persona, Project, JourneyMap, Task, Sprint } from '../types';
+import { IntelligenceSignal, Product, Service, Persona, Project, JourneyMap, Task, Sprint, Segment } from '../types';
 import { motion } from 'motion/react';
 import { VocSection } from '../components/VocSection';
 import { NpsCalculator } from '../components/NpsCalculator';
@@ -36,7 +36,11 @@ interface IntelligenceProps {
   signals?: IntelligenceSignal[];
   setSignals?: React.Dispatch<React.SetStateAction<IntelligenceSignal[]>>;
   products?: Product[];
+  setProducts?: (items: Product[] | ((prev: Product[]) => Product[])) => void;
   services?: Service[];
+  setServices?: (items: Service[] | ((prev: Service[]) => Service[])) => void;
+  segments?: Segment[];
+  setSegments?: (items: Segment[] | ((prev: Segment[]) => Segment[])) => void;
 }
 
 export function Intelligence({ 
@@ -60,11 +64,16 @@ export function Intelligence({
   signals = [],
   setSignals,
   products = [],
-  services = []
+  setProducts,
+  services = [],
+  setServices,
+  segments = [],
+  setSegments
 }: IntelligenceProps) {
   const { addToast } = useToast();
-  const [activeTab, setActiveTab] = React.useState<'profile' | 'portfolio' | 'overview' | 'reviews' | 'connectors'>(initialTab || (startInEditMode ? 'profile' : 'overview'));
+  const [activeTab, setActiveTab] = React.useState<'profile' | 'overview' | 'reviews' | 'connectors'>(initialTab || (startInEditMode ? 'profile' : 'overview'));
   const [selectedPersonaId, setSelectedPersonaId] = useState<string>('all');
+  const [selectedSegmentId, setSelectedSegmentId] = useState<string>('all');
   const [isUploading, setIsUploading] = useState(false);
 
   React.useEffect(() => {
@@ -365,18 +374,6 @@ export function Intelligence({
           Company Profile
         </button>
         <button
-          onClick={() => setActiveTab('portfolio')}
-          className={cn(
-            "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap",
-            activeTab === 'portfolio'
-              ? "bg-white dark:bg-zinc-900 text-zinc-900 dark:text-white shadow-sm"
-              : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white"
-          )}
-        >
-          <Layers className="w-4 h-4" />
-          Product Portfolio
-        </button>
-        <button
           onClick={() => setActiveTab('reviews')}
           className={cn(
             "px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap relative",
@@ -506,93 +503,17 @@ export function Intelligence({
           onSaveComplete={onSaveComplete}
           onNavigate={onNavigate}
           personasCount={personas?.length || 0}
+          products={products}
+          setProducts={setProducts!}
+          services={services}
+          setServices={setServices!}
+          segments={segments}
+          setSegments={setSegments!}
+          signals={signals}
+          personas={personas}
         />
       )}
 
-      {activeTab === 'portfolio' && (
-        <div className="space-y-8">
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl border border-zinc-200 dark:border-zinc-800 shadow-sm p-8">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h3 className="text-xl font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-indigo-600" />
-                  Product & Service Portfolio
-                </h3>
-                <p className="text-zinc-500 text-sm mt-1">Manage the products and services that your business offers to categorize intelligence.</p>
-              </div>
-              <button 
-                className="bg-indigo-600 text-white px-6 py-2.5 rounded-xl font-bold hover:bg-indigo-500 transition-all flex items-center gap-2 shadow-lg shadow-indigo-500/20"
-              >
-                <Plus className="w-4 h-4" />
-                Add Product
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-              {products.map(product => (
-                <div key={product.id} className="bg-zinc-50 dark:bg-zinc-800/50 rounded-2xl border border-zinc-100 dark:border-zinc-800 p-6 space-y-6">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="text-lg font-bold text-zinc-900 dark:text-white">{product.name}</h4>
-                        {signals.filter(s => s.productId === product.id).length > 0 && (
-                          <span className="px-1.5 py-0.5 bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400 text-[8px] font-black uppercase rounded-lg border border-indigo-100 dark:border-indigo-800">
-                            {signals.filter(s => s.productId === product.id).length} Signals
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-zinc-500">{product.description}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button className="p-2 text-zinc-400 hover:text-indigo-600 hover:bg-white transition-all rounded-lg">
-                        <BarChart3 className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-zinc-400 hover:text-rose-600 hover:bg-white transition-all rounded-lg">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
-                        <Tag className="w-3 h-3" />
-                        Services
-                      </h5>
-                      <button className="text-[10px] font-bold text-indigo-600 hover:text-indigo-700 uppercase tracking-widest">
-                        Add Service
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {services.filter(s => s.productId === product.id).map(service => (
-                        <div key={service.id} className="bg-white dark:bg-zinc-900 p-4 rounded-xl border border-zinc-100 dark:border-zinc-800 shadow-sm hover:border-indigo-500/30 transition-all group">
-                          <h6 className="font-bold text-zinc-900 dark:text-white text-sm">{service.name}</h6>
-                          <p className="text-[10px] text-zinc-500 mt-1 line-clamp-2">{service.description}</p>
-                          <div className="flex items-center justify-between mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                             <div className="flex -space-x-1">
-                                {signals.filter(sig => sig.serviceId === service.id).slice(0, 3).map(sig => (
-                                  <div key={sig.id} className="w-5 h-5 rounded-full bg-zinc-100 border border-white flex items-center justify-center p-1" title={sig.title}>
-                                    <img src={`https://cdn.simpleicons.org/${sig.source.toLowerCase()}`} className="w-full h-full object-contain" />
-                                  </div>
-                                ))}
-                             </div>
-                             <button className="text-[10px] font-bold text-zinc-400 hover:text-indigo-600">Edit</button>
-                          </div>
-                        </div>
-                      ))}
-                      {services.filter(s => s.productId === product.id).length === 0 && (
-                        <div className="col-span-full py-4 text-center text-xs text-zinc-400 border border-dashed border-zinc-200 rounded-xl">
-                          No services defined for this product.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'overview' && (
         <div className="space-y-8">
@@ -634,12 +555,32 @@ export function Intelligence({
                 </div>
 
                 <div className="mt-12 text-center sm:text-left">
-                   <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 mb-6 flex items-center justify-center sm:justify-start gap-2">
-                     <Users className="w-3 h-3" />
-                     Persona Intelligence Map
-                   </h4>
-                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {personas.slice(0, 4).map(persona => {
+                    <div className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-4">
+                      <h4 className="text-xs font-black uppercase tracking-widest text-zinc-400 flex items-center justify-center sm:justify-start gap-2">
+                        <Users className="w-3 h-3" />
+                        Segment & Persona Distribution
+                      </h4>
+                      <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 p-1 rounded-xl border border-zinc-200 dark:border-zinc-700 shadow-inner">
+                        <span className="text-[9px] font-bold text-zinc-400 uppercase px-2">Segment:</span>
+                        <select 
+                          value={selectedSegmentId}
+                          onChange={(e) => {
+                            setSelectedSegmentId(e.target.value);
+                            setSelectedPersonaId('all');
+                          }}
+                          className="bg-transparent border-none outline-none text-[10px] font-black uppercase text-zinc-900 dark:text-white cursor-pointer px-2"
+                        >
+                          <option value="all">All Segments</option>
+                          {segments.map(seg => (
+                            <option key={seg.id} value={seg.id}>{seg.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                       {personas
+                        .filter(p => selectedSegmentId === 'all' || p.segmentId === selectedSegmentId)
+                        .slice(0, 4).map(persona => {
                         const personaSignals = signals.filter(s => s.personaIds?.includes(persona.id));
                         const sentiment = personaSignals.length > 0 
                           ? personaSignals.reduce((acc, s) => acc + (s.sentiment === 'positive' ? 1 : s.sentiment === 'negative' ? -1 : 0), 0) / personaSignals.length
@@ -706,18 +647,39 @@ export function Intelligence({
                 </h3>
                 <p className="text-zinc-500 text-sm mt-1">Cross-reference journey sentiments with specific customer personas.</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mr-2">Filter by Persona:</span>
-                <select
-                  value={selectedPersonaId}
-                  onChange={(e) => setSelectedPersonaId(e.target.value)}
-                  className="bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-2 text-sm font-bold text-zinc-700 dark:text-zinc-200 focus:ring-2 focus:ring-indigo-500 outline-none"
-                >
-                  <option value="all">All Personas</option>
-                  {personas.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
-                  ))}
-                </select>
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-1.5">
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Segment:</span>
+                  <select
+                    value={selectedSegmentId}
+                    onChange={(e) => {
+                      setSelectedSegmentId(e.target.value);
+                      setSelectedPersonaId('all');
+                    }}
+                    className="bg-transparent border-none outline-none text-[10px] font-bold text-zinc-700 dark:text-zinc-200 cursor-pointer"
+                  >
+                    <option value="all">All Segments</option>
+                    {segments.map(seg => (
+                      <option key={seg.id} value={seg.id}>{seg.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl px-3 py-1.5">
+                  <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Persona:</span>
+                  <select
+                    value={selectedPersonaId}
+                    onChange={(e) => setSelectedPersonaId(e.target.value)}
+                    className="bg-transparent border-none outline-none text-[10px] font-bold text-zinc-700 dark:text-zinc-200 cursor-pointer"
+                  >
+                    <option value="all">All in Segment</option>
+                    {personas
+                      .filter(p => selectedSegmentId === 'all' || p.segmentId === selectedSegmentId)
+                      .map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                  </select>
+                </div>
               </div>
             </div>
 

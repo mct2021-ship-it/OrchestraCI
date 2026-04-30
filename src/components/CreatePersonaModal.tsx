@@ -7,7 +7,7 @@ import { Type, ThinkingLevel } from "@google/genai";
 import { v4 as uuidv4 } from 'uuid';
 import { stripPIData } from '../lib/piStripper';
 import { useToast } from '../context/ToastContext';
-import { Persona, DemographicSlider } from '../types';
+import { Persona, DemographicSlider, Segment } from '../types';
 import { CompanyProfile } from './YourCompany';
 import { cn } from '../lib/utils';
 import { personaTemplates } from '../data/mockData';
@@ -33,9 +33,10 @@ interface CreatePersonaModalProps {
   onSave: (persona: Persona) => void;
   onUseAi?: () => void;
   companyProfile?: CompanyProfile;
+  segments?: Segment[];
 }
 
-export function CreatePersonaModal({ isOpen, onClose, onSave, onUseAi, companyProfile }: CreatePersonaModalProps) {
+export function CreatePersonaModal({ isOpen, onClose, onSave, onUseAi, companyProfile, segments = [] }: CreatePersonaModalProps) {
   const { addToast } = useToast();
   const [mode, setMode] = useState<'select' | 'manual' | 'ai' | 'template' | 'library'>('select');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -83,7 +84,8 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, onUseAi, companyPr
     goals: [''],
     frustrations: [''],
     imageUrl: getRandomAvatar(),
-    demographics: defaultTemplate.demographics.map(d => ({ ...d, id: uuidv4() }))
+    demographics: defaultTemplate.demographics.map(d => ({ ...d, id: uuidv4() })),
+    segmentId: segments.length > 0 ? segments[0].id : undefined
   });
 
   // Reset state when opening
@@ -156,7 +158,8 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, onUseAi, companyPr
       motivations: (formData.motivations || []).filter(m => m.trim() !== ''),
       sentiment: formData.sentiment || 3,
       imageUrl: formData.imageUrl || getRandomAvatar(),
-      demographics: formData.demographics || []
+      demographics: formData.demographics || [],
+      segmentId: formData.segmentId
     };
     
     onSave(newPersona);
@@ -426,6 +429,19 @@ export function CreatePersonaModal({ isOpen, onClose, onSave, onUseAi, companyPr
                           className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
                           placeholder="e.g. Marketing Manager"
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Segment</label>
+                        <select 
+                          value={formData.segmentId || ''}
+                          onChange={(e) => setFormData({ ...formData, segmentId: e.target.value })}
+                          className="w-full px-4 py-2 rounded-lg border border-zinc-200 dark:border-zinc-800 outline-none focus:ring-2 focus:ring-zinc-900/10 focus:border-zinc-900"
+                        >
+                          <option value="">Select Segment</option>
+                          {segments.map(s => (
+                            <option key={s.id} value={s.id}>{s.name}</option>
+                          ))}
+                        </select>
                       </div>
                     </div>
                   </div>
